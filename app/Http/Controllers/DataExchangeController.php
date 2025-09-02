@@ -373,23 +373,30 @@ class DataExchangeController extends Controller
     }
 
     /**
-     * Get resource schema
+     * Show resource schema
      */
-    public function getResourceSchema(Request $request)
+    public function showResourceSchema(Request $request)
     {
         $resourceType = $request->get('resource_type');
         
         if (!$resourceType) {
-            return response()->json(['error' => 'Resource type is required'], 400);
+            return view('data-exchange.resource-schema', [
+                'error' => 'Resource type is required. Please select a resource type first.',
+                'resource_type' => null
+            ]);
         }
 
         try {
             $schema = $this->dataExchangeService->getResourceSchema($resourceType);
-            return response()->json($schema);
+            return view('data-exchange.resource-schema', [
+                'schema' => $schema,
+                'resource_type' => $resourceType
+            ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
+            return view('data-exchange.resource-schema', [
+                'error' => $e->getMessage(),
+                'resource_type' => $resourceType
+            ]);
         }
     }
 

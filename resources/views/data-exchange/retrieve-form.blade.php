@@ -377,19 +377,8 @@ function clearForm() {
 
 function getResourceSchema() {
     const resourceType = document.getElementById('resource_type').value;
-    if (!resourceType) {
-        alert('Please select a resource type first');
-        return;
-    }
-    
-    fetch(`{{ route('data-exchange.resource-schema') }}?resource_type=${resourceType}`)
-        .then(response => response.json())
-        .then(data => {
-            alert('Schema: ' + JSON.stringify(data, null, 2));
-        })
-        .catch(error => {
-            alert('Error: ' + error.message);
-        });
+    const url = `{{ route('data-exchange.resource-schema') }}?resource_type=${resourceType}`;
+    window.open(url, '_blank');
 }
 
 function getAvailableFunctions() {
@@ -402,7 +391,7 @@ function downloadSessionData() {
     const resourceType = '{{ old('resource_type', 'data') }}';
     
     if (!data) {
-        alert('No data available to download');
+        showNotification('No data available to download', 'warning');
         return;
     }
     
@@ -437,6 +426,35 @@ function downloadSessionData() {
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
+}
+
+// Notification system to replace alerts
+function showNotification(message, type = 'info', duration = 5000) {
+    // Remove any existing notifications
+    const existingNotification = document.getElementById('notification-toast');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.id = 'notification-toast';
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto-dismiss after duration
+    setTimeout(() => {
+        if (notification && notification.parentNode) {
+            notification.remove();
+        }
+    }, duration);
 }
 
 // Initialize filters on page load

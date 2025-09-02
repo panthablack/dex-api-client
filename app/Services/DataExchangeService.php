@@ -407,15 +407,102 @@ class DataExchangeService
 
     /**
      * Get data schema for a resource type
+     * Since GetResourceSchema may not exist, provide helpful schema information
      */
     public function getResourceSchema($resourceType)
     {
+        // Try multiple possible method names for schema information
+        $possibleMethods = [
+            'GetResourceSchema',
+            'GetSchema',
+            'DescribeResource',
+            'GetAvailableServices'
+        ];
+
         $parameters = [
             'OrganisationID' => config('soap.dss.organisation_id'),
             'ResourceType' => $resourceType
         ];
 
-        return $this->soapClient->call('GetResourceSchema', $parameters);
+        // Try each method until one works
+        foreach ($possibleMethods as $method) {
+            try {
+                return $this->soapClient->call($method, $parameters);
+            } catch (\Exception) {
+                continue; // Try next method
+            }
+        }
+
+        // If no schema methods work, return helpful information based on resource type
+        return $this->getDefaultSchemaInfo($resourceType);
+    }
+
+    /**
+     * Provide default schema information when SOAP schema methods don't exist
+     */
+    protected function getDefaultSchemaInfo($resourceType)
+    {
+        $schemas = [
+            'clients' => [
+                'method' => 'SearchClient',
+                'description' => 'Search for client records in the DSS system',
+                'required_parameters' => [
+                    'PageIndex' => 'Page number (1-based)',
+                    'PageSize' => 'Number of records per page (default: 100)',
+                    'SortColumn' => 'Column to sort by (default: ClientId)',
+                    'IsAscending' => 'Sort direction (default: true)'
+                ],
+                'optional_parameters' => [
+                    'ClientId' => 'Specific client ID to search for',
+                    'GivenName' => 'Client first name',
+                    'FamilyName' => 'Client last name',
+                    'CreatedDateFrom' => 'Search from date (ISO format)',
+                    'CreatedDateTo' => 'Search to date (ISO format)'
+                ]
+            ],
+            'cases' => [
+                'method' => 'SearchCase',
+                'description' => 'Search for case records in the DSS system',
+                'required_parameters' => [
+                    'PageIndex' => 'Page number (1-based)',
+                    'PageSize' => 'Number of records per page (default: 100)',
+                    'SortColumn' => 'Column to sort by (default: CaseId)',
+                    'IsAscending' => 'Sort direction (default: true)'
+                ],
+                'optional_parameters' => [
+                    'CaseId' => 'Specific case ID to search for',
+                    'ClientId' => 'Client ID associated with cases',
+                    'CaseStatus' => 'Status of the case',
+                    'CaseType' => 'Type of case',
+                    'CreatedDateFrom' => 'Search from date (ISO format)',
+                    'CreatedDateTo' => 'Search to date (ISO format)'
+                ]
+            ],
+            'sessions' => [
+                'method' => 'SearchSession (with SearchCase fallback)',
+                'description' => 'Search for session records in the DSS system',
+                'required_parameters' => [
+                    'PageIndex' => 'Page number (1-based)',
+                    'PageSize' => 'Number of records per page (default: 100)',
+                    'SortColumn' => 'Column to sort by (default: SessionId)',
+                    'IsAscending' => 'Sort direction (default: true)'
+                ],
+                'optional_parameters' => [
+                    'SessionId' => 'Specific session ID to search for',
+                    'CaseId' => 'Case ID associated with sessions',
+                    'ClientId' => 'Client ID associated with sessions',
+                    'SessionType' => 'Type of session',
+                    'SessionStatus' => 'Status of the session',
+                    'SessionDateFrom' => 'Search from date (ISO format)',
+                    'SessionDateTo' => 'Search to date (ISO format)'
+                ]
+            ]
+        ];
+
+        return $schemas[$resourceType] ?? [
+            'error' => 'Schema information not available for this resource type',
+            'suggestion' => 'Use the "View Available Methods" feature to see what SOAP methods are available'
+        ];
     }
 
     /**

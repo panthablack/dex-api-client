@@ -23,7 +23,7 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     Route::get('/retrieve-form', [DataExchangeController::class, 'showRetrieveForm'])->name('retrieve-form');
     Route::post('/retrieve-data', [DataExchangeController::class, 'retrieveData'])->name('retrieve-data');
     Route::post('/generate-report', [DataExchangeController::class, 'generateReport'])->name('generate-report');
-    Route::get('/resource-schema', [DataExchangeController::class, 'getResourceSchema'])->name('resource-schema');
+    Route::get('/resource-schema', [DataExchangeController::class, 'showResourceSchema'])->name('resource-schema');
     
     // Status and Utility Routes
     Route::post('/submission-status', [DataExchangeController::class, 'getSubmissionStatus'])->name('submission-status');
