@@ -163,7 +163,7 @@ class DataExchangeService
      */
     public function getLastRequest()
     {
-        return $this->soapClient->getLastRequest();
+        return $this->soapClient ? $this->soapClient->getLastRequest() : null;
     }
 
     /**
@@ -171,7 +171,7 @@ class DataExchangeService
      */
     public function getLastResponse()
     {
-        return $this->soapClient->getLastResponse();
+        return $this->soapClient ? $this->soapClient->getLastResponse() : null;
     }
 
     /**
@@ -179,7 +179,7 @@ class DataExchangeService
      */
     public function getSanitizedLastRequest()
     {
-        return $this->soapClient->getSanitizedLastRequest();
+        return $this->soapClient ? $this->soapClient->getSanitizedLastRequest() : 'SOAP client not initialized';
     }
 
     /**
@@ -187,7 +187,7 @@ class DataExchangeService
      */
     public function getSanitizedLastResponse()
     {
-        return $this->soapClient->getSanitizedLastResponse();
+        return $this->soapClient ? $this->soapClient->getSanitizedLastResponse() : 'SOAP client not initialized';
     }
 
     /**
@@ -320,32 +320,20 @@ class DataExchangeService
     }
 
     /**
-     * Get sessions/services data - Sessions are linked to Cases
+     * Get sessions/services data - Sessions are linked to Cases and require a Case ID
      */
     public function getSessionData($filters = [])
     {
-        $criteria = $this->formatSessionSearchCriteria($filters);
-        $parameters = [
-            'Criteria' => $criteria
-        ];
-
-        // Log the exact parameters being sent
-        Log::info('SearchSession Request Parameters:', [
-            'filters_received' => $filters,
-            'formatted_criteria' => $criteria,
-            'full_parameters' => $parameters
-        ]);
-
-        // Note: If SearchSession doesn't exist, we may need to search cases first
-        // and then get sessions for those cases
-        try {
-            return $this->soapClient->call('SearchSession', $parameters);
-        } catch (\Exception) {
-            // Fallback: Search cases and extract session information
-            Log::info('SearchSession failed, falling back to SearchCase');
-            return $this->getCaseData($filters);
+        // Check if a Case ID is provided - this is required for session retrieval
+        if (!empty($filters['case_id'])) {
+            Log::info('Getting sessions for specific case: ' . $filters['case_id']);
+            return $this->getSessionsForCase($filters['case_id']);
         }
+
+        // If no Case ID provided, return an informative error with guidance
+        throw new \Exception('A Case ID is required to retrieve session data. Sessions in the DSS system are linked to specific cases. Please provide a Case ID to get sessions, or use "Get Sessions for Case" option instead.');
     }
+
 
     /**
      * Get session by ID
@@ -701,9 +689,21 @@ class DataExchangeService
             return is_array($records) ? $records : [$records];
         }
         
+        if (isset($data['Sessions']) && isset($data['Source'])) {
+            // Session data extracted from cases
+            $records = $data['Sessions'];
+            return is_array($records) ? $records : [$records];
+        }
+        
         if (isset($data['Cases']['Case'])) {
             // Case data response
             $records = $data['Cases']['Case'];
+            return is_array($records) ? $records : [$records];
+        }
+        
+        if (isset($data['Cases']) && isset($data['Source'])) {
+            // Case data used as fallback for sessions
+            $records = $data['Cases'];
             return is_array($records) ? $records : [$records];
         }
         
@@ -812,7 +812,7 @@ class DataExchangeService
         return [
             'clients' => 'Client Data',
             'cases' => 'Case Data',
-            'sessions' => 'Session Data'
+            'sessions' => 'Session Data (requires Case ID)'
         ];
     }
 

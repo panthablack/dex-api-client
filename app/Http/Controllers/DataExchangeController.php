@@ -253,6 +253,9 @@ class DataExchangeController extends Controller
                     $data = $this->dataExchangeService->getCaseData($filters);
                     break;
                 case 'sessions':
+                    if (empty($request->case_id)) {
+                        throw new \Exception('Case ID is required for session data retrieval. Sessions are linked to specific cases in the DSS system.');
+                    }
                     $data = $this->dataExchangeService->getSessionData($filters);
                     break;
                 case 'client_by_id':
@@ -436,12 +439,19 @@ class DataExchangeController extends Controller
     {
         $config = Config::get('soap.dss.debug');
         
-        if ($config['web_display_enabled']) {
-            if ($config['show_requests']) {
-                $response = $response->with('request', $this->dataExchangeService->getSanitizedLastRequest());
-            }
-            if ($config['show_responses']) {
-                $response = $response->with('response', $this->dataExchangeService->getSanitizedLastResponse());
+        if ($config && $config['web_display_enabled']) {
+            try {
+                if ($config['show_requests']) {
+                    $request = $this->dataExchangeService->getSanitizedLastRequest();
+                    $response = $response->with('request', $request ?: 'No request data available');
+                }
+                if ($config['show_responses']) {
+                    $responseData = $this->dataExchangeService->getSanitizedLastResponse();
+                    $response = $response->with('response', $responseData ?: 'No response data available');
+                }
+            } catch (\Exception $e) {
+                // If debug info fails, don't break the main response
+                $response = $response->with('debug_error', 'Debug info unavailable: ' . $e->getMessage());
             }
         }
         

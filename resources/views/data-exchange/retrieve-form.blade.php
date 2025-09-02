@@ -77,16 +77,48 @@
                         </div>
                     </div>
 
-                    <!-- Filters Section -->
-                    <div id="filtersSection">
-                        <h6 class="mb-3">Filters (Optional)</h6>
+                    <!-- Required Filters Section -->
+                    <div id="requiredFiltersSection" style="display: none;">
+                        <h6 class="mb-3 text-danger">
+                            <i class="bi bi-asterisk"></i> Required Filters
+                        </h6>
                         
-                        <div class="row mb-3" id="clientFilters">
-                            <div class="col-md-4">
-                                <label for="client_id" class="form-label">Client ID</label>
+                        <!-- Required Client ID -->
+                        <div class="row mb-3" id="requiredClientFilters" style="display: none;">
+                            <div class="col-md-6">
+                                <label for="req_client_id" class="form-label">Client ID <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" 
-                                       id="client_id" name="client_id" value="{{ old('client_id') }}">
+                                       id="req_client_id" name="client_id" value="{{ old('client_id') }}" required>
                             </div>
+                        </div>
+
+                        <!-- Required Case ID -->
+                        <div class="row mb-3" id="requiredCaseFilters" style="display: none;">
+                            <div class="col-md-6">
+                                <label for="req_case_id" class="form-label">Case ID <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" 
+                                       id="req_case_id" name="case_id" value="{{ old('case_id') }}" required>
+                            </div>
+                        </div>
+
+                        <!-- Required Session ID -->
+                        <div class="row mb-3" id="requiredSessionFilters" style="display: none;">
+                            <div class="col-md-6">
+                                <label for="req_session_id" class="form-label">Session ID <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" 
+                                       id="req_session_id" name="session_id" value="{{ old('session_id') }}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Optional Filters Section -->
+                    <div id="optionalFiltersSection" style="display: none;">
+                        <h6 class="mb-3 text-info">
+                            <i class="bi bi-funnel"></i> Optional Filters
+                        </h6>
+                        
+                        <!-- Client Optional Filters -->
+                        <div class="row mb-3" id="clientOptionalFilters" style="display: none;">
                             <div class="col-md-4">
                                 <label for="first_name" class="form-label">First Name</label>
                                 <input type="text" class="form-control" 
@@ -97,13 +129,19 @@
                                 <input type="text" class="form-control" 
                                        id="last_name" name="last_name" value="{{ old('last_name') }}">
                             </div>
+                            <div class="col-md-4">
+                                <label for="client_id_optional" class="form-label">Client ID</label>
+                                <input type="text" class="form-control" 
+                                       id="client_id_optional" name="client_id" value="{{ old('client_id') }}">
+                            </div>
                         </div>
 
-                        <div class="row mb-3" id="caseFilters" style="display: none;">
+                        <!-- Case Optional Filters -->
+                        <div class="row mb-3" id="caseOptionalFilters" style="display: none;">
                             <div class="col-md-4">
-                                <label for="case_id" class="form-label">Case ID</label>
+                                <label for="case_id_optional" class="form-label">Case ID</label>
                                 <input type="text" class="form-control" 
-                                       id="case_id" name="case_id" value="{{ old('case_id') }}">
+                                       id="case_id_optional" name="case_id" value="{{ old('case_id') }}">
                             </div>
                             <div class="col-md-4">
                                 <label for="case_status" class="form-label">Case Status</label>
@@ -117,11 +155,12 @@
                             </div>
                         </div>
 
-                        <div class="row mb-3" id="sessionFilters" style="display: none;">
+                        <!-- Session Optional Filters -->
+                        <div class="row mb-3" id="sessionOptionalFilters" style="display: none;">
                             <div class="col-md-4">
-                                <label for="session_id" class="form-label">Session ID</label>
+                                <label for="session_id_optional" class="form-label">Session ID</label>
                                 <input type="text" class="form-control" 
-                                       id="session_id" name="session_id" value="{{ old('session_id') }}">
+                                       id="session_id_optional" name="session_id" value="{{ old('session_id') }}">
                             </div>
                             <div class="col-md-4">
                                 <label for="session_type" class="form-label">Session Type</label>
@@ -135,32 +174,15 @@
                             </div>
                         </div>
 
-                        <div class="row mb-3" id="serviceFilters" style="display: none;">
-                            <div class="col-md-4">
-                                <label for="service_type" class="form-label">Service Type</label>
-                                <input type="text" class="form-control" 
-                                       id="service_type" name="service_type" value="{{ old('service_type') }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="service_start_date" class="form-label">Start Date From</label>
-                                <input type="date" class="form-control" 
-                                       id="service_start_date" name="service_start_date" value="{{ old('service_start_date') }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="service_end_date" class="form-label">End Date To</label>
-                                <input type="date" class="form-control" 
-                                       id="service_end_date" name="service_end_date" value="{{ old('service_end_date') }}">
-                            </div>
-                        </div>
-
+                        <!-- Date Range Filters (always available) -->
                         <div class="row mb-3" id="dateFilters">
                             <div class="col-md-6">
-                                <label for="date_from" class="form-label">Date From <small class="text-muted">(Optional)</small></label>
+                                <label for="date_from" class="form-label">Date From</label>
                                 <input type="date" class="form-control" 
                                        id="date_from" name="date_from" value="{{ old('date_from') }}">
                             </div>
                             <div class="col-md-6">
-                                <label for="date_to" class="form-label">Date To <small class="text-muted">(Optional)</small></label>
+                                <label for="date_to" class="form-label">Date To</label>
                                 <input type="date" class="form-control" 
                                        id="date_to" name="date_to" value="{{ old('date_to') }}">
                             </div>
@@ -335,37 +357,78 @@
 <script>
 function updateFilters() {
     const resourceType = document.getElementById('resource_type').value;
-    const clientFilters = document.getElementById('clientFilters');
-    const caseFilters = document.getElementById('caseFilters');
-    const sessionFilters = document.getElementById('sessionFilters');
-    const serviceFilters = document.getElementById('serviceFilters');
     
-    // Hide all filter sections
-    clientFilters.style.display = 'none';
-    caseFilters.style.display = 'none';
-    sessionFilters.style.display = 'none';
-    serviceFilters.style.display = 'none';
+    // Get section elements
+    const requiredSection = document.getElementById('requiredFiltersSection');
+    const optionalSection = document.getElementById('optionalFiltersSection');
     
-    // Reset required fields
-    document.getElementById('client_id').required = false;
-    document.getElementById('case_id').required = false;
-    document.getElementById('session_id').required = false;
+    // Get required filter elements
+    const reqClientFilters = document.getElementById('requiredClientFilters');
+    const reqCaseFilters = document.getElementById('requiredCaseFilters');
+    const reqSessionFilters = document.getElementById('requiredSessionFilters');
     
-    // Show relevant filters based on resource type
-    if (resourceType === 'clients' || resourceType === 'client_by_id') {
-        clientFilters.style.display = 'block';
+    // Get optional filter elements
+    const clientOptionalFilters = document.getElementById('clientOptionalFilters');
+    const caseOptionalFilters = document.getElementById('caseOptionalFilters');
+    const sessionOptionalFilters = document.getElementById('sessionOptionalFilters');
+    
+    // Hide all sections initially
+    requiredSection.style.display = 'none';
+    optionalSection.style.display = 'none';
+    reqClientFilters.style.display = 'none';
+    reqCaseFilters.style.display = 'none';
+    reqSessionFilters.style.display = 'none';
+    clientOptionalFilters.style.display = 'none';
+    caseOptionalFilters.style.display = 'none';
+    sessionOptionalFilters.style.display = 'none';
+    
+    // Reset required attributes
+    const reqClientId = document.getElementById('req_client_id');
+    const reqCaseId = document.getElementById('req_case_id');
+    const reqSessionId = document.getElementById('req_session_id');
+    
+    if (reqClientId) reqClientId.required = false;
+    if (reqCaseId) reqCaseId.required = false;
+    if (reqSessionId) reqSessionId.required = false;
+    
+    // Show relevant sections based on resource type
+    if (resourceType) {
+        let hasRequiredFilters = false;
+        
+        // Handle resource types with required fields
         if (resourceType === 'client_by_id') {
-            document.getElementById('client_id').required = true;
+            requiredSection.style.display = 'block';
+            reqClientFilters.style.display = 'block';
+            reqClientId.required = true;
+            hasRequiredFilters = true;
+        } else if (resourceType === 'case_by_id' || resourceType === 'sessions_for_case') {
+            requiredSection.style.display = 'block';
+            reqCaseFilters.style.display = 'block';
+            reqCaseId.required = true;
+            hasRequiredFilters = true;
+        } else if (resourceType === 'session_by_id') {
+            requiredSection.style.display = 'block';
+            reqSessionFilters.style.display = 'block';
+            reqSessionId.required = true;
+            hasRequiredFilters = true;
+        } else if (resourceType === 'sessions') {
+            // Sessions require Case ID
+            requiredSection.style.display = 'block';
+            reqCaseFilters.style.display = 'block';
+            reqCaseId.required = true;
+            hasRequiredFilters = true;
         }
-    } else if (resourceType === 'cases' || resourceType === 'case_by_id' || resourceType === 'sessions_for_case') {
-        caseFilters.style.display = 'block';
-        if (resourceType === 'case_by_id' || resourceType === 'sessions_for_case') {
-            document.getElementById('case_id').required = true;
-        }
-    } else if (resourceType === 'sessions' || resourceType === 'session_by_id') {
-        sessionFilters.style.display = 'block';
-        if (resourceType === 'session_by_id') {
-            document.getElementById('session_id').required = true;
+        
+        // Always show optional section for general resource types or after required fields
+        optionalSection.style.display = 'block';
+        
+        // Show relevant optional filters
+        if (resourceType === 'clients' || resourceType === 'client_by_id') {
+            clientOptionalFilters.style.display = 'block';
+        } else if (resourceType === 'cases' || resourceType === 'case_by_id' || resourceType === 'sessions_for_case') {
+            caseOptionalFilters.style.display = 'block';
+        } else if (resourceType === 'sessions' || resourceType === 'session_by_id') {
+            sessionOptionalFilters.style.display = 'block';
         }
     }
 }
