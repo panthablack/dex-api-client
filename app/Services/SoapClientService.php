@@ -76,8 +76,11 @@ class SoapClientService
     {
         try {
             $this->ensureClientInitialized();
-            return $this->client->__getFunctions();
+            return $this->client ? $this->client->__getFunctions() : [];
         } catch (SoapFault $e) {
+            $this->log('Failed to get SOAP functions', ['error' => $e->getMessage()], 'error');
+            return [];
+        } catch (\Exception $e) {
             $this->log('Failed to get SOAP functions', ['error' => $e->getMessage()], 'error');
             return [];
         }
@@ -90,8 +93,11 @@ class SoapClientService
     {
         try {
             $this->ensureClientInitialized();
-            return $this->client->__getTypes();
+            return $this->client ? $this->client->__getTypes() : [];
         } catch (SoapFault $e) {
+            $this->log('Failed to get SOAP types', ['error' => $e->getMessage()], 'error');
+            return [];
+        } catch (\Exception $e) {
             $this->log('Failed to get SOAP types', ['error' => $e->getMessage()], 'error');
             return [];
         }
@@ -135,8 +141,8 @@ class SoapClientService
             $result = $this->client->__soapCall($method, [$parameters]);
             
             // Store last request and response for debugging
-            $this->lastRequest = $this->client->__getLastRequest();
-            $this->lastResponse = $this->client->__getLastResponse();
+            $this->lastRequest = $this->client ? $this->client->__getLastRequest() : null;
+            $this->lastResponse = $this->client ? $this->client->__getLastResponse() : null;
             
             $this->log('SOAP call successful', [
                 'method' => $method,
@@ -146,8 +152,8 @@ class SoapClientService
             return $result;
             
         } catch (SoapFault $e) {
-            $this->lastRequest = $this->client->__getLastRequest();
-            $this->lastResponse = $this->client->__getLastResponse();
+            $this->lastRequest = $this->client ? $this->client->__getLastRequest() : null;
+            $this->lastResponse = $this->client ? $this->client->__getLastResponse() : null;
             
             $this->log('SOAP call failed', [
                 'method' => $method,
@@ -167,7 +173,7 @@ class SoapClientService
      */
     public function getLastRequest()
     {
-        return $this->lastRequest ?? $this->client->__getLastRequest();
+        return $this->lastRequest ?? ($this->client ? $this->client->__getLastRequest() : null);
     }
 
     /**
@@ -175,7 +181,7 @@ class SoapClientService
      */
     public function getLastResponse()
     {
-        return $this->lastResponse ?? $this->client->__getLastResponse();
+        return $this->lastResponse ?? ($this->client ? $this->client->__getLastResponse() : null);
     }
 
     /**
@@ -201,7 +207,7 @@ class SoapClientService
      */
     public function getLastRequestHeaders()
     {
-        return $this->client->__getLastRequestHeaders();
+        return $this->client ? $this->client->__getLastRequestHeaders() : null;
     }
 
     /**
@@ -209,7 +215,7 @@ class SoapClientService
      */
     public function getLastResponseHeaders()
     {
-        return $this->client->__getLastResponseHeaders();
+        return $this->client ? $this->client->__getLastResponseHeaders() : null;
     }
 
     /**

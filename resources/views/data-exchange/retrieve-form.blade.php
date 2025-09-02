@@ -54,9 +54,6 @@
                                 <option value="session_by_id" {{ old('resource_type') == 'session_by_id' ? 'selected' : '' }}>
                                     Get Session by ID
                                 </option>
-                                <option value="sessions_for_case" {{ old('resource_type') == 'sessions_for_case' ? 'selected' : '' }}>
-                                    Get Sessions for Case
-                                </option>
                             </select>
                             @error('resource_type')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -141,7 +138,7 @@
                             <div class="col-md-4">
                                 <label for="case_id_optional" class="form-label">Case ID</label>
                                 <input type="text" class="form-control" 
-                                       id="case_id_optional" name="case_id" value="{{ old('case_id') }}">
+                                       id="case_id_optional" name="case_id_filter" value="{{ old('case_id_filter') }}">
                             </div>
                             <div class="col-md-4">
                                 <label for="case_status" class="form-label">Case Status</label>
@@ -401,7 +398,7 @@ function updateFilters() {
             reqClientFilters.style.display = 'block';
             reqClientId.required = true;
             hasRequiredFilters = true;
-        } else if (resourceType === 'case_by_id' || resourceType === 'sessions_for_case') {
+        } else if (resourceType === 'case_by_id') {
             requiredSection.style.display = 'block';
             reqCaseFilters.style.display = 'block';
             reqCaseId.required = true;
@@ -425,7 +422,7 @@ function updateFilters() {
         // Show relevant optional filters
         if (resourceType === 'clients' || resourceType === 'client_by_id') {
             clientOptionalFilters.style.display = 'block';
-        } else if (resourceType === 'cases' || resourceType === 'case_by_id' || resourceType === 'sessions_for_case') {
+        } else if (resourceType === 'cases' || resourceType === 'case_by_id') {
             caseOptionalFilters.style.display = 'block';
         } else if (resourceType === 'sessions' || resourceType === 'session_by_id') {
             sessionOptionalFilters.style.display = 'block';

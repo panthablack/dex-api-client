@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Services\DataExchangeService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 
 class DataExchangeController extends Controller
 {
@@ -253,9 +254,26 @@ class DataExchangeController extends Controller
                     $data = $this->dataExchangeService->getCaseData($filters);
                     break;
                 case 'sessions':
+                    // Debug logging
+                    Log::info('Session request debug', [
+                        'request_case_id' => $request->case_id,
+                        'request_has_case_id' => $request->has('case_id'),
+                        'request_case_id_empty' => empty($request->case_id),
+                        'filters' => $filters,
+                        'filters_has_case_id' => isset($filters['case_id']),
+                        'all_request_data' => $request->all()
+                    ]);
+                    
                     if (empty($request->case_id)) {
-                        throw new \Exception('Case ID is required for session data retrieval. Sessions are linked to specific cases in the DSS system.');
+                        throw new \Exception('Case ID is required for session data retrieval. Sessions are linked to specific cases in the DSS system. Received case_id: "' . ($request->case_id ?? 'null') . '" (type: ' . gettype($request->case_id) . ')');
                     }
+                    
+                    // Ensure case_id is in filters even if buildFilters missed it
+                    if (!isset($filters['case_id']) && $request->case_id) {
+                        $filters['case_id'] = $request->case_id;
+                        Log::info('Added case_id to filters manually: ' . $request->case_id);
+                    }
+                    
                     $data = $this->dataExchangeService->getSessionData($filters);
                     break;
                 case 'client_by_id':
@@ -275,12 +293,6 @@ class DataExchangeController extends Controller
                         throw new \Exception('Session ID is required for session lookup');
                     }
                     $data = $this->dataExchangeService->getSessionById($request->session_id);
-                    break;
-                case 'sessions_for_case':
-                    if (empty($request->case_id)) {
-                        throw new \Exception('Case ID is required for sessions lookup');
-                    }
-                    $data = $this->dataExchangeService->getSessionsForCase($request->case_id);
                     break;
                 default:
                     throw new \Exception("Unsupported resource type: {$resourceType}");
@@ -413,7 +425,7 @@ class DataExchangeController extends Controller
         // Standard filters
         $filterFields = [
             'client_id', 'first_name', 'last_name', 'gender', 'postal_code',
-            'case_id', 'case_status', 'case_type',
+            'case_id', 'case_id_filter', 'case_status', 'case_type',
             'session_id', 'session_type', 'session_status',
             'service_type', 'service_start_date', 'service_end_date',
             'date_from', 'date_to', 'status'
@@ -423,6 +435,11 @@ class DataExchangeController extends Controller
             if ($request->has($field) && !empty($request->get($field))) {
                 $filters[$field] = $request->get($field);
             }
+        }
+        
+        // Normalize case_id_filter to case_id for consistency
+        if (!empty($filters['case_id_filter']) && empty($filters['case_id'])) {
+            $filters['case_id'] = $filters['case_id_filter'];
         }
         
         return $filters;

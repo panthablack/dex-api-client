@@ -324,14 +324,43 @@ class DataExchangeService
      */
     public function getSessionData($filters = [])
     {
+        // Debug logging
+        Log::info('getSessionData called with filters:', [
+            'filters' => $filters,
+            'case_id_present' => isset($filters['case_id']),
+            'case_id_value' => $filters['case_id'] ?? 'not set',
+            'case_id_empty' => empty($filters['case_id'])
+        ]);
+        
         // Check if a Case ID is provided - this is required for session retrieval
         if (!empty($filters['case_id'])) {
             Log::info('Getting sessions for specific case: ' . $filters['case_id']);
-            return $this->getSessionsForCase($filters['case_id']);
+            // Use SearchCase to get the case data, which may include session information
+            $caseFilters = ['case_id' => $filters['case_id']];
+            $caseResult = $this->getCaseData($caseFilters);
+            
+            // Check if the case result contains session data
+            // Convert to array if it's an object for consistent handling
+            if (is_object($caseResult)) {
+                $caseResult = json_decode(json_encode($caseResult), true);
+            }
+            
+            if (isset($caseResult['Sessions']) || isset($caseResult['SessionData'])) {
+                Log::info('Found session data in case result');
+                return $caseResult;
+            }
+            
+            // If no session data found in case, return informative message
+            Log::info('No session data found for case: ' . $filters['case_id']);
+            return [
+                'message' => 'No session data found for Case ID: ' . $filters['case_id'],
+                'case_id' => $filters['case_id'],
+                'note' => 'This case may not have any associated sessions, or sessions may need to be retrieved individually using session IDs.'
+            ];
         }
 
         // If no Case ID provided, return an informative error with guidance
-        throw new \Exception('A Case ID is required to retrieve session data. Sessions in the DSS system are linked to specific cases. Please provide a Case ID to get sessions, or use "Get Sessions for Case" option instead.');
+        throw new \Exception('A Case ID is required to retrieve session data. Sessions in the DSS system are linked to specific cases. Please provide a Case ID to get sessions, or use "Get Sessions for Case" option instead. Filters received: ' . json_encode($filters));
     }
 
 
@@ -347,17 +376,6 @@ class DataExchangeService
         return $this->soapClient->call('GetSession', $parameters);
     }
 
-    /**
-     * Get all sessions for a specific case
-     */
-    public function getSessionsForCase($caseId)
-    {
-        $parameters = [
-            'CaseId' => $caseId
-        ];
-
-        return $this->soapClient->call('GetSessionsForCase', $parameters);
-    }
 
 
 

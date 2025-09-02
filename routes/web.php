@@ -28,4 +28,16 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     // Status and Utility Routes
     Route::post('/submission-status', [DataExchangeController::class, 'getSubmissionStatus'])->name('submission-status');
     Route::get('/available-functions', [DataExchangeController::class, 'showAvailableFunctions'])->name('available-functions');
+    
+    // Debug route for session testing
+    Route::post('/debug-session', function(\Illuminate\Http\Request $request) {
+        return response()->json([
+            'case_id_value' => $request->case_id,
+            'case_id_empty' => empty($request->case_id),
+            'case_id_null' => is_null($request->case_id),
+            'case_id_string' => (string)$request->case_id,
+            'case_id_length' => strlen((string)$request->case_id),
+            'all_data' => $request->all()
+        ]);
+    })->name('debug-session');
 });
