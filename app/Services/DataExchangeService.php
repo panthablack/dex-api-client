@@ -414,6 +414,11 @@ class DataExchangeService
      */
     public function convertDataFormat($data, $format = 'json')
     {
+        // Convert objects to arrays for consistent processing
+        if (is_object($data)) {
+            $data = json_decode(json_encode($data), true);
+        }
+
         switch (strtolower($format)) {
             case 'json':
                 return json_encode($data, JSON_PRETTY_PRINT);
@@ -422,11 +427,52 @@ class DataExchangeService
                 return $this->arrayToXml($data);
                 
             case 'csv':
-                return $this->arrayToCsv($data);
+                return $this->arrayToCsv($this->extractRecordsForCsv($data));
                 
             default:
                 return $data;
         }
+    }
+
+    /**
+     * Extract records from SOAP response for CSV conversion
+     */
+    protected function extractRecordsForCsv($data)
+    {
+        if (!is_array($data)) {
+            return [];
+        }
+
+        // Handle different SOAP response structures
+        if (isset($data['Clients']['Client'])) {
+            // Client data response
+            $records = $data['Clients']['Client'];
+            return is_array($records) ? $records : [$records];
+        }
+        
+        if (isset($data['Sessions']['Session'])) {
+            // Session/Service data response
+            $records = $data['Sessions']['Session'];
+            return is_array($records) ? $records : [$records];
+        }
+        
+        if (isset($data['Cases']['Case'])) {
+            // Case data response
+            $records = $data['Cases']['Case'];
+            return is_array($records) ? $records : [$records];
+        }
+        
+        // Check if data is already in the correct format (array of records)
+        if (is_array($data) && !empty($data)) {
+            $firstElement = reset($data);
+            if (is_array($firstElement) && array_keys($data) === range(0, count($data) - 1)) {
+                // Already an indexed array of records
+                return $data;
+            }
+        }
+        
+        // Fallback - return the data as is
+        return $data;
     }
 
     /**
@@ -454,30 +500,60 @@ class DataExchangeService
      */
     protected function arrayToCsv($data)
     {
-        if (empty($data)) {
-            return '';
+        if (empty($data) || !is_array($data)) {
+            return "No data available\n";
         }
 
         $output = '';
         $headers = [];
         
-        // Extract headers from first row
-        if (is_array($data) && !empty($data)) {
-            $firstRow = is_array(reset($data)) ? reset($data) : $data;
-            $headers = array_keys($firstRow);
-            $output .= implode(',', $headers) . "\n";
-            
-            // Process data rows
-            foreach ($data as $row) {
-                if (is_array($row)) {
-                    $values = [];
-                    foreach ($headers as $header) {
-                        $value = $row[$header] ?? '';
-                        $values[] = '"' . str_replace('"', '""', $value) . '"';
-                    }
-                    $output .= implode(',', $values) . "\n";
-                }
+        // Normalize data - ensure it's an array of arrays
+        $normalizedData = [];
+        
+        // Check if data is associative array (single record) or indexed array (multiple records)
+        if (array_keys($data) !== range(0, count($data) - 1)) {
+            // Single associative array - convert to array of arrays
+            $normalizedData = [$data];
+        } else {
+            // Check if first element is an array (multiple records)
+            if (is_array(reset($data))) {
+                $normalizedData = $data;
+            } else {
+                // Array of scalar values - convert to single record
+                $normalizedData = [$data];
             }
+        }
+        
+        // Extract headers from first row
+        if (!empty($normalizedData)) {
+            $firstRow = reset($normalizedData);
+            if (is_array($firstRow)) {
+                $headers = array_keys($firstRow);
+                $output .= implode(',', array_map(function($header) {
+                    return '"' . str_replace('"', '""', $header) . '"';
+                }, $headers)) . "\n";
+                
+                // Process data rows
+                foreach ($normalizedData as $row) {
+                    if (is_array($row)) {
+                        $values = [];
+                        foreach ($headers as $header) {
+                            $value = $row[$header] ?? '';
+                            // Convert arrays and objects to string representation
+                            if (is_array($value) || is_object($value)) {
+                                $value = json_encode($value);
+                            }
+                            $values[] = '"' . str_replace('"', '""', (string)$value) . '"';
+                        }
+                        $output .= implode(',', $values) . "\n";
+                    }
+                }
+            } else {
+                // Handle case where first row is not an array
+                $output = "Data format not supported for CSV export\n";
+            }
+        } else {
+            $output = "No records found\n";
         }
         
         return $output;
