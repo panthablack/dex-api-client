@@ -126,6 +126,14 @@ class DataExchangeService
     }
 
     /**
+     * Get available SOAP functions from the service
+     */
+    public function getAvailableFunctions()
+    {
+        return $this->soapClient->getFunctions();
+    }
+
+    /**
      * Test basic API connectivity with Ping
      */
     public function ping()
@@ -266,23 +274,6 @@ class DataExchangeService
         return $this->soapClient->call('SearchClient', $parameters);
     }
 
-    /**
-     * Retrieve service data from DSS Data Exchange
-     * Note: DSS calls services "Sessions". There's no SearchSession method,
-     * only GetSession for individual sessions. This may need case-based searching.
-     */
-    public function getServiceData($filters = [])
-    {
-        // Since there's no SearchSession method, we might need to search cases first
-        // and then get sessions for those cases. For now, we'll try SearchCase
-        // as services are likely linked to cases in the DSS system.
-        $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
-            'Filters' => $this->formatFilters($filters)
-        ];
-
-        return $this->soapClient->call('SearchCase', $parameters);
-    }
 
     /**
      * Retrieve client by ID
@@ -295,6 +286,92 @@ class DataExchangeService
 
         return $this->soapClient->call('GetClient', $parameters);
     }
+
+    /**
+     * Search cases using SearchCase SOAP method
+     */
+    public function getCaseData($filters = [])
+    {
+        $criteria = $this->formatCaseSearchCriteria($filters);
+        $parameters = [
+            'Criteria' => $criteria
+        ];
+
+        // Log the exact parameters being sent
+        Log::info('SearchCase Request Parameters:', [
+            'filters_received' => $filters,
+            'formatted_criteria' => $criteria,
+            'full_parameters' => $parameters
+        ]);
+
+        return $this->soapClient->call('SearchCase', $parameters);
+    }
+
+    /**
+     * Get case by ID
+     */
+    public function getCaseById($caseId)
+    {
+        $parameters = [
+            'CaseId' => $caseId
+        ];
+
+        return $this->soapClient->call('GetCase', $parameters);
+    }
+
+    /**
+     * Get sessions/services data - Sessions are linked to Cases
+     */
+    public function getSessionData($filters = [])
+    {
+        $criteria = $this->formatSessionSearchCriteria($filters);
+        $parameters = [
+            'Criteria' => $criteria
+        ];
+
+        // Log the exact parameters being sent
+        Log::info('SearchSession Request Parameters:', [
+            'filters_received' => $filters,
+            'formatted_criteria' => $criteria,
+            'full_parameters' => $parameters
+        ]);
+
+        // Note: If SearchSession doesn't exist, we may need to search cases first
+        // and then get sessions for those cases
+        try {
+            return $this->soapClient->call('SearchSession', $parameters);
+        } catch (\Exception) {
+            // Fallback: Search cases and extract session information
+            Log::info('SearchSession failed, falling back to SearchCase');
+            return $this->getCaseData($filters);
+        }
+    }
+
+    /**
+     * Get session by ID
+     */
+    public function getSessionById($sessionId)
+    {
+        $parameters = [
+            'SessionId' => $sessionId
+        ];
+
+        return $this->soapClient->call('GetSession', $parameters);
+    }
+
+    /**
+     * Get all sessions for a specific case
+     */
+    public function getSessionsForCase($caseId)
+    {
+        $parameters = [
+            'CaseId' => $caseId
+        ];
+
+        return $this->soapClient->call('GetSessionsForCase', $parameters);
+    }
+
+
 
     /**
      * Retrieve services for a specific client
@@ -327,19 +404,6 @@ class DataExchangeService
         return $this->soapClient->call('ExportData', $parameters);
     }
 
-    /**
-     * Get reporting data
-     */
-    public function getReportingData($reportType, $parameters = [])
-    {
-        $params = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
-            'ReportType' => $reportType,
-            'Parameters' => $parameters
-        ];
-
-        return $this->soapClient->call('GetReportingData', $params);
-    }
 
     /**
      * Get data schema for a resource type
@@ -404,6 +468,100 @@ class DataExchangeService
         }
         if (!empty($filters['date_to'])) {
             $criteria['CreatedDateTo'] = $filters['date_to'] . 'T23:59:59'; // Add time component
+        }
+        
+        return $criteria;
+    }
+
+    /**
+     * Format search criteria for SearchCase calls
+     */
+    protected function formatCaseSearchCriteria($filters)
+    {
+        $criteria = [];
+        
+        // Required pagination parameters (from SearchCriteriaBase)
+        $criteria['PageIndex'] = $filters['page_index'] ?? 1; // 1-based page index
+        $criteria['PageSize'] = $filters['page_size'] ?? 100; // Default 100 records per page
+        $criteria['IsAscending'] = $filters['is_ascending'] ?? true; // Default ascending sort
+        
+        // Required sort column (from CaseSearchCriteriaBase)
+        $criteria['SortColumn'] = $filters['sort_column'] ?? 'CaseId'; // Default sort by CaseId
+        
+        // Map common filters to DSS CaseSearchCriteria fields (all optional)
+        if (!empty($filters['case_id'])) {
+            $criteria['CaseId'] = $filters['case_id'];
+        }
+        if (!empty($filters['client_id'])) {
+            $criteria['ClientId'] = $filters['client_id'];
+        }
+        if (!empty($filters['case_status'])) {
+            $criteria['CaseStatus'] = $filters['case_status'];
+        }
+        if (!empty($filters['case_type'])) {
+            $criteria['CaseType'] = $filters['case_type'];
+        }
+        if (!empty($filters['date_from'])) {
+            $criteria['CreatedDateFrom'] = $filters['date_from'] . 'T00:00:00'; // Add time component
+        }
+        if (!empty($filters['date_to'])) {
+            $criteria['CreatedDateTo'] = $filters['date_to'] . 'T23:59:59'; // Add time component
+        }
+        if (!empty($filters['service_start_date'])) {
+            $criteria['ServiceStartDateFrom'] = $filters['service_start_date'] . 'T00:00:00';
+        }
+        if (!empty($filters['service_end_date'])) {
+            $criteria['ServiceEndDateTo'] = $filters['service_end_date'] . 'T23:59:59';
+        }
+        
+        return $criteria;
+    }
+
+    /**
+     * Format search criteria for SearchSession calls
+     */
+    protected function formatSessionSearchCriteria($filters)
+    {
+        $criteria = [];
+        
+        // Required pagination parameters (from SearchCriteriaBase)
+        $criteria['PageIndex'] = $filters['page_index'] ?? 1; // 1-based page index
+        $criteria['PageSize'] = $filters['page_size'] ?? 100; // Default 100 records per page
+        $criteria['IsAscending'] = $filters['is_ascending'] ?? true; // Default ascending sort
+        
+        // Required sort column (from SessionSearchCriteriaBase)
+        $criteria['SortColumn'] = $filters['sort_column'] ?? 'SessionId'; // Default sort by SessionId
+        
+        // Map common filters to DSS SessionSearchCriteria fields (all optional)
+        if (!empty($filters['session_id'])) {
+            $criteria['SessionId'] = $filters['session_id'];
+        }
+        if (!empty($filters['case_id'])) {
+            $criteria['CaseId'] = $filters['case_id'];
+        }
+        if (!empty($filters['client_id'])) {
+            $criteria['ClientId'] = $filters['client_id'];
+        }
+        if (!empty($filters['session_type'])) {
+            $criteria['SessionType'] = $filters['session_type'];
+        }
+        if (!empty($filters['service_type'])) {
+            $criteria['ServiceType'] = $filters['service_type'];
+        }
+        if (!empty($filters['session_status'])) {
+            $criteria['SessionStatus'] = $filters['session_status'];
+        }
+        if (!empty($filters['date_from'])) {
+            $criteria['SessionDateFrom'] = $filters['date_from'] . 'T00:00:00'; // Add time component
+        }
+        if (!empty($filters['date_to'])) {
+            $criteria['SessionDateTo'] = $filters['date_to'] . 'T23:59:59'; // Add time component
+        }
+        if (!empty($filters['service_start_date'])) {
+            $criteria['ServiceStartDate'] = $filters['service_start_date'] . 'T00:00:00';
+        }
+        if (!empty($filters['service_end_date'])) {
+            $criteria['ServiceEndDate'] = $filters['service_end_date'] . 'T23:59:59';
         }
         
         return $criteria;
@@ -566,10 +724,8 @@ class DataExchangeService
     {
         return [
             'clients' => 'Client Data',
-            'services' => 'Service Data', 
-            'submissions' => 'Submission History',
-            'reports' => 'Reports',
-            'organizations' => 'Organization Data'
+            'cases' => 'Case Data',
+            'sessions' => 'Session Data'
         ];
     }
 

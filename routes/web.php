@@ -27,4 +27,5 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     
     // Status and Utility Routes
     Route::post('/submission-status', [DataExchangeController::class, 'getSubmissionStatus'])->name('submission-status');
+    Route::get('/available-functions', [DataExchangeController::class, 'showAvailableFunctions'])->name('available-functions');
 });

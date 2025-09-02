@@ -41,6 +41,31 @@ class DataExchangeController extends Controller
     }
 
     /**
+     * Show available SOAP functions
+     */
+    public function showAvailableFunctions()
+    {
+        try {
+            $connectionResult = $this->dataExchangeService->testConnection();
+            
+            if ($connectionResult['status'] === 'success') {
+                $functions = $connectionResult['functions'] ?? [];
+                $types = $connectionResult['types'] ?? [];
+                
+                return view('data-exchange.available-methods', compact('functions', 'types'));
+            } else {
+                return view('data-exchange.available-methods', [
+                    'error' => $connectionResult['message'] ?? 'Unable to retrieve SOAP methods'
+                ]);
+            }
+        } catch (\Exception $e) {
+            return view('data-exchange.available-methods', [
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Submit client data form
      */
     public function showClientForm()
@@ -224,8 +249,11 @@ class DataExchangeController extends Controller
                 case 'clients':
                     $data = $this->dataExchangeService->getClientData($filters);
                     break;
-                case 'services':
-                    $data = $this->dataExchangeService->getServiceData($filters);
+                case 'cases':
+                    $data = $this->dataExchangeService->getCaseData($filters);
+                    break;
+                case 'sessions':
+                    $data = $this->dataExchangeService->getSessionData($filters);
                     break;
                 case 'client_by_id':
                     if (empty($request->client_id)) {
@@ -233,8 +261,26 @@ class DataExchangeController extends Controller
                     }
                     $data = $this->dataExchangeService->getClientById($request->client_id);
                     break;
+                case 'case_by_id':
+                    if (empty($request->case_id)) {
+                        throw new \Exception('Case ID is required for case lookup');
+                    }
+                    $data = $this->dataExchangeService->getCaseById($request->case_id);
+                    break;
+                case 'session_by_id':
+                    if (empty($request->session_id)) {
+                        throw new \Exception('Session ID is required for session lookup');
+                    }
+                    $data = $this->dataExchangeService->getSessionById($request->session_id);
+                    break;
+                case 'sessions_for_case':
+                    if (empty($request->case_id)) {
+                        throw new \Exception('Case ID is required for sessions lookup');
+                    }
+                    $data = $this->dataExchangeService->getSessionsForCase($request->case_id);
+                    break;
                 default:
-                    $data = $this->dataExchangeService->exportData($resourceType, $filters, $request->format);
+                    throw new \Exception("Unsupported resource type: {$resourceType}");
             }
 
             if ($request->action === 'download') {
@@ -357,6 +403,8 @@ class DataExchangeController extends Controller
         // Standard filters
         $filterFields = [
             'client_id', 'first_name', 'last_name', 'gender', 'postal_code',
+            'case_id', 'case_status', 'case_type',
+            'session_id', 'session_type', 'session_status',
             'service_type', 'service_start_date', 'service_end_date',
             'date_from', 'date_to', 'status'
         ];
@@ -370,19 +418,6 @@ class DataExchangeController extends Controller
         return $filters;
     }
 
-    /**
-     * Build report parameters from request
-     */
-    protected function buildReportParameters(Request $request)
-    {
-        return [
-            'date_from' => $request->get('date_from'),
-            'date_to' => $request->get('date_to'),
-            'include_details' => $request->get('include_details', false),
-            'group_by' => $request->get('group_by'),
-            'filters' => $this->buildFilters($request)
-        ];
-    }
 
     /**
      * Parse CSV file for bulk upload

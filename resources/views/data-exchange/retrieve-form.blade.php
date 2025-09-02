@@ -48,6 +48,15 @@
                                 <option value="client_by_id" {{ old('resource_type') == 'client_by_id' ? 'selected' : '' }}>
                                     Get Client by ID
                                 </option>
+                                <option value="case_by_id" {{ old('resource_type') == 'case_by_id' ? 'selected' : '' }}>
+                                    Get Case by ID
+                                </option>
+                                <option value="session_by_id" {{ old('resource_type') == 'session_by_id' ? 'selected' : '' }}>
+                                    Get Session by ID
+                                </option>
+                                <option value="sessions_for_case" {{ old('resource_type') == 'sessions_for_case' ? 'selected' : '' }}>
+                                    Get Sessions for Case
+                                </option>
                             </select>
                             @error('resource_type')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -87,6 +96,42 @@
                                 <label for="last_name" class="form-label">Last Name</label>
                                 <input type="text" class="form-control" 
                                        id="last_name" name="last_name" value="{{ old('last_name') }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3" id="caseFilters" style="display: none;">
+                            <div class="col-md-4">
+                                <label for="case_id" class="form-label">Case ID</label>
+                                <input type="text" class="form-control" 
+                                       id="case_id" name="case_id" value="{{ old('case_id') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="case_status" class="form-label">Case Status</label>
+                                <input type="text" class="form-control" 
+                                       id="case_status" name="case_status" value="{{ old('case_status') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="case_type" class="form-label">Case Type</label>
+                                <input type="text" class="form-control" 
+                                       id="case_type" name="case_type" value="{{ old('case_type') }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3" id="sessionFilters" style="display: none;">
+                            <div class="col-md-4">
+                                <label for="session_id" class="form-label">Session ID</label>
+                                <input type="text" class="form-control" 
+                                       id="session_id" name="session_id" value="{{ old('session_id') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="session_type" class="form-label">Session Type</label>
+                                <input type="text" class="form-control" 
+                                       id="session_type" name="session_type" value="{{ old('session_type') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="session_status" class="form-label">Session Status</label>
+                                <input type="text" class="form-control" 
+                                       id="session_status" name="session_status" value="{{ old('session_status') }}">
                             </div>
                         </div>
 
@@ -234,6 +279,9 @@
                     <button type="button" class="btn btn-outline-info btn-sm" onclick="getResourceSchema()">
                         Get Resource Schema
                     </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="getAvailableFunctions()">
+                        View Available Methods
+                    </button>
                 </div>
             </div>
         </div>
@@ -288,11 +336,20 @@
 function updateFilters() {
     const resourceType = document.getElementById('resource_type').value;
     const clientFilters = document.getElementById('clientFilters');
+    const caseFilters = document.getElementById('caseFilters');
+    const sessionFilters = document.getElementById('sessionFilters');
     const serviceFilters = document.getElementById('serviceFilters');
     
     // Hide all filter sections
     clientFilters.style.display = 'none';
+    caseFilters.style.display = 'none';
+    sessionFilters.style.display = 'none';
     serviceFilters.style.display = 'none';
+    
+    // Reset required fields
+    document.getElementById('client_id').required = false;
+    document.getElementById('case_id').required = false;
+    document.getElementById('session_id').required = false;
     
     // Show relevant filters based on resource type
     if (resourceType === 'clients' || resourceType === 'client_by_id') {
@@ -300,8 +357,16 @@ function updateFilters() {
         if (resourceType === 'client_by_id') {
             document.getElementById('client_id').required = true;
         }
-    } else if (resourceType === 'services') {
-        serviceFilters.style.display = 'block';
+    } else if (resourceType === 'cases' || resourceType === 'case_by_id' || resourceType === 'sessions_for_case') {
+        caseFilters.style.display = 'block';
+        if (resourceType === 'case_by_id' || resourceType === 'sessions_for_case') {
+            document.getElementById('case_id').required = true;
+        }
+    } else if (resourceType === 'sessions' || resourceType === 'session_by_id') {
+        sessionFilters.style.display = 'block';
+        if (resourceType === 'session_by_id') {
+            document.getElementById('session_id').required = true;
+        }
     }
 }
 
@@ -325,6 +390,10 @@ function getResourceSchema() {
         .catch(error => {
             alert('Error: ' + error.message);
         });
+}
+
+function getAvailableFunctions() {
+    window.open('{{ route('data-exchange.available-functions') }}', '_blank');
 }
 
 function downloadSessionData() {
