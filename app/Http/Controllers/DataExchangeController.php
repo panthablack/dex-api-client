@@ -244,7 +244,8 @@ class DataExchangeController extends Controller
             $response = redirect()->back()
                 ->with('success', 'Data retrieved successfully')
                 ->with('data', $data)
-                ->with('format', $request->format);
+                ->with('format', $request->format)
+                ->withInput();
             
             return $this->withDebugInfo($response);
 
