@@ -7,7 +7,7 @@ use App\Services\DataExchangeService;
 
 class DataExchangeCommand extends Command
 {
-    protected $signature = 'dex:client 
+    protected $signature = 'dex:client
                             {action : The action to perform (test, submit-client, submit-service, get-clients, get-services, get-client, export-data, generate-report, status, functions)}
                             {--file= : CSV file path for bulk operations}
                             {--output= : Output file path for downloads}
@@ -42,7 +42,7 @@ class DataExchangeCommand extends Command
     public function handle()
     {
         $action = $this->argument('action');
-        
+
         $this->info("DSS Data Exchange SOAP Client");
         $this->info("Action: {$action}");
         $this->line('');
@@ -51,37 +51,25 @@ class DataExchangeCommand extends Command
             switch ($action) {
                 case 'test':
                     return $this->testConnection();
-                    
+
                 case 'submit-client':
                     return $this->submitClientData();
-                    
-                case 'submit-service':
-                    return $this->submitServiceData();
-                    
+
                 case 'get-clients':
                     return $this->getClientData();
-                    
-                case 'get-services':
-                    return $this->getServiceData();
-                    
+
                 case 'get-client':
                     return $this->getClientById();
-                    
+
                 case 'export-data':
                     return $this->exportData();
-                    
-                case 'generate-report':
-                    return $this->generateReport();
-                    
+
                 case 'status':
                     return $this->getSubmissionStatus();
-                    
-                case 'functions':
-                    return $this->showFunctions();
-                    
+
                 case 'bulk-submit':
                     return $this->bulkSubmit();
-                    
+
                 default:
                     $this->error("Unknown action: {$action}");
                     $this->showHelp();
@@ -89,12 +77,12 @@ class DataExchangeCommand extends Command
             }
         } catch (\Exception $e) {
             $this->error("Error: " . $e->getMessage());
-            
+
             if ($this->option('detailed')) {
                 $this->error("Request: " . $this->dataExchangeService->getLastRequest());
                 $this->error("Response: " . $this->dataExchangeService->getLastResponse());
             }
-            
+
             return 1;
         }
     }
@@ -102,21 +90,21 @@ class DataExchangeCommand extends Command
     protected function testConnection()
     {
         $this->info("Testing SOAP connection...");
-        
+
         $result = $this->dataExchangeService->testConnection();
-        
+
         if ($result['status'] === 'success') {
             $this->info("✓ Connection successful!");
             $this->line("Functions available: " . $result['functions_count']);
             $this->line("Types available: " . $result['types_count']);
-            
+
             if ($this->option('detailed')) {
                 $this->line('');
                 $this->info("Available Functions:");
                 foreach ($result['functions'] as $function) {
                     $this->line("  - {$function}");
                 }
-                
+
                 $this->line('');
                 $this->info("Available Types:");
                 foreach ($result['types'] as $type) {
@@ -127,7 +115,7 @@ class DataExchangeCommand extends Command
             $this->error("✗ Connection failed: " . $result['message']);
             return 1;
         }
-        
+
         return 0;
     }
 
@@ -138,127 +126,79 @@ class DataExchangeCommand extends Command
         } else {
             $clientData = $this->collectClientDataFromOptions();
         }
-        
+
         if (empty($clientData['client_id'])) {
             $this->error("Client ID is required");
             return 1;
         }
-        
+
         $this->info("Submitting client data...");
-        
+
         $result = $this->dataExchangeService->submitClientData($clientData);
-        
+
         $this->info("✓ Client data submitted successfully!");
-        
+
         if ($this->option('detailed')) {
             $this->line("Result: " . json_encode($result, JSON_PRETTY_PRINT));
             $this->line("Request: " . $this->dataExchangeService->getLastRequest());
             $this->line("Response: " . $this->dataExchangeService->getLastResponse());
         }
-        
-        return 0;
-    }
 
-    protected function submitServiceData()
-    {
-        if ($this->option('interactive')) {
-            $serviceData = $this->collectServiceDataInteractively();
-        } else {
-            $serviceData = $this->collectServiceDataFromOptions();
-        }
-        
-        if (empty($serviceData['client_id'])) {
-            $this->error("Client ID is required");
-            return 1;
-        }
-        
-        $this->info("Submitting service data...");
-        
-        $result = $this->dataExchangeService->submitServiceData($serviceData);
-        
-        $this->info("✓ Service data submitted successfully!");
-        
-        if ($this->option('detailed')) {
-            $this->line("Result: " . json_encode($result, JSON_PRETTY_PRINT));
-        }
-        
         return 0;
     }
 
     protected function getSubmissionStatus()
     {
         $submissionId = $this->option('submission-id');
-        
+
         if (!$submissionId) {
             $submissionId = $this->ask("Enter submission ID");
         }
-        
+
         if (!$submissionId) {
             $this->error("Submission ID is required");
             return 1;
         }
-        
+
         $this->info("Checking submission status...");
-        
+
         $result = $this->dataExchangeService->getSubmissionStatus($submissionId);
-        
+
         $this->info("Submission Status:");
         $this->line(json_encode($result, JSON_PRETTY_PRINT));
-        
-        return 0;
-    }
 
-    protected function showFunctions()
-    {
-        $this->info("Available SOAP functions:");
-        
-        $functions = $this->dataExchangeService->getFunctions();
-        
-        foreach ($functions as $function) {
-            $this->line("  - {$function}");
-        }
-        
-        $this->line('');
-        $this->info("Available SOAP types:");
-        
-        $types = $this->dataExchangeService->getTypes();
-        
-        foreach ($types as $type) {
-            $this->line("  - {$type}");
-        }
-        
         return 0;
     }
 
     protected function bulkSubmit()
     {
         $file = $this->option('file');
-        
+
         if (!$file) {
             $file = $this->ask("Enter CSV file path");
         }
-        
+
         if (!$file || !file_exists($file)) {
             $this->error("CSV file not found: {$file}");
             return 1;
         }
-        
+
         $this->info("Processing bulk submit from: {$file}");
-        
+
         $clientDataArray = $this->parseCsvFile($file);
-        
+
         $this->info("Found " . count($clientDataArray) . " records");
-        
+
         if (!$this->confirm("Proceed with bulk submission?")) {
             $this->info("Bulk submission cancelled");
             return 0;
         }
-        
+
         $results = $this->dataExchangeService->bulkSubmitClientData($clientDataArray);
-        
+
         $successful = 0;
         $failed = 0;
-        
+
         foreach ($results as $index => $result) {
             if ($result['status'] === 'success') {
                 $successful++;
@@ -268,18 +208,18 @@ class DataExchangeCommand extends Command
                 $this->error("✗ Record " . ($index + 1) . " failed: " . $result['error']);
             }
         }
-        
+
         $this->info("Bulk submission completed:");
         $this->line("Successful: {$successful}");
         $this->line("Failed: {$failed}");
-        
+
         return $failed > 0 ? 1 : 0;
     }
 
     protected function collectClientDataInteractively()
     {
         $this->info("Enter client information (press Enter to skip optional fields):");
-        
+
         return [
             'client_id' => $this->ask('Client ID (required)', null, function ($answer) {
                 return $answer ?: null;
@@ -319,7 +259,7 @@ class DataExchangeCommand extends Command
     protected function collectServiceDataInteractively()
     {
         $this->info("Enter service information:");
-        
+
         return [
             'client_id' => $this->ask('Client ID (required)'),
             'service_type' => $this->ask('Service Type (required)'),
@@ -347,10 +287,10 @@ class DataExchangeCommand extends Command
     {
         $clientDataArray = [];
         $handle = fopen($filePath, 'r');
-        
+
         // Skip header row
         fgetcsv($handle);
-        
+
         while (($data = fgetcsv($handle)) !== FALSE) {
             $clientDataArray[] = [
                 'client_id' => $data[0] ?? null,
@@ -367,7 +307,7 @@ class DataExchangeCommand extends Command
                 'client_type' => $data[11] ?? null,
             ];
         }
-        
+
         fclose($handle);
         return $clientDataArray;
     }
@@ -375,95 +315,61 @@ class DataExchangeCommand extends Command
     protected function getClientData()
     {
         $this->info("Retrieving client data...");
-        
+
         $filters = $this->buildFiltersFromOptions();
         $result = $this->dataExchangeService->getClientData($filters);
-        
-        return $this->handleDataOutput($result, 'client_data');
-    }
 
-    protected function getServiceData()
-    {
-        $this->info("Retrieving service data...");
-        
-        $filters = $this->buildFiltersFromOptions();
-        $result = $this->dataExchangeService->getServiceData($filters);
-        
-        return $this->handleDataOutput($result, 'service_data');
+        return $this->handleDataOutput($result, 'client_data');
     }
 
     protected function getClientById()
     {
         $clientId = $this->option('client-id');
-        
+
         if (!$clientId) {
             $clientId = $this->ask("Enter Client ID");
         }
-        
+
         if (!$clientId) {
             $this->error("Client ID is required");
             return 1;
         }
-        
+
         $this->info("Retrieving client: {$clientId}");
-        
+
         $result = $this->dataExchangeService->getClientById($clientId);
-        
+
         return $this->handleDataOutput($result, "client_{$clientId}");
     }
 
     protected function exportData()
     {
         $resourceType = $this->option('resource');
-        
+
         if (!$resourceType) {
             $resources = $this->dataExchangeService->getAvailableResources();
             $resourceType = $this->choice('Select resource type', array_keys($resources));
         }
-        
+
         if (!$resourceType) {
             $this->error("Resource type is required");
             return 1;
         }
-        
+
         $format = $this->option('format') ?? $this->choice('Select format', ['json', 'xml', 'csv']);
         $filters = $this->buildFiltersFromOptions();
-        
-        $this->info("Exporting {$resourceType} data in {$format} format...");
-        
-        $result = $this->dataExchangeService->exportData($resourceType, $filters, $format);
-        
-        return $this->handleDataOutput($result, "{$resourceType}_export", $format);
-    }
 
-    protected function generateReport()
-    {
-        $reportType = $this->option('report');
-        
-        if (!$reportType) {
-            $reports = $this->dataExchangeService->getAvailableReports();
-            $reportType = $this->choice('Select report type', array_keys($reports));
-        }
-        
-        if (!$reportType) {
-            $this->error("Report type is required");
-            return 1;
-        }
-        
-        $format = $this->option('format') ?? $this->choice('Select format', ['json', 'xml', 'csv']);
-        $parameters = $this->buildReportParameters();
-        
-        $this->info("Generating {$reportType} report in {$format} format...");
-        
-        $result = $this->dataExchangeService->getReportingData($reportType, $parameters);
-        
-        return $this->handleDataOutput($result, "{$reportType}_report", $format);
+        $this->info("Exporting {$resourceType} data in {$format} format...");
+
+        $result = $this->dataExchangeService->exportData($resourceType, $filters, $format);
+
+        return $this->handleDataOutput($result, "{$resourceType}_export", $format);
     }
 
     protected function buildFiltersFromOptions()
     {
         $filters = [];
-        
+
         $filterOptions = [
             'client-id' => 'client_id',
             'first-name' => 'first_name',
@@ -476,13 +382,13 @@ class DataExchangeCommand extends Command
             'date-from' => 'date_from',
             'date-to' => 'date_to'
         ];
-        
+
         foreach ($filterOptions as $option => $field) {
             if ($this->option($option)) {
                 $filters[$field] = $this->option($option);
             }
         }
-        
+
         return $filters;
     }
 
@@ -500,24 +406,23 @@ class DataExchangeCommand extends Command
     {
         $format = $format ?? $this->option('format') ?? 'json';
         $outputFile = $this->option('output');
-        
+
         // Convert data to specified format
         $convertedData = $this->dataExchangeService->convertDataFormat($data, $format);
-        
+
         if ($outputFile) {
             // Save to file
             $fullPath = $outputFile;
             if (pathinfo($outputFile, PATHINFO_EXTENSION) === '') {
                 $fullPath .= ".{$format}";
             }
-            
+
             file_put_contents($fullPath, $convertedData);
             $this->info("✓ Data exported to: {$fullPath}");
-            
         } else {
             // Output to console
             $this->info("✓ Data retrieved successfully!");
-            
+
             if ($this->option('detailed')) {
                 $this->line($convertedData);
             } else {
@@ -531,17 +436,17 @@ class DataExchangeCommand extends Command
                 } else {
                     $this->line("Response type: " . gettype($data));
                 }
-                
+
                 $this->line("Use --detailed flag to see full output");
                 $this->line("Use --output=filename to save to file");
             }
         }
-        
+
         if ($this->option('detailed')) {
             $this->line("Request: " . $this->dataExchangeService->getLastRequest());
             $this->line("Response: " . $this->dataExchangeService->getLastResponse());
         }
-        
+
         return 0;
     }
 

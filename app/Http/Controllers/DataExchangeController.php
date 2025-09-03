@@ -48,11 +48,11 @@ class DataExchangeController extends Controller
     {
         try {
             $connectionResult = $this->dataExchangeService->testConnection();
-            
+
             if ($connectionResult['status'] === 'success') {
                 $functions = $connectionResult['functions'] ?? [];
                 $types = $connectionResult['types'] ?? [];
-                
+
                 return view('data-exchange.available-methods', compact('functions', 'types'));
             } else {
                 return view('data-exchange.available-methods', [
@@ -97,61 +97,16 @@ class DataExchangeController extends Controller
 
         try {
             $result = $this->dataExchangeService->submitClientData($request->all());
-            
+
             $response = redirect()->back()->with('success', 'Client data submitted successfully')
                 ->with('result', $result);
-            
+
             return $this->withDebugInfo($response);
-                
         } catch (\Exception $e) {
             $response = redirect()->back()
                 ->with('error', 'Failed to submit client data: ' . $e->getMessage())
                 ->withInput();
-            
-            return $this->withDebugInfo($response);
-        }
-    }
 
-    /**
-     * Submit service data form
-     */
-    public function showServiceForm()
-    {
-        $sampleData = $this->dataExchangeService->generateSampleServiceData();
-        return view('data-exchange.service-form', compact('sampleData'));
-    }
-
-    /**
-     * Submit service data
-     */
-    public function submitServiceData(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'client_id' => 'required|string|max:50',
-            'service_type' => 'required|string|max:100',
-            'service_start_date' => 'required|date',
-            'service_end_date' => 'nullable|date|after_or_equal:service_start_date'
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
-        try {
-            $result = $this->dataExchangeService->submitServiceData($request->all());
-            
-            $response = redirect()->back()->with('success', 'Service data submitted successfully')
-                ->with('result', $result);
-            
-            return $this->withDebugInfo($response);
-                
-        } catch (\Exception $e) {
-            $response = redirect()->back()
-                ->with('error', 'Failed to submit service data: ' . $e->getMessage())
-                ->withInput();
-            
             return $this->withDebugInfo($response);
         }
     }
@@ -180,11 +135,10 @@ class DataExchangeController extends Controller
         try {
             $file = $request->file('csv_file');
             $clientDataArray = $this->parseCsvFile($file);
-            
+
             $results = $this->dataExchangeService->bulkSubmitClientData($clientDataArray);
-            
+
             return view('data-exchange.bulk-results', compact('results'));
-            
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Failed to process bulk upload: ' . $e->getMessage());
@@ -221,7 +175,7 @@ class DataExchangeController extends Controller
     {
         $resources = $this->dataExchangeService->getAvailableResources();
         $reports = $this->dataExchangeService->getAvailableReports();
-        
+
         return view('data-exchange.retrieve-form', compact('resources', 'reports'));
     }
 
@@ -244,7 +198,7 @@ class DataExchangeController extends Controller
         try {
             $filters = $this->buildFilters($request);
             $resourceType = $request->resource_type;
-            
+
             // Get data based on resource type
             switch ($resourceType) {
                 case 'clients':
@@ -263,17 +217,17 @@ class DataExchangeController extends Controller
                         'filters_has_case_id' => isset($filters['case_id']),
                         'all_request_data' => $request->all()
                     ]);
-                    
+
                     if (empty($request->case_id)) {
                         throw new \Exception('Case ID is required for session data retrieval. Sessions are linked to specific cases in the DSS system. Received case_id: "' . ($request->case_id ?? 'null') . '" (type: ' . gettype($request->case_id) . ')');
                     }
-                    
+
                     // Ensure case_id is in filters even if buildFilters missed it
                     if (!isset($filters['case_id']) && $request->case_id) {
                         $filters['case_id'] = $request->case_id;
                         Log::info('Added case_id to filters manually: ' . $request->case_id);
                     }
-                    
+
                     $data = $this->dataExchangeService->getSessionData($filters);
                     break;
                 case 'client_by_id':
@@ -307,14 +261,13 @@ class DataExchangeController extends Controller
                 ->with('data', $data)
                 ->with('format', $request->format)
                 ->withInput();
-            
-            return $this->withDebugInfo($response);
 
+            return $this->withDebugInfo($response);
         } catch (\Exception $e) {
             $response = redirect()->back()
                 ->with('error', 'Failed to retrieve data: ' . $e->getMessage())
                 ->withInput();
-            
+
             return $this->withDebugInfo($response);
         }
     }
@@ -326,7 +279,7 @@ class DataExchangeController extends Controller
     {
         $filename = $resourceType . '_' . date('Y-m-d_H-i-s') . '.' . $format;
         $convertedData = $this->dataExchangeService->convertDataFormat($data, $format);
-        
+
         $headers = [
             'Content-Type' => $this->getContentType($format),
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
@@ -353,47 +306,12 @@ class DataExchangeController extends Controller
     }
 
     /**
-     * Generate report
-     */
-    public function generateReport(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'report_type' => 'required|string',
-            'format' => 'required|in:json,xml,csv'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => 'Invalid parameters'], 400);
-        }
-
-        try {
-            $parameters = $this->buildReportParameters($request);
-            $data = $this->dataExchangeService->getReportingData($request->report_type, $parameters);
-            
-            if ($request->action === 'download') {
-                return $this->downloadData($data, $request->report_type . '_report', $request->format);
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $data,
-                'format' => $request->format
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Show resource schema
      */
     public function showResourceSchema(Request $request)
     {
         $resourceType = $request->get('resource_type');
-        
+
         if (!$resourceType) {
             return view('data-exchange.resource-schema', [
                 'error' => 'Resource type is required. Please select a resource type first.',
@@ -421,27 +339,40 @@ class DataExchangeController extends Controller
     protected function buildFilters(Request $request)
     {
         $filters = [];
-        
+
         // Standard filters
         $filterFields = [
-            'client_id', 'first_name', 'last_name', 'gender', 'postal_code',
-            'case_id', 'case_id_filter', 'case_status', 'case_type',
-            'session_id', 'session_type', 'session_status',
-            'service_type', 'service_start_date', 'service_end_date',
-            'date_from', 'date_to', 'status'
+            'client_id',
+            'first_name',
+            'last_name',
+            'gender',
+            'postal_code',
+            'case_id',
+            'case_id_filter',
+            'case_status',
+            'case_type',
+            'session_id',
+            'session_type',
+            'session_status',
+            'service_type',
+            'service_start_date',
+            'service_end_date',
+            'date_from',
+            'date_to',
+            'status'
         ];
-        
+
         foreach ($filterFields as $field) {
             if ($request->has($field) && !empty($request->get($field))) {
                 $filters[$field] = $request->get($field);
             }
         }
-        
+
         // Normalize case_id_filter to case_id for consistency
         if (!empty($filters['case_id_filter']) && empty($filters['case_id'])) {
             $filters['case_id'] = $filters['case_id_filter'];
         }
-        
+
         return $filters;
     }
 
@@ -455,7 +386,7 @@ class DataExchangeController extends Controller
     protected function withDebugInfo($response)
     {
         $config = Config::get('soap.dss.debug');
-        
+
         if ($config && $config['web_display_enabled']) {
             try {
                 if ($config['show_requests']) {
@@ -471,7 +402,7 @@ class DataExchangeController extends Controller
                 $response = $response->with('debug_error', 'Debug info unavailable: ' . $e->getMessage());
             }
         }
-        
+
         return $response;
     }
 
@@ -482,10 +413,10 @@ class DataExchangeController extends Controller
     {
         $clientDataArray = [];
         $handle = fopen($file->getPathname(), 'r');
-        
+
         // Skip header row
         fgetcsv($handle);
-        
+
         while (($data = fgetcsv($handle)) !== FALSE) {
             $clientDataArray[] = [
                 'client_id' => $data[0] ?? null,
@@ -502,7 +433,7 @@ class DataExchangeController extends Controller
                 'client_type' => $data[11] ?? null,
             ];
         }
-        
+
         fclose($handle);
         return $clientDataArray;
     }

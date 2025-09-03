@@ -28,19 +28,6 @@ class DataExchangeService
     }
 
     /**
-     * Submit service data to DSS Data Exchange
-     */
-    public function submitServiceData($serviceData)
-    {
-        $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
-            'ServiceData' => $this->formatServiceData($serviceData)
-        ];
-
-        return $this->soapClient->call('SubmitServiceData', $parameters);
-    }
-
-    /**
      * Get data exchange status
      */
     public function getSubmissionStatus($submissionId)
@@ -140,7 +127,7 @@ class DataExchangeService
     {
         try {
             $result = $this->soapClient->call('Ping', []);
-            
+
             return [
                 'status' => 'success',
                 'message' => 'Ping successful',
@@ -196,7 +183,7 @@ class DataExchangeService
     public function bulkSubmitClientData($clientDataArray)
     {
         $results = [];
-        
+
         foreach ($clientDataArray as $index => $clientData) {
             try {
                 $result = $this->submitClientData($clientData);
@@ -211,7 +198,7 @@ class DataExchangeService
                 ];
             }
         }
-        
+
         return $results;
     }
 
@@ -331,25 +318,25 @@ class DataExchangeService
             'case_id_value' => $filters['case_id'] ?? 'not set',
             'case_id_empty' => empty($filters['case_id'])
         ]);
-        
+
         // Check if a Case ID is provided - this is required for session retrieval
         if (!empty($filters['case_id'])) {
             Log::info('Getting sessions for specific case: ' . $filters['case_id']);
             // Use SearchCase to get the case data, which may include session information
             $caseFilters = ['case_id' => $filters['case_id']];
             $caseResult = $this->getCaseData($caseFilters);
-            
+
             // Check if the case result contains session data
             // Convert to array if it's an object for consistent handling
             if (is_object($caseResult)) {
                 $caseResult = json_decode(json_encode($caseResult), true);
             }
-            
+
             if (isset($caseResult['Sessions']) || isset($caseResult['SessionData'])) {
                 Log::info('Found session data in case result');
                 return $caseResult;
             }
-            
+
             // If no session data found in case, return informative message
             Log::info('No session data found for case: ' . $filters['case_id']);
             return [
@@ -517,7 +504,7 @@ class DataExchangeService
     protected function formatFilters($filters)
     {
         $formattedFilters = [];
-        
+
         foreach ($filters as $key => $value) {
             if (!empty($value)) {
                 $formattedFilters[] = [
@@ -527,7 +514,7 @@ class DataExchangeService
                 ];
             }
         }
-        
+
         return $formattedFilters;
     }
 
@@ -537,15 +524,15 @@ class DataExchangeService
     protected function formatSearchCriteria($filters)
     {
         $criteria = [];
-        
+
         // Required pagination parameters (from SearchCriteriaBase)
         $criteria['PageIndex'] = $filters['page_index'] ?? 1; // 1-based page index
         $criteria['PageSize'] = $filters['page_size'] ?? 100; // Default 100 records per page
         $criteria['IsAscending'] = $filters['is_ascending'] ?? true; // Default ascending sort
-        
+
         // Required sort column (from ClientSearchCriteriaBase)
         $criteria['SortColumn'] = $filters['sort_column'] ?? 'ClientId'; // Default sort by ClientId
-        
+
         // Map common filters to DSS ClientSearchCriteria fields (all optional)
         if (!empty($filters['client_id'])) {
             $criteria['ClientId'] = $filters['client_id'];
@@ -554,7 +541,7 @@ class DataExchangeService
             $criteria['GivenName'] = $filters['first_name']; // DSS uses GivenName
         }
         if (!empty($filters['last_name'])) {
-            $criteria['FamilyName'] = $filters['last_name']; // DSS uses FamilyName  
+            $criteria['FamilyName'] = $filters['last_name']; // DSS uses FamilyName
         }
         if (!empty($filters['date_from'])) {
             $criteria['CreatedDateFrom'] = $filters['date_from'] . 'T00:00:00'; // Add time component
@@ -562,7 +549,7 @@ class DataExchangeService
         if (!empty($filters['date_to'])) {
             $criteria['CreatedDateTo'] = $filters['date_to'] . 'T23:59:59'; // Add time component
         }
-        
+
         return $criteria;
     }
 
@@ -572,15 +559,15 @@ class DataExchangeService
     protected function formatCaseSearchCriteria($filters)
     {
         $criteria = [];
-        
+
         // Required pagination parameters (from SearchCriteriaBase)
         $criteria['PageIndex'] = $filters['page_index'] ?? 1; // 1-based page index
         $criteria['PageSize'] = $filters['page_size'] ?? 100; // Default 100 records per page
         $criteria['IsAscending'] = $filters['is_ascending'] ?? true; // Default ascending sort
-        
+
         // Required sort column (from CaseSearchCriteriaBase)
         $criteria['SortColumn'] = $filters['sort_column'] ?? 'CaseId'; // Default sort by CaseId
-        
+
         // Map common filters to DSS CaseSearchCriteria fields (all optional)
         if (!empty($filters['case_id'])) {
             $criteria['CaseId'] = $filters['case_id'];
@@ -606,7 +593,7 @@ class DataExchangeService
         if (!empty($filters['service_end_date'])) {
             $criteria['ServiceEndDateTo'] = $filters['service_end_date'] . 'T23:59:59';
         }
-        
+
         return $criteria;
     }
 
@@ -616,15 +603,15 @@ class DataExchangeService
     protected function formatSessionSearchCriteria($filters)
     {
         $criteria = [];
-        
+
         // Required pagination parameters (from SearchCriteriaBase)
         $criteria['PageIndex'] = $filters['page_index'] ?? 1; // 1-based page index
         $criteria['PageSize'] = $filters['page_size'] ?? 100; // Default 100 records per page
         $criteria['IsAscending'] = $filters['is_ascending'] ?? true; // Default ascending sort
-        
+
         // Required sort column (from SessionSearchCriteriaBase)
         $criteria['SortColumn'] = $filters['sort_column'] ?? 'SessionId'; // Default sort by SessionId
-        
+
         // Map common filters to DSS SessionSearchCriteria fields (all optional)
         if (!empty($filters['session_id'])) {
             $criteria['SessionId'] = $filters['session_id'];
@@ -656,7 +643,7 @@ class DataExchangeService
         if (!empty($filters['service_end_date'])) {
             $criteria['ServiceEndDate'] = $filters['service_end_date'] . 'T23:59:59';
         }
-        
+
         return $criteria;
     }
 
@@ -673,13 +660,13 @@ class DataExchangeService
         switch (strtolower($format)) {
             case 'json':
                 return json_encode($data, JSON_PRETTY_PRINT);
-                
+
             case 'xml':
                 return $this->arrayToXml($data);
-                
+
             case 'csv':
                 return $this->arrayToCsv($this->extractRecordsForCsv($data));
-                
+
             default:
                 return $data;
         }
@@ -700,31 +687,31 @@ class DataExchangeService
             $records = $data['Clients']['Client'];
             return is_array($records) ? $records : [$records];
         }
-        
+
         if (isset($data['Sessions']['Session'])) {
             // Session/Service data response
             $records = $data['Sessions']['Session'];
             return is_array($records) ? $records : [$records];
         }
-        
+
         if (isset($data['Sessions']) && isset($data['Source'])) {
             // Session data extracted from cases
             $records = $data['Sessions'];
             return is_array($records) ? $records : [$records];
         }
-        
+
         if (isset($data['Cases']['Case'])) {
             // Case data response
             $records = $data['Cases']['Case'];
             return is_array($records) ? $records : [$records];
         }
-        
+
         if (isset($data['Cases']) && isset($data['Source'])) {
             // Case data used as fallback for sessions
             $records = $data['Cases'];
             return is_array($records) ? $records : [$records];
         }
-        
+
         // Check if data is already in the correct format (array of records)
         if (is_array($data) && !empty($data)) {
             $firstElement = reset($data);
@@ -733,7 +720,7 @@ class DataExchangeService
                 return $data;
             }
         }
-        
+
         // Fallback - return the data as is
         return $data;
     }
@@ -769,10 +756,10 @@ class DataExchangeService
 
         $output = '';
         $headers = [];
-        
+
         // Normalize data - ensure it's an array of arrays
         $normalizedData = [];
-        
+
         // Check if data is associative array (single record) or indexed array (multiple records)
         if (array_keys($data) !== range(0, count($data) - 1)) {
             // Single associative array - convert to array of arrays
@@ -786,16 +773,16 @@ class DataExchangeService
                 $normalizedData = [$data];
             }
         }
-        
+
         // Extract headers from first row
         if (!empty($normalizedData)) {
             $firstRow = reset($normalizedData);
             if (is_array($firstRow)) {
                 $headers = array_keys($firstRow);
-                $output .= implode(',', array_map(function($header) {
+                $output .= implode(',', array_map(function ($header) {
                     return '"' . str_replace('"', '""', $header) . '"';
                 }, $headers)) . "\n";
-                
+
                 // Process data rows
                 foreach ($normalizedData as $row) {
                     if (is_array($row)) {
@@ -818,7 +805,7 @@ class DataExchangeService
         } else {
             $output = "No records found\n";
         }
-        
+
         return $output;
     }
 
