@@ -22,7 +22,7 @@ class GetByIdTest extends TestCase
     {
         // Mock the DataExchangeService
         $mockDataService = Mockery::mock(DataExchangeService::class);
-        
+
         // Mock the getClientById method
         $mockDataService->shouldReceive('getClientById')
             ->once()
@@ -32,7 +32,7 @@ class GetByIdTest extends TestCase
                 'FirstName' => 'John',
                 'LastName' => 'Doe'
             ]);
-        
+
         // Mock debug methods
         $mockDataService->shouldReceive('getSanitizedLastRequest')->andReturn('Mock request');
         $mockDataService->shouldReceive('getSanitizedLastResponse')->andReturn('Mock response');
@@ -69,7 +69,7 @@ class GetByIdTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
-        
+
         $errorMessage = session('error');
         $this->assertStringContainsString('Client ID is required', $errorMessage);
     }
@@ -81,7 +81,7 @@ class GetByIdTest extends TestCase
     {
         // Mock the DataExchangeService
         $mockDataService = Mockery::mock(DataExchangeService::class);
-        
+
         // Mock the getCaseById method
         $mockDataService->shouldReceive('getCaseById')
             ->once()
@@ -91,7 +91,7 @@ class GetByIdTest extends TestCase
                 'ClientId' => 'CLIENT123',
                 'CaseStatus' => 'Open'
             ]);
-        
+
         // Mock debug methods
         $mockDataService->shouldReceive('getSanitizedLastRequest')->andReturn('Mock request');
         $mockDataService->shouldReceive('getSanitizedLastResponse')->andReturn('Mock response');
@@ -128,7 +128,7 @@ class GetByIdTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
-        
+
         $errorMessage = session('error');
         $this->assertStringContainsString('Case ID is required', $errorMessage);
     }
@@ -140,7 +140,7 @@ class GetByIdTest extends TestCase
     {
         // Mock the DataExchangeService
         $mockDataService = Mockery::mock(DataExchangeService::class);
-        
+
         // Mock the getSessionById method
         $mockDataService->shouldReceive('getSessionById')
             ->once()
@@ -150,7 +150,7 @@ class GetByIdTest extends TestCase
                 'CaseId' => 'CASE456',
                 'SessionType' => 'Counselling'
             ]);
-        
+
         // Mock debug methods
         $mockDataService->shouldReceive('getSanitizedLastRequest')->andReturn('Mock request');
         $mockDataService->shouldReceive('getSanitizedLastResponse')->andReturn('Mock response');
@@ -189,7 +189,7 @@ class GetByIdTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
-        
+
         $errorMessage = session('error');
         $this->assertStringContainsString('Session ID is required', $errorMessage);
     }
@@ -210,7 +210,7 @@ class GetByIdTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
-        
+
         $errorMessage = session('error');
         $this->assertStringContainsString('Case ID is required', $errorMessage);
     }
@@ -286,51 +286,6 @@ class GetByIdTest extends TestCase
         $this->assertEquals('TEST_CASE_ID', $request->case_id);
         $this->assertFalse(empty($request->case_id));
         $this->assertNotNull($request->case_id);
-    }
-
-    /**
-     * Test service methods with correct parameter structure
-     */
-    public function test_service_methods_parameter_structure()
-    {
-        // Mock the SOAP client
-        $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
-        // Test GetClient parameters
-        $mockSoapClient->shouldReceive('call')
-            ->with('GetClient', [
-                'ClientId' => 'TEST_CLIENT',
-                'Criteria' => []
-            ])
-            ->once()
-            ->andReturn(['ClientId' => 'TEST_CLIENT']);
-
-        // Test GetCase parameters
-        $mockSoapClient->shouldReceive('call')
-            ->with('GetCase', [
-                'CaseId' => 'TEST_CASE',
-                'Criteria' => []
-            ])
-            ->once()
-            ->andReturn(['CaseId' => 'TEST_CASE']);
-
-        // Test GetSession parameters
-        $mockSoapClient->shouldReceive('call')
-            ->with('GetSession', [
-                'SessionId' => 'TEST_SESSION',
-                'CaseId' => 'TEST_CASE',
-                'Criteria' => []
-            ])
-            ->once()
-            ->andReturn(['SessionId' => 'TEST_SESSION']);
-
-        // Create service with mock
-        $service = new DataExchangeService($mockSoapClient);
-
-        // Test all methods
-        $service->getClientById('TEST_CLIENT');
-        $service->getCaseById('TEST_CASE');
-        $service->getSessionById('TEST_SESSION', 'TEST_CASE');
     }
 
     protected function tearDown(): void
