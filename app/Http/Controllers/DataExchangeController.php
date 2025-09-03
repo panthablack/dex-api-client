@@ -283,8 +283,17 @@ class DataExchangeController extends Controller
                     $data = $this->dataExchangeService->getClientById($request->client_id);
                     break;
                 case 'case_by_id':
+                    // Debug logging for case_by_id
+                    Log::info('Case by ID request debug', [
+                        'request_case_id' => $request->case_id,
+                        'request_has_case_id' => $request->has('case_id'),
+                        'request_case_id_empty' => empty($request->case_id),
+                        'request_case_id_value' => $request->get('case_id'),
+                        'all_request_data' => $request->all()
+                    ]);
+                    
                     if (empty($request->case_id)) {
-                        throw new \Exception('Case ID is required for case lookup');
+                        throw new \Exception('Case ID is required for case lookup. Received: "' . ($request->case_id ?? 'null') . '" (type: ' . gettype($request->case_id) . ')');
                     }
                     $data = $this->dataExchangeService->getCaseById($request->case_id);
                     break;

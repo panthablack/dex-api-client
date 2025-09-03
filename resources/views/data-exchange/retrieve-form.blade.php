@@ -178,8 +178,8 @@
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <button type="button" class="btn btn-outline-secondary me-md-2" onclick="clearForm()">Clear Form</button>
-                        <button type="submit" name="action" value="preview" class="btn btn-info me-md-2">Preview Data</button>
-                        <button type="submit" name="action" value="download" class="btn btn-success">Download Data</button>
+                        <button type="submit" name="action" value="preview" class="btn btn-info me-md-2" onclick="validateForm(event)">Preview Data</button>
+                        <button type="submit" name="action" value="download" class="btn btn-success" onclick="validateForm(event)">Download Data</button>
                     </div>
                 </form>
             </div>
@@ -369,16 +369,28 @@ function updateFilters() {
     caseOptionalFilters.style.display = 'none';
     sessionOptionalFilters.style.display = 'none';
     
-    // Reset required attributes
+    // Reset required attributes and disable all fields initially
     const reqClientId = document.getElementById('req_client_id');
     const reqCaseId = document.getElementById('req_case_id');
     const reqSessionId = document.getElementById('req_session_id');
     const reqSessionCaseId = document.getElementById('req_session_case_id');
     
-    if (reqClientId) reqClientId.required = false;
-    if (reqCaseId) reqCaseId.required = false;
-    if (reqSessionId) reqSessionId.required = false;
-    if (reqSessionCaseId) reqSessionCaseId.required = false;
+    if (reqClientId) {
+        reqClientId.required = false;
+        reqClientId.disabled = true;
+    }
+    if (reqCaseId) {
+        reqCaseId.required = false;
+        reqCaseId.disabled = true;
+    }
+    if (reqSessionId) {
+        reqSessionId.required = false;
+        reqSessionId.disabled = true;
+    }
+    if (reqSessionCaseId) {
+        reqSessionCaseId.required = false;
+        reqSessionCaseId.disabled = true;
+    }
     
     // Show relevant sections based on resource type
     if (resourceType) {
@@ -389,23 +401,28 @@ function updateFilters() {
             requiredSection.style.display = 'block';
             reqClientFilters.style.display = 'block';
             reqClientId.required = true;
+            reqClientId.disabled = false;
             hasRequiredFilters = true;
         } else if (resourceType === 'case_by_id') {
             requiredSection.style.display = 'block';
             reqCaseFilters.style.display = 'block';
             reqCaseId.required = true;
+            reqCaseId.disabled = false;
             hasRequiredFilters = true;
         } else if (resourceType === 'session_by_id') {
             requiredSection.style.display = 'block';
             reqSessionFilters.style.display = 'block';
             reqSessionId.required = true;
+            reqSessionId.disabled = false;
             reqSessionCaseId.required = true;
+            reqSessionCaseId.disabled = false;
             hasRequiredFilters = true;
         } else if (resourceType === 'sessions') {
             // Sessions require Case ID
             requiredSection.style.display = 'block';
             reqCaseFilters.style.display = 'block';
             reqCaseId.required = true;
+            reqCaseId.disabled = false;
             hasRequiredFilters = true;
         }
         
@@ -508,6 +525,63 @@ function showNotification(message, type = 'info', duration = 5000) {
             notification.remove();
         }
     }, duration);
+}
+
+// Validate form before submission
+function validateForm(event) {
+    const resourceType = document.getElementById('resource_type').value;
+    
+    console.log('Form validation - Resource type:', resourceType);
+    
+    // Check required fields based on resource type
+    if (resourceType === 'client_by_id') {
+        const clientId = document.getElementById('req_client_id');
+        console.log('Client ID field:', clientId);
+        console.log('Client ID value:', clientId ? clientId.value : 'field not found');
+        if (!clientId || !clientId.value.trim()) {
+            alert('Client ID is required for client lookup');
+            event.preventDefault();
+            return false;
+        }
+    } else if (resourceType === 'case_by_id') {
+        const caseId = document.getElementById('req_case_id');
+        console.log('Case ID field:', caseId);
+        console.log('Case ID value:', caseId ? caseId.value : 'field not found');
+        console.log('Case ID field display:', caseId ? getComputedStyle(caseId.parentElement.parentElement).display : 'N/A');
+        console.log('Case ID field disabled:', caseId ? caseId.disabled : 'N/A');
+        if (!caseId || !caseId.value.trim()) {
+            alert('Case ID is required for case lookup');
+            event.preventDefault();
+            return false;
+        }
+    } else if (resourceType === 'session_by_id') {
+        const sessionId = document.getElementById('req_session_id');
+        const sessionCaseId = document.getElementById('req_session_case_id');
+        console.log('Session ID field:', sessionId);
+        console.log('Session ID value:', sessionId ? sessionId.value : 'field not found');
+        console.log('Session Case ID field:', sessionCaseId);
+        console.log('Session Case ID value:', sessionCaseId ? sessionCaseId.value : 'field not found');
+        if (!sessionId || !sessionId.value.trim()) {
+            alert('Session ID is required for session lookup');
+            event.preventDefault();
+            return false;
+        }
+        if (!sessionCaseId || !sessionCaseId.value.trim()) {
+            alert('Case ID is required for session lookup');
+            event.preventDefault();
+            return false;
+        }
+    }
+    
+    // Log all form data before submission
+    const form = document.getElementById('retrieveForm');
+    const formData = new FormData(form);
+    console.log('All form data being submitted:');
+    for (let [key, value] of formData.entries()) {
+        console.log(key + ':', value);
+    }
+    
+    return true;
 }
 
 // Initialize filters on page load

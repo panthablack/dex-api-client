@@ -305,12 +305,21 @@ class DataExchangeService
 
     /**
      * Get case by ID
+     * Note: CaseId must be passed outside the Criteria array as per DSS requirements
      */
     public function getCaseById($caseId)
     {
+        // CaseId must be at top level, separate from Criteria array
         $parameters = [
-            'CaseId' => $caseId
+            'CaseId' => $caseId,
+            'Criteria' => []  // Empty criteria array as the ID is the main selector
         ];
+
+        // Log the exact parameters being sent
+        Log::info('GetCase Request Parameters:', [
+            'case_id_received' => $caseId,
+            'full_parameters' => $parameters
+        ]);
 
         return $this->soapClient->call('GetCase', $parameters);
     }
