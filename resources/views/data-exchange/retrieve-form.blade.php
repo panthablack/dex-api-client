@@ -432,7 +432,7 @@ function updateFilters() {
         // Show relevant optional filters
         if (resourceType === 'clients' || resourceType === 'client_by_id') {
             clientOptionalFilters.style.display = 'block';
-        } else if (resourceType === 'cases' || resourceType === 'case_by_id' || resourceType === 'full_cases') {
+        } else if (resourceType === 'cases' || resourceType === 'case_by_id' || resourceType === 'full_cases' || resourceType === 'full_sessions') {
             caseOptionalFilters.style.display = 'block';
         } else if (resourceType === 'sessions' || resourceType === 'session_by_id') {
             sessionOptionalFilters.style.display = 'block';

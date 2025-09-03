@@ -488,6 +488,203 @@ class DataExchangeService
     }
 
     /**
+     * Fetch Full Session Data - First fetches all cases using fetchFullCaseData, then gets detailed session data for each session in each case
+     * This provides the richest session information by combining SearchCase + GetCase + GetSession calls
+     */
+    public function fetchFullSessionData($filters = [])
+    {
+        try {
+            // First, get all full case data
+            Log::info('Fetching full session data - starting with fetchFullCaseData', [
+                'filters' => $filters
+            ]);
+            
+            $fullCaseData = $this->fetchFullCaseData($filters);
+            
+            if (empty($fullCaseData)) {
+                Log::info('No cases found, returning empty session array');
+                return [];
+            }
+
+            Log::info('Found cases, now extracting sessions', [
+                'cases_count' => count($fullCaseData)
+            ]);
+
+            // Extract all sessions from all cases and fetch detailed session data
+            $fullSessionData = [];
+            $totalSessions = 0;
+            $successfulSessions = 0;
+            $errors = [];
+
+            foreach ($fullCaseData as $caseIndex => $caseData) {
+                $caseId = $caseData['CaseDetail']['CaseId'] ?? $caseData['CaseId'] ?? null;
+                
+                if (!$caseId) {
+                    Log::warning('Case without CaseId found', ['case_data_keys' => array_keys($caseData)]);
+                    continue;
+                }
+
+                // Extract session IDs from the case data
+                $sessionIds = $this->extractSessionIdsFromCase($caseData);
+                
+                if (empty($sessionIds)) {
+                    Log::info('No sessions found in case', ['case_id' => $caseId]);
+                    continue;
+                }
+
+                Log::info('Processing sessions for case', [
+                    'case_id' => $caseId,
+                    'session_count' => count($sessionIds)
+                ]);
+
+                foreach ($sessionIds as $sessionId) {
+                    $totalSessions++;
+                    
+                    try {
+                        Log::info('Fetching full data for session', [
+                            'session_id' => $sessionId,
+                            'case_id' => $caseId
+                        ]);
+                        
+                        // Get detailed session data using GetSession
+                        $fullSessionResult = $this->getSessionById($sessionId, $caseId);
+                        
+                        // Extract clean session data from the SOAP response
+                        $cleanSessionData = $this->extractCleanSessionData($fullSessionResult);
+                        
+                        // Only include successfully retrieved sessions
+                        if ($cleanSessionData) {
+                            // Add case context to session data
+                            $cleanSessionData['_case_context'] = [
+                                'CaseId' => $caseId,
+                                'OutletName' => $caseData['OutletName'] ?? null,
+                                'ProgramActivityName' => $caseData['ProgramActivityName'] ?? null
+                            ];
+                            
+                            $fullSessionData[] = $cleanSessionData;
+                            $successfulSessions++;
+                        }
+
+                    } catch (\Exception $e) {
+                        Log::error('Failed to get full data for session', [
+                            'session_id' => $sessionId,
+                            'case_id' => $caseId,
+                            'error' => $e->getMessage()
+                        ]);
+                        
+                        $errors[] = [
+                            'session_id' => $sessionId,
+                            'case_id' => $caseId,
+                            'error' => $e->getMessage()
+                        ];
+                    }
+                }
+            }
+
+            Log::info('Fetch full session data completed', [
+                'cases_processed' => count($fullCaseData),
+                'total_sessions_found' => $totalSessions,
+                'successful_sessions' => $successfulSessions,
+                'errors' => count($errors)
+            ]);
+
+            // Return only successful sessions with clean structure
+            return $fullSessionData;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch full session data', [
+                'error' => $e->getMessage(),
+                'filters' => $filters
+            ]);
+            
+            throw new \Exception('Failed to fetch full session data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Extract session IDs from case data structure
+     */
+    protected function extractSessionIdsFromCase($caseData)
+    {
+        $sessionIds = [];
+        
+        // Handle different possible session structures in case data
+        if (isset($caseData['Sessions']['SessionId'])) {
+            $sessions = $caseData['Sessions']['SessionId'];
+            
+            // Single session
+            if (is_string($sessions)) {
+                $sessionIds[] = $sessions;
+            }
+            // Multiple sessions as array
+            elseif (is_array($sessions)) {
+                foreach ($sessions as $sessionId) {
+                    if (is_string($sessionId)) {
+                        $sessionIds[] = $sessionId;
+                    }
+                }
+            }
+        }
+        // Alternative structure - Sessions as array of objects
+        elseif (isset($caseData['Sessions']) && is_array($caseData['Sessions'])) {
+            foreach ($caseData['Sessions'] as $session) {
+                if (is_array($session) && isset($session['SessionId'])) {
+                    $sessionIds[] = $session['SessionId'];
+                } elseif (is_string($session)) {
+                    $sessionIds[] = $session;
+                }
+            }
+        }
+
+        // Remove duplicates and filter out empty values
+        $sessionIds = array_filter(array_unique($sessionIds), function($id) {
+            return !empty($id) && is_string($id);
+        });
+
+        return array_values($sessionIds);
+    }
+
+    /**
+     * Extract clean session data from SOAP GetSession response
+     * Only returns successfully retrieved sessions with proper structure
+     */
+    protected function extractCleanSessionData($soapResponse)
+    {
+        try {
+            // Convert objects to arrays
+            if (is_object($soapResponse)) {
+                $soapResponse = json_decode(json_encode($soapResponse), true);
+            }
+
+            // Check for successful transaction
+            if (isset($soapResponse['TransactionStatus']['TransactionStatusCode']) && 
+                $soapResponse['TransactionStatus']['TransactionStatusCode'] !== 'Success') {
+                
+                Log::info('Session retrieval failed', [
+                    'status' => $soapResponse['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
+                    'message' => $soapResponse['TransactionStatus']['Messages']['Message']['MessageDescription'] ?? 'No message'
+                ]);
+                return null;
+            }
+
+            // Extract the actual session data
+            if (isset($soapResponse['Session']) && $soapResponse['Session'] !== null) {
+                return $soapResponse['Session'];
+            }
+
+            // If no proper session structure, return null
+            Log::info('No session data found in response structure');
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Error extracting clean session data', [
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Get sessions/services data - Sessions are linked to Cases and require a Case ID
      */
     public function getSessionData($filters = [])
@@ -685,6 +882,25 @@ class DataExchangeService
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ],
                 'note' => 'This method performs multiple SOAP calls and may take longer than standard SearchCase'
+            ],
+            'full_sessions' => [
+                'method' => 'SearchCase + GetCase + GetSession combination',
+                'description' => 'First searches for cases using SearchCase, then fetches detailed data for each case using GetCase, and finally fetches detailed session data for each session using GetSession. This provides the richest session information available.',
+                'required_parameters' => [
+                    'PageIndex' => 'Page number (1-based)',
+                    'PageSize' => 'Number of records per page (default: 100)',
+                    'SortColumn' => 'Column to sort by (default: CaseId)',
+                    'IsAscending' => 'Sort direction (default: true)'
+                ],
+                'optional_parameters' => [
+                    'CaseId' => 'Specific case ID to search for',
+                    'ClientId' => 'Client ID associated with cases',
+                    'CaseStatus' => 'Status of the case',
+                    'CaseType' => 'Type of case',
+                    'CreatedDateFrom' => 'Search from date (ISO format)',
+                    'CreatedDateTo' => 'Search to date (ISO format)'
+                ],
+                'note' => 'This method performs the most SOAP calls (SearchCase + GetCase for each case + GetSession for each session) and will take the longest time but provides the most comprehensive session data'
             ],
             'sessions' => [
                 'method' => 'SearchSession (with SearchCase fallback)',
@@ -1033,6 +1249,7 @@ class DataExchangeService
             'clients' => 'Client Data',
             'cases' => 'Case Data',
             'full_cases' => 'Fetch Full Case Data (SearchCase + GetCase)',
+            'full_sessions' => 'Fetch Full Session Data (SearchCase + GetCase + GetSession)',
             'sessions' => 'Session Data (requires Case ID)'
         ];
     }
