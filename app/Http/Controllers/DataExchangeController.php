@@ -253,6 +253,9 @@ class DataExchangeController extends Controller
                 case 'cases':
                     $data = $this->dataExchangeService->getCaseData($filters);
                     break;
+                case 'full_cases':
+                    $data = $this->dataExchangeService->fetchFullCaseData($filters);
+                    break;
                 case 'sessions':
                     // Debug logging
                     Log::info('Session request debug', [

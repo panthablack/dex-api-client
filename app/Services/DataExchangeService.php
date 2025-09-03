@@ -325,6 +325,169 @@ class DataExchangeService
     }
 
     /**
+     * Fetch Full Case Data - Search for cases then get detailed data for each using GetCase
+     * This provides richer case information compared to SearchCase alone
+     */
+    public function fetchFullCaseData($filters = [])
+    {
+        try {
+            // First, search for cases using the existing SearchCase functionality
+            Log::info('Fetching full case data - starting with SearchCase', [
+                'filters' => $filters
+            ]);
+            
+            $searchResult = $this->getCaseData($filters);
+            
+            // Convert objects to arrays for consistent handling
+            if (is_object($searchResult)) {
+                $searchResult = json_decode(json_encode($searchResult), true);
+            }
+            
+            // Handle different response structures
+            $cases = [];
+            if (isset($searchResult['Cases']['Case'])) {
+                $cases = $searchResult['Cases']['Case'];
+                // Ensure it's an array (single case comes as object)
+                if (!is_array($cases) || (is_array($cases) && isset($cases['CaseId']))) {
+                    $cases = [$cases];
+                }
+            } elseif (is_array($searchResult) && isset($searchResult[0]['CaseId'])) {
+                // Already an array of cases
+                $cases = $searchResult;
+            } elseif (isset($searchResult['CaseId'])) {
+                // Single case
+                $cases = [$searchResult];
+            }
+
+            if (empty($cases)) {
+                Log::info('No cases found in search result');
+                return [];
+            }
+
+            Log::info('Found cases, now fetching full data', [
+                'cases_count' => count($cases),
+                'first_case_id' => isset($cases[0]['CaseId']) ? $cases[0]['CaseId'] : 'unknown'
+            ]);
+
+            // Now get detailed data for each case using GetCase
+            $fullCaseData = [];
+            $errors = [];
+            $successCount = 0;
+
+            foreach ($cases as $index => $caseInfo) {
+                $caseId = null;
+                
+                // Extract Case ID (should be array after conversion above)
+                if (is_array($caseInfo) && isset($caseInfo['CaseId'])) {
+                    $caseId = $caseInfo['CaseId'];
+                } elseif (is_object($caseInfo)) {
+                    // Convert this individual case to array if still an object
+                    $caseInfo = json_decode(json_encode($caseInfo), true);
+                    $caseId = $caseInfo['CaseId'] ?? null;
+                } elseif (is_string($caseInfo)) {
+                    $caseId = $caseInfo;
+                }
+
+                // Skip invalid data - only process actual case IDs
+                if (!$caseId || !is_string($caseId)) {
+                    Log::info('Skipping non-case data', [
+                        'index' => $index,
+                        'case_id' => $caseId,
+                        'case_info_type' => gettype($caseInfo),
+                        'is_string_case_id' => is_string($caseId)
+                    ]);
+                    continue;
+                }
+
+                try {
+                    Log::info('Fetching full data for case', ['case_id' => $caseId]);
+                    
+                    // Get detailed case data using GetCase
+                    $fullCaseResult = $this->getCaseById($caseId);
+                    
+                    // Extract clean case data from the SOAP response
+                    $cleanCaseData = $this->extractCleanCaseData($fullCaseResult);
+                    
+                    // Only include successfully retrieved cases
+                    if ($cleanCaseData) {
+                        $fullCaseData[] = $cleanCaseData;
+                        $successCount++;
+                    }
+
+                } catch (\Exception $e) {
+                    Log::error('Failed to get full data for case', [
+                        'case_id' => $caseId,
+                        'error' => $e->getMessage()
+                    ]);
+                    
+                    // Don't include failed cases in the response
+                    $errors[] = [
+                        'case_id' => $caseId,
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+
+            Log::info('Fetch full case data completed', [
+                'total_cases_found' => count($cases),
+                'successful_fetches' => $successCount,
+                'errors' => count($errors)
+            ]);
+
+            // Return only successful cases with clean structure
+            return $fullCaseData;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch full case data', [
+                'error' => $e->getMessage(),
+                'filters' => $filters
+            ]);
+            
+            throw new \Exception('Failed to fetch full case data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Extract clean case data from SOAP GetCase response
+     * Only returns successfully retrieved cases with proper structure
+     */
+    protected function extractCleanCaseData($soapResponse)
+    {
+        try {
+            // Convert objects to arrays
+            if (is_object($soapResponse)) {
+                $soapResponse = json_decode(json_encode($soapResponse), true);
+            }
+
+            // Check for successful transaction
+            if (isset($soapResponse['TransactionStatus']['TransactionStatusCode']) && 
+                $soapResponse['TransactionStatus']['TransactionStatusCode'] !== 'Success') {
+                
+                Log::info('Case retrieval failed', [
+                    'status' => $soapResponse['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
+                    'message' => $soapResponse['TransactionStatus']['Messages']['Message']['MessageDescription'] ?? 'No message'
+                ]);
+                return null;
+            }
+
+            // Extract the actual case data
+            if (isset($soapResponse['Case']) && $soapResponse['Case'] !== null) {
+                return $soapResponse['Case'];
+            }
+
+            // If no proper case structure, return null
+            Log::info('No case data found in response structure');
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Error extracting clean case data', [
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Get sessions/services data - Sessions are linked to Cases and require a Case ID
      */
     public function getSessionData($filters = [])
@@ -503,6 +666,25 @@ class DataExchangeService
                     'CreatedDateFrom' => 'Search from date (ISO format)',
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ]
+            ],
+            'full_cases' => [
+                'method' => 'SearchCase + GetCase combination',
+                'description' => 'First searches for cases using SearchCase, then fetches detailed data for each case using GetCase. This provides richer case information than SearchCase alone.',
+                'required_parameters' => [
+                    'PageIndex' => 'Page number (1-based)',
+                    'PageSize' => 'Number of records per page (default: 100)',
+                    'SortColumn' => 'Column to sort by (default: CaseId)',
+                    'IsAscending' => 'Sort direction (default: true)'
+                ],
+                'optional_parameters' => [
+                    'CaseId' => 'Specific case ID to search for',
+                    'ClientId' => 'Client ID associated with cases',
+                    'CaseStatus' => 'Status of the case',
+                    'CaseType' => 'Type of case',
+                    'CreatedDateFrom' => 'Search from date (ISO format)',
+                    'CreatedDateTo' => 'Search to date (ISO format)'
+                ],
+                'note' => 'This method performs multiple SOAP calls and may take longer than standard SearchCase'
             ],
             'sessions' => [
                 'method' => 'SearchSession (with SearchCase fallback)',
@@ -850,6 +1032,7 @@ class DataExchangeService
         return [
             'clients' => 'Client Data',
             'cases' => 'Case Data',
+            'full_cases' => 'Fetch Full Case Data (SearchCase + GetCase)',
             'sessions' => 'Session Data (requires Case ID)'
         ];
     }
