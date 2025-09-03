@@ -12,6 +12,8 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     // Data Submission Routes
     Route::get('/client-form', [DataExchangeController::class, 'showClientForm'])->name('client-form');
     Route::post('/submit-client', [DataExchangeController::class, 'submitClientData'])->name('submit-client');
+    Route::get('/service-form', [DataExchangeController::class, 'showServiceForm'])->name('service-form');
+    Route::post('/submit-service', [DataExchangeController::class, 'submitServiceData'])->name('submit-service');
     Route::get('/bulk-form', [DataExchangeController::class, 'showBulkForm'])->name('bulk-form');
     Route::post('/bulk-upload', [DataExchangeController::class, 'bulkUpload'])->name('bulk-upload');
 
@@ -19,6 +21,7 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     Route::get('/retrieve-form', [DataExchangeController::class, 'showRetrieveForm'])->name('retrieve-form');
     Route::post('/retrieve-data', [DataExchangeController::class, 'retrieveData'])->name('retrieve-data');
     Route::get('/resource-schema', [DataExchangeController::class, 'showResourceSchema'])->name('resource-schema');
+    Route::post('/generate-report', [DataExchangeController::class, 'generateReport'])->name('generate-report');
 
     // Status and Utility Routes
     Route::post('/submission-status', [DataExchangeController::class, 'getSubmissionStatus'])->name('submission-status');

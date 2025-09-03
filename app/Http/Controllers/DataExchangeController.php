@@ -76,6 +76,15 @@ class DataExchangeController extends Controller
     }
 
     /**
+     * Show service data form
+     */
+    public function showServiceForm()
+    {
+        $sampleData = $this->dataExchangeService->generateSampleServiceData();
+        return view('data-exchange.service-form', compact('sampleData'));
+    }
+
+    /**
      * Submit client data
      */
     public function submitClientData(Request $request)
@@ -105,6 +114,43 @@ class DataExchangeController extends Controller
         } catch (\Exception $e) {
             $response = redirect()->back()
                 ->with('error', 'Failed to submit client data: ' . $e->getMessage())
+                ->withInput();
+
+            return $this->withDebugInfo($response);
+        }
+    }
+
+    /**
+     * Submit service data
+     */
+    public function submitServiceData(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'service_id' => 'required|string|max:50',
+            'client_id' => 'required|string|max:50',
+            'case_id' => 'required|string|max:50',
+            'service_type' => 'required|string|max:100',
+            'service_date' => 'required|date',
+            'duration_minutes' => 'required|integer|min:1',
+            'location' => 'nullable|string|max:200'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        try {
+            $result = $this->dataExchangeService->submitServiceData($request->all());
+
+            $response = redirect()->back()->with('success', 'Service data submitted successfully')
+                ->with('result', $result);
+
+            return $this->withDebugInfo($response);
+        } catch (\Exception $e) {
+            $response = redirect()->back()
+                ->with('error', 'Failed to submit service data: ' . $e->getMessage())
                 ->withInput();
 
             return $this->withDebugInfo($response);
@@ -376,6 +422,47 @@ class DataExchangeController extends Controller
         return $filters;
     }
 
+    /**
+     * Generate report
+     */
+    public function generateReport(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'report_type' => 'required|string',
+            'format' => 'required|in:json,xml,csv,pdf'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        try {
+            $filters = $this->buildFilters($request);
+            $reportType = $request->report_type;
+            
+            $data = $this->dataExchangeService->generateReport($reportType, $filters);
+
+            if ($request->action === 'download') {
+                return $this->downloadData($data, $reportType, $request->format);
+            }
+
+            $response = redirect()->back()
+                ->with('success', 'Report generated successfully')
+                ->with('data', $data)
+                ->with('format', $request->format)
+                ->withInput();
+
+            return $this->withDebugInfo($response);
+        } catch (\Exception $e) {
+            $response = redirect()->back()
+                ->with('error', 'Failed to generate report: ' . $e->getMessage())
+                ->withInput();
+
+            return $this->withDebugInfo($response);
+        }
+    }
 
     /**
      * Parse CSV file for bulk upload
