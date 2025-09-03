@@ -98,12 +98,17 @@
                             </div>
                         </div>
 
-                        <!-- Required Session ID -->
+                        <!-- Required Session ID and Case ID -->
                         <div class="row mb-3" id="requiredSessionFilters" style="display: none;">
                             <div class="col-md-6">
                                 <label for="req_session_id" class="form-label">Session ID <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" 
                                        id="req_session_id" name="session_id" value="{{ old('session_id') }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="req_session_case_id" class="form-label">Case ID <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" 
+                                       id="req_session_case_id" name="case_id" value="{{ old('case_id') }}" required>
                             </div>
                         </div>
                     </div>
@@ -116,36 +121,26 @@
                         
                         <!-- Client Optional Filters -->
                         <div class="row mb-3" id="clientOptionalFilters" style="display: none;">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="first_name" class="form-label">First Name</label>
                                 <input type="text" class="form-control" 
                                        id="first_name" name="first_name" value="{{ old('first_name') }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="last_name" class="form-label">Last Name</label>
                                 <input type="text" class="form-control" 
                                        id="last_name" name="last_name" value="{{ old('last_name') }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="client_id_optional" class="form-label">Client ID</label>
-                                <input type="text" class="form-control" 
-                                       id="client_id_optional" name="client_id" value="{{ old('client_id') }}">
                             </div>
                         </div>
 
                         <!-- Case Optional Filters -->
                         <div class="row mb-3" id="caseOptionalFilters" style="display: none;">
-                            <div class="col-md-4">
-                                <label for="case_id_optional" class="form-label">Case ID</label>
-                                <input type="text" class="form-control" 
-                                       id="case_id_optional" name="case_id_filter" value="{{ old('case_id_filter') }}">
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="case_status" class="form-label">Case Status</label>
                                 <input type="text" class="form-control" 
                                        id="case_status" name="case_status" value="{{ old('case_status') }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="case_type" class="form-label">Case Type</label>
                                 <input type="text" class="form-control" 
                                        id="case_type" name="case_type" value="{{ old('case_type') }}">
@@ -154,17 +149,12 @@
 
                         <!-- Session Optional Filters -->
                         <div class="row mb-3" id="sessionOptionalFilters" style="display: none;">
-                            <div class="col-md-4">
-                                <label for="session_id_optional" class="form-label">Session ID</label>
-                                <input type="text" class="form-control" 
-                                       id="session_id_optional" name="session_id" value="{{ old('session_id') }}">
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="session_type" class="form-label">Session Type</label>
                                 <input type="text" class="form-control" 
                                        id="session_type" name="session_type" value="{{ old('session_type') }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="session_status" class="form-label">Session Status</label>
                                 <input type="text" class="form-control" 
                                        id="session_status" name="session_status" value="{{ old('session_status') }}">
@@ -383,10 +373,12 @@ function updateFilters() {
     const reqClientId = document.getElementById('req_client_id');
     const reqCaseId = document.getElementById('req_case_id');
     const reqSessionId = document.getElementById('req_session_id');
+    const reqSessionCaseId = document.getElementById('req_session_case_id');
     
     if (reqClientId) reqClientId.required = false;
     if (reqCaseId) reqCaseId.required = false;
     if (reqSessionId) reqSessionId.required = false;
+    if (reqSessionCaseId) reqSessionCaseId.required = false;
     
     // Show relevant sections based on resource type
     if (resourceType) {
@@ -407,6 +399,7 @@ function updateFilters() {
             requiredSection.style.display = 'block';
             reqSessionFilters.style.display = 'block';
             reqSessionId.required = true;
+            reqSessionCaseId.required = true;
             hasRequiredFilters = true;
         } else if (resourceType === 'sessions') {
             // Sessions require Case ID

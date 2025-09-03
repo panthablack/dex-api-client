@@ -264,12 +264,21 @@ class DataExchangeService
 
     /**
      * Retrieve client by ID
+     * Note: ClientId must be passed outside the Criteria array as per DSS requirements
      */
     public function getClientById($clientId)
     {
+        // ClientId must be at top level, separate from Criteria array
         $parameters = [
-            'ClientId' => $clientId
+            'ClientId' => $clientId,
+            'Criteria' => []  // Empty criteria array as the ID is the main selector
         ];
+
+        // Log the exact parameters being sent
+        Log::info('GetClient Request Parameters:', [
+            'client_id_received' => $clientId,
+            'full_parameters' => $parameters
+        ]);
 
         return $this->soapClient->call('GetClient', $parameters);
     }
@@ -353,12 +362,27 @@ class DataExchangeService
 
     /**
      * Get session by ID
+     * Note: Both CaseId and SessionId must be passed outside the Criteria array as per DSS requirements
      */
-    public function getSessionById($sessionId)
+    public function getSessionById($sessionId, $caseId = null)
     {
+        // Both CaseId and SessionId must be at top level, separate from Criteria array
         $parameters = [
-            'SessionId' => $sessionId
+            'SessionId' => $sessionId,
+            'Criteria' => []  // Empty criteria array as the IDs are the main selectors
         ];
+        
+        // Add CaseId if provided (required for DSS API)
+        if ($caseId) {
+            $parameters['CaseId'] = $caseId;
+        }
+
+        // Log the exact parameters being sent
+        Log::info('GetSession Request Parameters:', [
+            'session_id_received' => $sessionId,
+            'case_id_received' => $caseId,
+            'full_parameters' => $parameters
+        ]);
 
         return $this->soapClient->call('GetSession', $parameters);
     }
@@ -833,5 +857,32 @@ class DataExchangeService
             'compliance' => 'Compliance Report',
             'performance' => 'Performance Report'
         ];
+    }
+
+    /**
+     * Submit service data to DSS Data Exchange
+     */
+    public function submitServiceData($serviceData)
+    {
+        $parameters = [
+            'OrganisationID' => config('soap.dss.organisation_id'),
+            'ServiceData' => $this->formatServiceData($serviceData)
+        ];
+
+        return $this->soapClient->call('SubmitServiceData', $parameters);
+    }
+
+    /**
+     * Generate report based on report type and filters
+     */
+    public function generateReport($reportType, $filters = [])
+    {
+        $parameters = [
+            'OrganisationID' => config('soap.dss.organisation_id'),
+            'ReportType' => $reportType,
+            'Filters' => $this->formatFilters($filters)
+        ];
+
+        return $this->soapClient->call('GenerateReport', $parameters);
     }
 }

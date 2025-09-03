@@ -292,7 +292,10 @@ class DataExchangeController extends Controller
                     if (empty($request->session_id)) {
                         throw new \Exception('Session ID is required for session lookup');
                     }
-                    $data = $this->dataExchangeService->getSessionById($request->session_id);
+                    if (empty($request->case_id)) {
+                        throw new \Exception('Case ID is required for session lookup');
+                    }
+                    $data = $this->dataExchangeService->getSessionById($request->session_id, $request->case_id);
                     break;
                 default:
                     throw new \Exception("Unsupported resource type: {$resourceType}");
