@@ -88,13 +88,26 @@
         
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">Sample CSV</h5>
+                <h5 class="mb-0">Generate Test Data</h5>
             </div>
             <div class="card-body">
-                <p class="small">Download a sample CSV file to see the expected format:</p>
-                <button type="button" class="btn btn-outline-info btn-sm" onclick="downloadSampleCasesCSV()">
-                    <i class="fas fa-download"></i> Download Sample
-                </button>
+                <p class="small">Generate realistic fake case data for testing:</p>
+                
+                <div class="mb-3">
+                    <label for="fake_count" class="form-label">Number of records</label>
+                    <input type="number" class="form-control form-control-sm" id="fake_count" value="10" min="1" max="1000">
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-success btn-sm" onclick="generateFakeCasesCSV()">
+                        <i class="fas fa-magic"></i> Generate Fake CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="downloadSampleCasesCSV()">
+                        <i class="fas fa-download"></i> Download Sample
+                    </button>
+                </div>
+                
+                <div id="fake-generation-status" class="mt-2"></div>
             </div>
         </div>
     </div>
@@ -118,6 +131,59 @@ CASE003,CLI003,Assessment,Closed,2024-01-01,2024-01-31,Bob Davis,Low,Initial cli
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+function generateFakeCasesCSV() {
+    const count = parseInt(document.getElementById('fake_count').value);
+    const statusDiv = document.getElementById('fake-generation-status');
+    
+    if (count < 1 || count > 1000) {
+        statusDiv.innerHTML = '<div class="alert alert-warning alert-sm">Please enter a number between 1 and 1000</div>';
+        return;
+    }
+    
+    statusDiv.innerHTML = '<div class="alert alert-info alert-sm"><i class="fas fa-spinner fa-spin"></i> Generating fake data...</div>';
+    
+    fetch('{{ route("data-exchange.generate-fake-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            type: 'cases',
+            count: count,
+            format: 'csv'
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Network response was not ok');
+    })
+    .then(blob => {
+        // Download the generated CSV
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fake_cases_${count}_records_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        statusDiv.innerHTML = `<div class="alert alert-success alert-sm"><i class="fas fa-check"></i> Generated ${count} fake case records!</div>`;
+        
+        // Clear status after 5 seconds
+        setTimeout(() => {
+            statusDiv.innerHTML = '';
+        }, 5000);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusDiv.innerHTML = '<div class="alert alert-danger alert-sm"><i class="fas fa-exclamation-triangle"></i> Failed to generate fake data</div>';
+    });
 }
 </script>
 @endpush

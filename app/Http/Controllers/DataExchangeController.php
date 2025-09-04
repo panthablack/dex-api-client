@@ -671,6 +671,137 @@ class DataExchangeController extends Controller
     }
 
     /**
+     * Generate fake data for bulk upload
+     */
+    public function generateFakeData(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'type' => 'required|in:clients,cases,sessions',
+            'count' => 'required|integer|min:1|max:1000',
+            'format' => 'required|in:csv,json'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 400);
+        }
+
+        try {
+            $type = $request->type;
+            $count = $request->count;
+            $format = $request->format;
+
+            if ($format === 'csv') {
+                $content = $this->dataExchangeService->generateFakeCSV($type, $count);
+                $filename = "fake_{$type}_" . date('Y-m-d_H-i-s') . '.csv';
+                
+                return response($content, 200, [
+                    'Content-Type' => 'text/csv',
+                    'Content-Disposition' => "attachment; filename=\"{$filename}\""
+                ]);
+            } else {
+                $data = [];
+                switch ($type) {
+                    case 'clients':
+                        $data = $this->dataExchangeService->generateFakeClientData($count);
+                        break;
+                    case 'cases':
+                        $data = $this->dataExchangeService->generateFakeCaseData($count);
+                        break;
+                    case 'sessions':
+                        $data = $this->dataExchangeService->generateFakeSessionData($count);
+                        break;
+                }
+                
+                return response()->json($data);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to generate fake data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate fake dataset with related records
+     */
+    public function generateFakeDataset(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'client_count' => 'integer|min:1|max:100',
+            'cases_per_client' => 'integer|min:1|max:10',
+            'sessions_per_case' => 'integer|min:1|max:20',
+            'format' => 'required|in:json,download_csv'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 400);
+        }
+
+        try {
+            $clientCount = $request->get('client_count', 5);
+            $casesPerClient = $request->get('cases_per_client', 2);
+            $sessionsPerCase = $request->get('sessions_per_case', 3);
+            $format = $request->format;
+
+            $dataset = $this->dataExchangeService->generateFakeDataSet(
+                $clientCount, 
+                $casesPerClient, 
+                $sessionsPerCase
+            );
+
+            if ($format === 'download_csv') {
+                // Generate separate CSV files for each type
+                $timestamp = date('Y-m-d_H-i-s');
+                
+                $response = response()->json([
+                    'message' => 'Dataset generated successfully',
+                    'summary' => [
+                        'clients' => count($dataset['clients']),
+                        'cases' => count($dataset['cases']),
+                        'sessions' => count($dataset['sessions'])
+                    ],
+                    'download_links' => [
+                        'clients' => route('data-exchange.download-fake-csv', ['type' => 'clients', 'timestamp' => $timestamp]),
+                        'cases' => route('data-exchange.download-fake-csv', ['type' => 'cases', 'timestamp' => $timestamp]),
+                        'sessions' => route('data-exchange.download-fake-csv', ['type' => 'sessions', 'timestamp' => $timestamp])
+                    ]
+                ]);
+                
+                // Store dataset in session for download
+                session(['fake_dataset_' . $timestamp => $dataset]);
+                
+                return $response;
+            } else {
+                return response()->json($dataset);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to generate fake dataset: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download fake CSV from generated dataset
+     */
+    public function downloadFakeCSV($type, $timestamp)
+    {
+        $dataset = session('fake_dataset_' . $timestamp);
+        
+        if (!$dataset || !isset($dataset[$type])) {
+            abort(404, 'Dataset not found or expired');
+        }
+
+        $content = $this->dataExchangeService->arrayToCsv($dataset[$type]);
+        $filename = "fake_{$type}_{$timestamp}.csv";
+
+        return response($content, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\""
+        ]);
+    }
+
+    /**
      * Parse CSV file for bulk upload
      */
     protected function parseCsvFile($file, $type = 'clients')

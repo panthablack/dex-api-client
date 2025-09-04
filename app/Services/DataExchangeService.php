@@ -517,67 +517,92 @@ class DataExchangeService
     }
 
     /**
-     * Generate sample client data for testing
+     * Generate sample client data for testing using Laravel's fake() helper
      */
     public function generateSampleClientData()
     {
+        $fake = fake();
+        
         return [
-            'client_id' => 'TEST001',
-            'first_name' => 'John',
-            'last_name' => 'Doe',
-            'date_of_birth' => '1990-01-15',
-            'is_birth_date_estimate' => false,
-            'gender' => 'M',
-            'country_of_birth' => 'Australia',
-            'suburb' => 'Sydney',
-            'state' => 'NSW',
-            'postal_code' => '2000',
-            'primary_language' => 'English',
-            'indigenous_status' => '4',
-            'interpreter_required' => false,
-            'disability_flag' => false,
-            'client_type' => 'Individual',
-            'consent_to_provide_details' => true,
-            'consent_to_be_contacted' => true,
-            'is_using_pseudonym' => false
+            'client_id' => 'CLIENT_' . $fake->unique()->numberBetween(1000, 9999),
+            'first_name' => $fake->firstName(),
+            'last_name' => $fake->lastName(),
+            'date_of_birth' => $fake->dateTimeBetween('-80 years', '-18 years')->format('Y-m-d'),
+            'is_birth_date_estimate' => $fake->boolean(20), // 20% chance of being estimate
+            'gender' => $fake->randomElement(['M', 'F', 'X']),
+            'country_of_birth' => $fake->randomElement(['Australia', 'United Kingdom', 'New Zealand', 'China', 'India', 'Philippines']),
+            'suburb' => $fake->city(),
+            'state' => $fake->randomElement(['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']),
+            'postal_code' => $fake->postcode(),
+            'address_line1' => $fake->streetAddress(),
+            'address_line2' => $fake->boolean(30) ? $fake->secondaryAddress() : null,
+            'primary_language' => $fake->randomElement(['English', 'Mandarin', 'Arabic', 'Vietnamese', 'Italian', 'Greek']),
+            'indigenous_status' => $fake->randomElement(['1', '2', '3', '4', '9']),
+            'interpreter_required' => $fake->boolean(15), // 15% chance
+            'disability_flag' => $fake->boolean(10), // 10% chance
+            'client_type' => $fake->randomElement(['Individual', 'Family', 'Group']),
+            'consent_to_provide_details' => $fake->boolean(90), // 90% consent rate
+            'consent_to_be_contacted' => $fake->boolean(85), // 85% consent rate
+            'is_using_pseudonym' => $fake->boolean(5) // 5% chance
         ];
     }
 
     /**
-     * Generate sample case data for testing
+     * Generate sample case data for testing using Laravel's fake() helper
      */
-    public function generateSampleCaseData()
+    public function generateSampleCaseData($clientId = null)
     {
+        $fake = fake();
+        
         return [
-            'case_id' => 'CASE001',
-            'client_id' => 'TEST001',
-            'case_type' => 'Individual Support',
-            'case_status' => 'Active',
-            'start_date' => date('Y-m-d'),
-            'end_date' => date('Y-m-d', strtotime('+6 months')),
-            'case_worker' => 'John Smith',
-            'priority' => 'Medium',
-            'description' => 'Individual support case for client counselling services',
-            'notes' => 'Initial case setup for ongoing support services'
+            'case_id' => 'CASE_' . $fake->unique()->numberBetween(1000, 9999),
+            'client_id' => $clientId ?? 'CLIENT_' . $fake->numberBetween(1000, 9999),
+            'case_type' => $fake->randomElement([
+                'Individual Support', 'Family Support', 'Crisis Intervention', 
+                'Counselling', 'Financial Assistance', 'Housing Support',
+                'Employment Support', 'Mental Health Support'
+            ]),
+            'case_status' => $fake->randomElement(['Active', 'Closed', 'On Hold', 'Pending']),
+            'start_date' => $fake->dateTimeBetween('-2 years', 'now')->format('Y-m-d'),
+            'end_date' => $fake->boolean(60) ? $fake->dateTimeBetween('now', '+1 year')->format('Y-m-d') : null,
+            'case_worker' => $fake->name(),
+            'priority' => $fake->randomElement(['Low', 'Medium', 'High', 'Critical']),
+            'description' => $fake->sentence(12),
+            'notes' => $fake->paragraph(2)
         ];
     }
 
     /**
-     * Generate sample session data for testing
+     * Generate sample session data for testing using Laravel's fake() helper
      */
-    public function generateSampleSessionData()
+    public function generateSampleSessionData($caseId = null)
     {
+        $fake = fake();
+        
         return [
-            'session_id' => 'SESSION001',
-            'case_id' => 'CASE001',
-            'session_type' => 'Individual Counselling',
-            'session_date' => date('Y-m-d'),
-            'duration_minutes' => 60,
-            'location' => 'Office Room 1',
-            'session_status' => 'Scheduled',
-            'notes' => 'Initial counselling session',
-            'attendees' => 'Client, Counsellor',
-            'outcome' => 'Ongoing'
+            'session_id' => 'SESSION_' . $fake->unique()->numberBetween(1000, 9999),
+            'case_id' => $caseId ?? 'CASE_' . $fake->numberBetween(1000, 9999),
+            'session_type' => $fake->randomElement([
+                'Individual Counselling', 'Family Therapy', 'Group Session',
+                'Assessment', 'Follow-up', 'Crisis Intervention',
+                'Skills Training', 'Support Planning'
+            ]),
+            'session_date' => $fake->dateTimeBetween('-6 months', '+1 month')->format('Y-m-d'),
+            'duration_minutes' => $fake->randomElement([30, 45, 60, 90, 120]),
+            'location' => $fake->randomElement([
+                'Office Room 1', 'Office Room 2', 'Community Center',
+                'Client Home', 'Phone/Video Call', 'Public Space'
+            ]),
+            'session_status' => $fake->randomElement(['Scheduled', 'Completed', 'Cancelled', 'No Show']),
+            'notes' => $fake->paragraph(1),
+            'attendees' => $fake->randomElement([
+                'Client, Counsellor', 'Client, Family, Social Worker',
+                'Client, Case Manager', 'Client, Therapist, Psychiatrist'
+            ]),
+            'outcome' => $fake->randomElement([
+                'Ongoing', 'Goals Met', 'Referred', 'Discontinued',
+                'Needs Review', 'Emergency Response'
+            ])
         ];
     }
 
@@ -1603,6 +1628,109 @@ class DataExchangeService
         }
 
         return null;
+    }
+
+    /**
+     * Generate multiple fake client records for bulk upload
+     */
+    public function generateFakeClientData($count = 10)
+    {
+        $clients = [];
+        fake()->unique(true); // Reset unique generator
+        
+        for ($i = 0; $i < $count; $i++) {
+            $clients[] = $this->generateSampleClientData();
+        }
+        
+        return $clients;
+    }
+
+    /**
+     * Generate multiple fake case records for bulk upload
+     */
+    public function generateFakeCaseData($count = 10, $clientIds = null)
+    {
+        $cases = [];
+        fake()->unique(true); // Reset unique generator
+        
+        for ($i = 0; $i < $count; $i++) {
+            $clientId = $clientIds ? ($clientIds[$i % count($clientIds)] ?? null) : null;
+            $cases[] = $this->generateSampleCaseData($clientId);
+        }
+        
+        return $cases;
+    }
+
+    /**
+     * Generate multiple fake session records for bulk upload
+     */
+    public function generateFakeSessionData($count = 10, $caseIds = null)
+    {
+        $sessions = [];
+        fake()->unique(true); // Reset unique generator
+        
+        for ($i = 0; $i < $count; $i++) {
+            $caseId = $caseIds ? ($caseIds[$i % count($caseIds)] ?? null) : null;
+            $sessions[] = $this->generateSampleSessionData($caseId);
+        }
+        
+        return $sessions;
+    }
+
+    /**
+     * Generate a complete fake data set with related clients, cases, and sessions
+     */
+    public function generateFakeDataSet($clientCount = 5, $casesPerClient = 2, $sessionsPerCase = 3)
+    {
+        fake()->unique(true); // Reset unique generator
+        
+        $clients = $this->generateFakeClientData($clientCount);
+        $clientIds = array_column($clients, 'client_id');
+        
+        // Generate cases for clients
+        $cases = [];
+        foreach ($clientIds as $clientId) {
+            for ($i = 0; $i < $casesPerClient; $i++) {
+                $cases[] = $this->generateSampleCaseData($clientId);
+            }
+        }
+        $caseIds = array_column($cases, 'case_id');
+        
+        // Generate sessions for cases
+        $sessions = [];
+        foreach ($caseIds as $caseId) {
+            for ($i = 0; $i < $sessionsPerCase; $i++) {
+                $sessions[] = $this->generateSampleSessionData($caseId);
+            }
+        }
+        
+        return [
+            'clients' => $clients,
+            'cases' => $cases,
+            'sessions' => $sessions
+        ];
+    }
+
+    /**
+     * Generate CSV content for fake data
+     */
+    public function generateFakeCSV($type, $count = 10, $relatedIds = null)
+    {
+        switch ($type) {
+            case 'clients':
+                $data = $this->generateFakeClientData($count);
+                break;
+            case 'cases':
+                $data = $this->generateFakeCaseData($count, $relatedIds);
+                break;
+            case 'sessions':
+                $data = $this->generateFakeSessionData($count, $relatedIds);
+                break;
+            default:
+                throw new \InvalidArgumentException("Unsupported type: {$type}");
+        }
+        
+        return $this->arrayToCsv($data);
     }
 
     /**

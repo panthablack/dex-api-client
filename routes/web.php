@@ -35,6 +35,11 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     Route::post('/submission-status', [DataExchangeController::class, 'getSubmissionStatus'])->name('submission-status');
     Route::get('/available-functions', [DataExchangeController::class, 'showAvailableFunctions'])->name('available-functions');
 
+    // Fake Data Generation Routes
+    Route::post('/generate-fake-data', [DataExchangeController::class, 'generateFakeData'])->name('generate-fake-data');
+    Route::post('/generate-fake-dataset', [DataExchangeController::class, 'generateFakeDataset'])->name('generate-fake-dataset');
+    Route::get('/download-fake-csv/{type}/{timestamp}', [DataExchangeController::class, 'downloadFakeCSV'])->name('download-fake-csv');
+
     // Debug route for session testing
     Route::post('/debug-session', function (\Illuminate\Http\Request $request) {
         return response()->json([
