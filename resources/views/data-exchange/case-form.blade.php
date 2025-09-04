@@ -35,6 +35,7 @@
                 <form action="{{ route('data-exchange.submit-case') }}" method="POST">
                     @csrf
                     
+                    <!-- Core Case Fields -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="case_id" class="form-label">Case ID <span class="text-danger">*</span></label>
@@ -45,6 +46,34 @@
                             @enderror
                         </div>
                         <div class="col-md-6">
+                            <label for="outlet_activity_id" class="form-label">Outlet Activity <span class="text-danger">*</span></label>
+                            <select class="form-select @error('outlet_activity_id') is-invalid @enderror" 
+                                    id="outlet_activity_id" name="outlet_activity_id" required>
+                                <option value="">Select Outlet Activity</option>
+                                @if(isset($outletActivities) && !empty($outletActivities))
+                                    @foreach($outletActivities as $activity)
+                                        <option value="{{ $activity->OutletActivityId }}" {{ old('outlet_activity_id') == $activity->OutletActivityId ? 'selected' : '' }}>
+                                            {{ $activity->ActivityName }} - {{ $activity->OutletName }}
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="61932" {{ old('outlet_activity_id') == '61932' ? 'selected' : '' }}>Assistance with Care and Housing - testing outlet 1</option>
+                                    <option value="61936" {{ old('outlet_activity_id') == '61936' ? 'selected' : '' }}>Community Mental Health -  A Better Life - testing outlet 1</option>
+                                    <option value="61933" {{ old('outlet_activity_id') == '61933' ? 'selected' : '' }}>Be Connected - testing outlet 1</option>
+                                    <option value="61937" {{ old('outlet_activity_id') == '61937' ? 'selected' : '' }}>Equipment and products - testing outlet 1</option>
+                                    <option value="61935" {{ old('outlet_activity_id') == '61935' ? 'selected' : '' }}>Allied health and therapy services - testing outlet 1</option>
+                                    <option value="61934" {{ old('outlet_activity_id') == '61934' ? 'selected' : '' }}>Domestic assistance - testing outlet 1</option>
+                                @endif
+                            </select>
+                            @error('outlet_activity_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <!-- Client Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
                             <label for="client_id" class="form-label">Client ID <span class="text-danger">*</span></label>
                             <input type="text" class="form-control @error('client_id') is-invalid @enderror" 
                                    id="client_id" name="client_id" value="{{ old('client_id') }}" required>
@@ -52,105 +81,136 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-                    </div>
-
-                    <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="case_type" class="form-label">Case Type <span class="text-danger">*</span></label>
-                            <select class="form-select @error('case_type') is-invalid @enderror" 
-                                    id="case_type" name="case_type" required>
-                                <option value="">Select Case Type</option>
-                                <option value="Individual Support" {{ old('case_type') == 'Individual Support' ? 'selected' : '' }}>Individual Support</option>
-                                <option value="Family Support" {{ old('case_type') == 'Family Support' ? 'selected' : '' }}>Family Support</option>
-                                <option value="Crisis Intervention" {{ old('case_type') == 'Crisis Intervention' ? 'selected' : '' }}>Crisis Intervention</option>
-                                <option value="Assessment" {{ old('case_type') == 'Assessment' ? 'selected' : '' }}>Assessment</option>
-                                <option value="Long-term Care" {{ old('case_type') == 'Long-term Care' ? 'selected' : '' }}>Long-term Care</option>
-                                <option value="Other" {{ old('case_type') == 'Other' ? 'selected' : '' }}>Other</option>
+                            <label for="referral_source_code" class="form-label">Referral Source <span class="text-danger">*</span></label>
+                            <select class="form-select @error('referral_source_code') is-invalid @enderror" 
+                                    id="referral_source_code" name="referral_source_code" required>
+                                <option value="">Select Referral Source</option>
+                                @if(isset($referralSources) && !empty($referralSources))
+                                    @foreach($referralSources as $source)
+                                        <option value="{{ $source->Code }}" {{ old('referral_source_code') == $source->Code ? 'selected' : '' }}>
+                                            {{ $source->Description }}
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="COMMUNITY" {{ old('referral_source_code') == 'COMMUNITY' ? 'selected' : '' }}>Community services agency</option>
+                                    <option value="SELF" {{ old('referral_source_code') == 'SELF' ? 'selected' : '' }}>Self</option>
+                                    <option value="FAMILY" {{ old('referral_source_code') == 'FAMILY' ? 'selected' : '' }}>Family</option>
+                                    <option value="GP" {{ old('referral_source_code') == 'GP' ? 'selected' : '' }}>General Medical Practitioner</option>
+                                    <option value="HealthAgency" {{ old('referral_source_code') == 'HealthAgency' ? 'selected' : '' }}>Health Agency</option>
+                                @endif
                             </select>
-                            @error('case_type')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-6">
-                            <label for="case_status" class="form-label">Case Status <span class="text-danger">*</span></label>
-                            <select class="form-select @error('case_status') is-invalid @enderror" 
-                                    id="case_status" name="case_status" required>
-                                <option value="">Select Status</option>
-                                <option value="Active" {{ old('case_status') == 'Active' ? 'selected' : '' }}>Active</option>
-                                <option value="Pending" {{ old('case_status') == 'Pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="On Hold" {{ old('case_status') == 'On Hold' ? 'selected' : '' }}>On Hold</option>
-                                <option value="Closed" {{ old('case_status') == 'Closed' ? 'selected' : '' }}>Closed</option>
-                                <option value="Transferred" {{ old('case_status') == 'Transferred' ? 'selected' : '' }}>Transferred</option>
-                            </select>
-                            @error('case_status')
+                            @error('referral_source_code')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
                     </div>
 
+                    <!-- Reasons for Assistance -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label">Reasons for Assistance <span class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="assistance_physical" name="reasons_for_assistance[]" value="PHYSICAL">
+                                        <label class="form-check-label" for="assistance_physical">Physical</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="assistance_emotional" name="reasons_for_assistance[]" value="EMOTIONAL">
+                                        <label class="form-check-label" for="assistance_emotional">Emotional</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="assistance_financial" name="reasons_for_assistance[]" value="FINANCIAL">
+                                        <label class="form-check-label" for="assistance_financial">Financial</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="assistance_housing" name="reasons_for_assistance[]" value="HOUSING">
+                                        <label class="form-check-label" for="assistance_housing">Housing</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="assistance_legal" name="reasons_for_assistance[]" value="LEGAL">
+                                        <label class="form-check-label" for="assistance_legal">Legal</label>
+                                    </div>
+                                </div>
+                            </div>
+                            @error('reasons_for_assistance')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <!-- Optional Fields -->
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control @error('start_date') is-invalid @enderror" 
-                                   id="start_date" name="start_date" value="{{ old('start_date') }}" required>
-                            @error('start_date')
+                            <label for="total_unidentified_clients" class="form-label">Total Unidentified Clients</label>
+                            <input type="number" class="form-control @error('total_unidentified_clients') is-invalid @enderror" 
+                                   id="total_unidentified_clients" name="total_unidentified_clients" value="{{ old('total_unidentified_clients') }}" min="0" max="100">
+                            @error('total_unidentified_clients')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
+                        <div class="col-md-6">
+                            <label for="client_attendance_profile_code" class="form-label">Client Attendance Profile</label>
+                            <select class="form-select @error('client_attendance_profile_code') is-invalid @enderror" 
+                                    id="client_attendance_profile_code" name="client_attendance_profile_code">
+                                <option value="">Select Profile</option>
+                                @if(isset($attendanceProfiles) && !empty($attendanceProfiles))
+                                    @foreach($attendanceProfiles as $profile)
+                                        <option value="{{ $profile->Code }}" {{ old('client_attendance_profile_code') == $profile->Code ? 'selected' : '' }}>
+                                            {{ $profile->Description }}
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="PSGROUP" {{ old('client_attendance_profile_code') == 'PSGROUP' ? 'selected' : '' }}>Peer support group</option>
+                                    <option value="INDIVIDUAL" {{ old('client_attendance_profile_code') == 'INDIVIDUAL' ? 'selected' : '' }}>Individual</option>
+                                    <option value="FAMILY" {{ old('client_attendance_profile_code') == 'FAMILY' ? 'selected' : '' }}>Family</option>
+                                @endif
+                            </select>
+                            @error('client_attendance_profile_code')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="end_date" class="form-label">End Date</label>
                             <input type="date" class="form-control @error('end_date') is-invalid @enderror" 
-                                   id="end_date" name="end_date" value="{{ old('end_date') }}">
+                                   id="end_date" name="end_date" value="{{ old('end_date') }}" 
+                                   min="{{ date('Y-m-d', strtotime('-60 days')) }}" max="{{ date('Y-m-d', strtotime('-1 day')) }}">
                             @error('end_date')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="case_worker" class="form-label">Case Worker</label>
-                            <input type="text" class="form-control @error('case_worker') is-invalid @enderror" 
-                                   id="case_worker" name="case_worker" value="{{ old('case_worker') }}">
-                            @error('case_worker')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                            <div class="form-text">End date must be within the last 60 days and before today</div>
                         </div>
                         <div class="col-md-6">
-                            <label for="priority" class="form-label">Priority Level</label>
-                            <select class="form-select @error('priority') is-invalid @enderror" 
-                                    id="priority" name="priority">
-                                <option value="">Select Priority</option>
-                                <option value="Low" {{ old('priority') == 'Low' ? 'selected' : '' }}>Low</option>
-                                <option value="Medium" {{ old('priority') == 'Medium' ? 'selected' : '' }}>Medium</option>
-                                <option value="High" {{ old('priority') == 'High' ? 'selected' : '' }}>High</option>
-                                <option value="Urgent" {{ old('priority') == 'Urgent' ? 'selected' : '' }}>Urgent</option>
+                            <label for="exit_reason_code" class="form-label">Exit Reason</label>
+                            <select class="form-select @error('exit_reason_code') is-invalid @enderror" 
+                                    id="exit_reason_code" name="exit_reason_code">
+                                <option value="">Select Exit Reason</option>
+                                <option value="MOVED" {{ old('exit_reason_code') == 'MOVED' ? 'selected' : '' }}>Moved</option>
+                                <option value="COMPLETED" {{ old('exit_reason_code') == 'COMPLETED' ? 'selected' : '' }}>Completed</option>
+                                <option value="VOLUNTARY" {{ old('exit_reason_code') == 'VOLUNTARY' ? 'selected' : '' }}>Voluntary</option>
+                                <option value="OTHER" {{ old('exit_reason_code') == 'OTHER' ? 'selected' : '' }}>Other</option>
                             </select>
-                            @error('priority')
+                            @error('exit_reason_code')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-12">
-                            <label for="description" class="form-label">Case Description</label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" 
-                                      id="description" name="description" rows="3">{{ old('description') }}</textarea>
-                            @error('description')
+                        <div class="col-md-6">
+                            <label for="ag_business_type_code" class="form-label">AG Business Type Code</label>
+                            <input type="text" class="form-control @error('ag_business_type_code') is-invalid @enderror" 
+                                   id="ag_business_type_code" name="ag_business_type_code" value="{{ old('ag_business_type_code') }}" maxlength="10">
+                            @error('ag_business_type_code')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <label for="notes" class="form-label">Case Notes</label>
-                            <textarea class="form-control @error('notes') is-invalid @enderror" 
-                                      id="notes" name="notes" rows="3">{{ old('notes') }}</textarea>
-                            @error('notes')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                            <div class="form-text">e.g., 0111 for specific business types</div>
                         </div>
                     </div>
 
@@ -171,22 +231,21 @@
             <div class="card-body">
                 <small class="text-muted">
                     <p><strong>Required fields</strong> are marked with <span class="text-danger">*</span></p>
-                    <p><strong>Case Types:</strong></p>
+                    <p><strong>DSS Case Structure:</strong></p>
                     <ul>
-                        <li>Individual Support - Support for individual clients</li>
-                        <li>Family Support - Support for families and children</li>
-                        <li>Crisis Intervention - Emergency support cases</li>
-                        <li>Assessment - Initial assessment cases</li>
-                        <li>Long-term Care - Ongoing care cases</li>
-                        <li>Other - Other case types</li>
+                        <li><strong>Case ID:</strong> Unique identifier for the case</li>
+                        <li><strong>Outlet Activity:</strong> Required DSS outlet activity</li>
+                        <li><strong>Client ID:</strong> ID of the primary client</li>
+                        <li><strong>Referral Source:</strong> How the client was referred</li>
+                        <li><strong>Reasons for Assistance:</strong> At least one reason required</li>
+                        <li><strong>End Date:</strong> Must be in the past (before today)</li>
                     </ul>
-                    <p><strong>Case Status:</strong></p>
+                    <p><strong>Form Features:</strong></p>
                     <ul>
-                        <li>Active - Case is currently active</li>
-                        <li>Pending - Case is awaiting action</li>
-                        <li>On Hold - Case is temporarily paused</li>
-                        <li>Closed - Case has been completed</li>
-                        <li>Transferred - Case has been transferred</li>
+                        <li>Outlet activities populated from DSS API</li>
+                        <li>Referral sources use official DSS reference data</li>
+                        <li>Form validates all required DSS fields</li>
+                        <li>Sample data can be loaded for testing</li>
                     </ul>
                 </small>
             </div>
@@ -245,19 +304,37 @@ function loadSampleData() {
                 }
             }
         });
+        
+        // Handle reasons for assistance array - it might be nested in clients array
+        let reasonsForAssistance = sampleData.reasons_for_assistance;
+        if (!reasonsForAssistance && sampleData.clients && sampleData.clients[0]) {
+            reasonsForAssistance = sampleData.clients[0].reasons_for_assistance;
+        }
+        
+        if (reasonsForAssistance && Array.isArray(reasonsForAssistance)) {
+            // Clear all checkboxes first
+            document.querySelectorAll('input[name="reasons_for_assistance[]"]').forEach(cb => cb.checked = false);
+            
+            // Check the appropriate boxes
+            reasonsForAssistance.forEach(reason => {
+                const checkbox = document.querySelector(`input[name="reasons_for_assistance[]"][value="${reason.assistance_needed_code}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+        }
     } else {
         // Load default sample data if not provided by controller
         const defaultSample = {
-            case_id: 'CASE001',
-            client_id: 'CLI001',
-            case_type: 'Individual Support',
-            case_status: 'Active',
-            start_date: new Date().toISOString().split('T')[0],
-            end_date: new Date(Date.now() + 6*30*24*60*60*1000).toISOString().split('T')[0], // 6 months from now
-            case_worker: 'John Smith',
-            priority: 'Medium',
-            description: 'Individual support case for client counselling services',
-            notes: 'Initial case setup for ongoing support services'
+            case_id: 'CASE_' + Math.floor(Math.random() * 9000 + 1000),
+            client_id: 'CLIENT_' + Math.floor(Math.random() * 9000 + 1000),
+            outlet_activity_id: '61932',
+            referral_source_code: 'COMMUNITY',
+            total_unidentified_clients: '',
+            client_attendance_profile_code: 'INDIVIDUAL',
+            end_date: '',
+            exit_reason_code: '',
+            ag_business_type_code: ''
         };
         
         Object.keys(defaultSample).forEach(key => {
@@ -266,6 +343,9 @@ function loadSampleData() {
                 element.value = defaultSample[key];
             }
         });
+        
+        // Check first reason for assistance
+        document.querySelector('input[name="reasons_for_assistance[]"][value="PHYSICAL"]').checked = true;
     }
 }
 

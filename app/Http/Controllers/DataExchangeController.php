@@ -87,7 +87,30 @@ class DataExchangeController extends Controller
     public function showCaseForm()
     {
         $sampleData = $this->dataExchangeService->generateSampleCaseData();
-        return view('data-exchange.case-form', compact('sampleData'));
+        
+        // Try to fetch outlet activities
+        $outletActivities = [];
+        try {
+            $outletActivitiesResult = $this->dataExchangeService->getOutletActivities();
+            if (isset($outletActivitiesResult->OutletActivities->OutletActivity)) {
+                $outletActivities = $outletActivitiesResult->OutletActivities->OutletActivity;
+                // Ensure it's an array
+                if (!is_array($outletActivities)) {
+                    $outletActivities = [$outletActivities];
+                }
+            }
+        } catch (\Exception $e) {
+            // Log error but continue with empty array - form has fallback options
+            \Log::warning('Failed to fetch outlet activities: ' . $e->getMessage());
+        }
+        
+        // Get referral source options from ReferenceData helper
+        $referralSources = \App\Helpers\ReferenceData::referralSource();
+        
+        // Get attendance profile options from ReferenceData helper
+        $attendanceProfiles = \App\Helpers\ReferenceData::attendanceProfile();
+        
+        return view('data-exchange.case-form', compact('sampleData', 'outletActivities', 'referralSources', 'attendanceProfiles'));
     }
 
     /**
@@ -157,14 +180,20 @@ class DataExchangeController extends Controller
     public function submitCaseData(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            // Required DSS fields
             'case_id' => 'required|string|max:50',
+            'outlet_activity_id' => 'required|integer',
             'client_id' => 'required|string|max:50',
-            'case_type' => 'required|string|max:100',
-            'case_status' => 'required|string|max:50',
-            'start_date' => 'required|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'case_worker' => 'nullable|string|max:100',
-            'priority' => 'nullable|string|max:20'
+            'referral_source_code' => 'required|string|max:50',
+            'reasons_for_assistance' => 'required|array|min:1',
+            'reasons_for_assistance.*' => 'string|in:PHYSICAL,EMOTIONAL,FINANCIAL,HOUSING,LEGAL',
+            
+            // Optional DSS fields
+            'total_unidentified_clients' => 'nullable|integer|min:0|max:100',
+            'client_attendance_profile_code' => 'nullable|string|in:PSGROUP,INDIVIDUAL,FAMILY',
+            'end_date' => 'nullable|date|before:today|after:' . now()->subDays(60)->format('Y-m-d'),
+            'exit_reason_code' => 'nullable|string|in:MOVED,COMPLETED,VOLUNTARY,OTHER',
+            'ag_business_type_code' => 'nullable|string|max:10',
         ]);
 
         if ($validator->fails()) {
@@ -176,8 +205,19 @@ class DataExchangeController extends Controller
         try {
             $result = $this->dataExchangeService->submitCaseData($request->all());
 
-            $response = redirect()->back()->with('success', 'Case data submitted successfully')
-                ->with('result', $result);
+            // Check transaction status in the response
+            $transactionStatus = $this->extractTransactionStatus($result);
+            
+            if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
+                $errorMessage = $transactionStatus['message'] ?? 'Case submission failed';
+                $response = redirect()->back()
+                    ->with('error', 'Case submission failed: ' . $errorMessage)
+                    ->with('result', $result)
+                    ->withInput();
+            } else {
+                $response = redirect()->back()->with('success', 'Case data submitted successfully')
+                    ->with('result', $result);
+            }
 
             return $this->withDebugInfo($response);
         } catch (\Exception $e) {
@@ -213,8 +253,19 @@ class DataExchangeController extends Controller
         try {
             $result = $this->dataExchangeService->submitSessionData($request->all());
 
-            $response = redirect()->back()->with('success', 'Session data submitted successfully')
-                ->with('result', $result);
+            // Check transaction status in the response
+            $transactionStatus = $this->extractTransactionStatus($result);
+            
+            if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
+                $errorMessage = $transactionStatus['message'] ?? 'Session submission failed';
+                $response = redirect()->back()
+                    ->with('error', 'Session submission failed: ' . $errorMessage)
+                    ->with('result', $result)
+                    ->withInput();
+            } else {
+                $response = redirect()->back()->with('success', 'Session data submitted successfully')
+                    ->with('result', $result);
+            }
 
             return $this->withDebugInfo($response);
         } catch (\Exception $e) {

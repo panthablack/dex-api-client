@@ -328,22 +328,57 @@ class DataExchangeService
     }
 
     /**
-     * Format case data according to DSS specifications
+     * Format case data according to DSS AddCase specifications
      */
     protected function formatCaseData($data)
     {
-        return [
+        $caseData = [
             'CaseId' => $data['case_id'] ?? null,
-            'ClientId' => $data['client_id'] ?? null,
-            'CaseType' => $data['case_type'] ?? null,
-            'CaseStatus' => $data['case_status'] ?? null,
-            'StartDate' => $this->formatDate($data['start_date'] ?? null),
-            'EndDate' => $this->formatDate($data['end_date'] ?? null),
-            'CaseWorker' => $data['case_worker'] ?? null,
-            'Priority' => $data['priority'] ?? null,
-            'Description' => $data['description'] ?? null,
-            'Notes' => $data['notes'] ?? null,
+            'OutletActivityId' => (int)($data['outlet_activity_id'] ?? 61932), // Default to first outlet activity
         ];
+
+        // Optional fields
+        if (!empty($data['total_unidentified_clients'])) {
+            $caseData['TotalNumberOfUnidentifiedClients'] = (int)$data['total_unidentified_clients'];
+        }
+
+        if (!empty($data['client_attendance_profile_code'])) {
+            $caseData['ClientAttendanceProfileCode'] = $data['client_attendance_profile_code'];
+        }
+
+        if (!empty($data['end_date'])) {
+            $caseData['EndDate'] = $this->formatDate($data['end_date']);
+        }
+
+        if (!empty($data['ag_business_type_code'])) {
+            $caseData['AgBusinessTypeCode'] = $data['ag_business_type_code'];
+        }
+
+        // Complex optional structures
+        if (!empty($data['parenting_agreement_outcome'])) {
+            $caseData['ParentingAgreementOutcome'] = [
+                'ParentingAgreementOutcomeCode' => $data['parenting_agreement_outcome']['outcome_code'] ?? null,
+                'DateOfParentingAgreement' => $this->formatDate($data['parenting_agreement_outcome']['date'] ?? null),
+                'DidLegalPractitionerAssistWithFormalisingAgreement' => !empty($data['parenting_agreement_outcome']['legal_practitioner_assist'])
+            ];
+        }
+
+        if (!empty($data['section_60i'])) {
+            $caseData['Section60I'] = [
+                'Section60ICertificateTypeCode' => $data['section_60i']['certificate_type_code'] ?? null,
+                'DateIssued' => $this->formatDate($data['section_60i']['date_issued'] ?? null)
+            ];
+        }
+
+        if (!empty($data['property_agreement_outcome'])) {
+            $caseData['PropertyAgreementOutcome'] = [
+                'PropertyAgreementOutcomeCode' => $data['property_agreement_outcome']['outcome_code'] ?? null,
+                'DateOfPropertyAgreement' => $this->formatDate($data['property_agreement_outcome']['date'] ?? null),
+                'DidLegalPractitionerAssistInPropertyMediation' => !empty($data['property_agreement_outcome']['legal_practitioner_assist'])
+            ];
+        }
+
+        return $caseData;
     }
 
     /**
@@ -638,27 +673,75 @@ class DataExchangeService
     {
         $fake = fake();
 
-        return [
+        // Available outlet activity IDs from your system
+        $outletActivityIds = [61932, 61936, 61933, 61937, 61935, 61934];
+
+        // Use provided client ID, or get a real one from the system, or fallback to fake
+        $selectedClientId = $clientId;
+        if (!$selectedClientId) {
+            $existingClientIds = $this->getExistingClientIds();
+            if (!empty($existingClientIds)) {
+                $selectedClientId = $fake->randomElement($existingClientIds);
+            } else {
+                // Fallback to fake client ID if no real ones available
+                $selectedClientId = 'CLIENT_' . $fake->numberBetween(1000, 9999);
+            }
+        }
+
+        $caseData = [
             'case_id' => 'CASE_' . $fake->unique()->numberBetween(1000, 9999),
-            'client_id' => $clientId ?? 'CLIENT_' . $fake->numberBetween(1000, 9999),
-            'case_type' => $fake->randomElement([
-                'Individual Support',
-                'Family Support',
-                'Crisis Intervention',
-                'Counselling',
-                'Financial Assistance',
-                'Housing Support',
-                'Employment Support',
-                'Mental Health Support'
-            ]),
-            'case_status' => $fake->randomElement(['Active', 'Closed', 'On Hold', 'Pending']),
-            'start_date' => $fake->dateTimeBetween('-2 years', 'now')->format('Y-m-d'),
-            'end_date' => $fake->boolean(60) ? $fake->dateTimeBetween('now', '+1 year')->format('Y-m-d') : null,
-            'case_worker' => $fake->name(),
-            'priority' => $fake->randomElement(['Low', 'Medium', 'High', 'Critical']),
-            'description' => $fake->sentence(12),
-            'notes' => $fake->paragraph(2)
+            'client_id' => $selectedClientId,
+            'outlet_activity_id' => $fake->randomElement($outletActivityIds),
+            'referral_source_code' => $this->getSafeReferralSourceForFakeData(),
+            // We don't know when this is needed so I'm making it always set to be a random int
+            // between 1 and 20
+            'total_unidentified_clients' => $fake->numberBetween(1, 20),
+            'client_attendance_profile_code' => $this->getSafeAttendanceProfileForFakeData(),
+            'end_date' => $fake->boolean(40) ? $fake->dateTimeBetween('-60 days', 'yesterday')->format('Y-m-d') : null,
+            // Removed business type code temporarily as there are strange validations based on the
+            // outlet activity that aren't documented properly
+            // 'ag_business_type_code' => $fake->boolean(10) ? '0111' : null,
+            'exit_reason_code' => $fake->boolean(30) ? $fake->randomElement(['MOVED', 'COMPLETED', 'VOLUNTARY', 'OTHER']) : null,
         ];
+
+        // Add client information for the case
+        $caseData['clients'] = [[
+            'client_id' => $caseData['client_id'],
+            'reasons_for_assistance' => [
+                [
+                    'assistance_needed_code' => $fake->randomElement(['PHYSICAL', 'EMOTIONAL', 'FINANCIAL', 'HOUSING', 'LEGAL']),
+                    'is_primary' => true
+                ]
+            ],
+            'referral_source_code' => $caseData['referral_source_code'],
+            'exit_reason_code' => $caseData['exit_reason_code']
+        ]];
+
+        // Occasionally add complex optional structures for testing
+        if ($fake->boolean(20)) {
+            $caseData['parenting_agreement_outcome'] = [
+                'outcome_code' => $fake->randomElement(['FULL', 'PARTIAL', 'NONE']),
+                'date' => $fake->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
+                'legal_practitioner_assist' => $fake->boolean()
+            ];
+        }
+
+        if ($fake->boolean(10)) {
+            $caseData['section_60i'] = [
+                'certificate_type_code' => $fake->randomElement(['GENUINE', 'EXEMPTION']),
+                'date_issued' => $fake->dateTimeBetween('-1 year', 'now')->format('Y-m-d')
+            ];
+        }
+
+        if ($fake->boolean(15)) {
+            $caseData['property_agreement_outcome'] = [
+                'outcome_code' => $fake->randomElement(['FULL', 'PARTIAL', 'NONE']),
+                'date' => $fake->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
+                'legal_practitioner_assist' => $fake->boolean()
+            ];
+        }
+
+        return $caseData;
     }
 
     /**
@@ -1970,6 +2053,132 @@ class DataExchangeService
     }
 
     /**
+     * Get a safe referral source for fake data generation
+     */
+    protected function getSafeReferralSourceForFakeData()
+    {
+        try {
+            $referralSources = \App\Helpers\ReferenceData::referralSource();
+
+            if (!empty($referralSources)) {
+                // Use weighted selection for realistic distribution
+                $commonSources = ['SELF', 'FAMILY', 'COMMUNITY', 'GP', 'HealthAgency'];
+                $randomValue = fake()->numberBetween(1, 100);
+
+                if ($randomValue <= 70) {
+                    // 70% chance of common referral sources
+                    foreach ($referralSources as $source) {
+                        if (in_array($source->Code, $commonSources)) {
+                            return $source->Code;
+                        }
+                    }
+                }
+
+                // Otherwise random referral source
+                return $referralSources[array_rand($referralSources)]->Code;
+            }
+        } catch (\Exception $e) {
+            // Log error but continue with fallback
+            \Log::warning('Failed to get referral sources from ReferenceData helper: ' . $e->getMessage());
+        }
+
+        // Fallback to common referral source
+        return 'SELF';
+    }
+
+    /**
+     * Get a safe attendance profile code from ReferenceData helper for fake data generation
+     */
+    protected function getSafeAttendanceProfileForFakeData()
+    {
+        try {
+            $attendanceProfiles = \App\Helpers\ReferenceData::attendanceProfile();
+
+            if (!empty($attendanceProfiles)) {
+                // Use weighted selection for realistic distribution
+                $commonProfiles = ['INDIVIDUAL', 'FAMILY', 'PSGROUP'];
+                $randomValue = fake()->numberBetween(1, 100);
+
+                if ($randomValue <= 80) {
+                    // 80% chance of common attendance profiles
+                    foreach ($attendanceProfiles as $profile) {
+                        if (in_array($profile->Code, $commonProfiles)) {
+                            return $profile->Code;
+                        }
+                    }
+                }
+
+                // Otherwise random attendance profile
+                return $attendanceProfiles[array_rand($attendanceProfiles)]->Code;
+            }
+        } catch (\Exception $e) {
+            // Log error but continue with fallback
+            \Log::warning('Failed to get attendance profiles from ReferenceData helper: ' . $e->getMessage());
+        }
+
+        // Fallback to individual
+        return 'INDIVIDUAL';
+    }
+
+    /**
+     * Get existing client IDs from the DSS system for use in fake data
+     */
+    protected function getExistingClientIds($limit = 50)
+    {
+        static $cachedClientIds = null;
+
+        if ($cachedClientIds === null) {
+            try {
+                // Search for clients with minimal criteria to get a broad set
+                $searchResult = $this->getClientData([
+                    'page_index' => 1,
+                    'page_size' => $limit,
+                    'sort_column' => 'ClientId',
+                    'is_ascending' => true
+                ]);
+
+                $clientIds = [];
+
+                // Convert objects to arrays for consistent handling
+                if (is_object($searchResult)) {
+                    $searchResult = json_decode(json_encode($searchResult), true);
+                }
+
+                // Extract client IDs from the response
+                if (isset($searchResult['Clients']['Client'])) {
+                    $clients = $searchResult['Clients']['Client'];
+                    // Ensure it's an array (single client comes as object)
+                    if (!is_array($clients) || (is_array($clients) && isset($clients['ClientId']))) {
+                        $clients = [$clients];
+                    }
+
+                    foreach ($clients as $client) {
+                        if (isset($client['ClientId']) && !empty($client['ClientId'])) {
+                            $clientIds[] = $client['ClientId'];
+                        }
+                    }
+                }
+
+                $cachedClientIds = !empty($clientIds) ? $clientIds : false;
+
+                if ($cachedClientIds) {
+                    \Log::info('Retrieved existing client IDs for fake data', [
+                        'count' => count($cachedClientIds),
+                        'sample_ids' => array_slice($cachedClientIds, 0, 5)
+                    ]);
+                } else {
+                    \Log::warning('No existing client IDs found in DSS system');
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to fetch existing client IDs: ' . $e->getMessage());
+                $cachedClientIds = false; // Cache the failure
+            }
+        }
+
+        return $cachedClientIds ?: [];
+    }
+
+    /**
      * Generate multiple fake client records for bulk upload
      */
     public function generateFakeClientData($count = 10)
@@ -2106,10 +2315,62 @@ class DataExchangeService
     public function submitCaseData($caseData)
     {
         $parameters = [
-            'Case' => $this->formatCaseData($caseData)
+            'Case' => $this->formatCaseData($caseData),
+            'Clients' => $this->formatCaseClients($caseData)
         ];
 
         return $this->soapClient->call('AddCase', $parameters);
+    }
+
+    /**
+     * Format case clients data according to DSS specifications
+     */
+    protected function formatCaseClients($data)
+    {
+        $clients = [];
+
+        // Handle single client or array of clients
+        $clientData = $data['clients'] ?? [];
+        if (isset($data['client_id']) && !empty($data['client_id'])) {
+            // Single client case - use the client_id from the case data
+            $clientData = [[
+                'client_id' => $data['client_id'],
+                'reasons_for_assistance' => $data['reasons_for_assistance'] ?? [],
+                'referral_source_code' => $data['referral_source_code'] ?? 'COMMUNITY',
+                'exit_reason_code' => $data['exit_reason_code'] ?? null
+            ]];
+        }
+
+        foreach ($clientData as $client) {
+            $caseClient = [
+                'ClientId' => $client['client_id'] ?? null,
+                'ReferralSourceCode' => $client['referral_source_code'] ?? 'COMMUNITY'
+            ];
+
+            // Format reasons for assistance
+            if (!empty($client['reasons_for_assistance'])) {
+                $reasons = [];
+                foreach ($client['reasons_for_assistance'] as $reason) {
+                    $reasons[] = [
+                        'AssistanceNeededCode' => $reason['assistance_needed_code'] ?? 'PHYSICAL',
+                        // Hardcoding IsPrimary to true as issues are caused by sending false where
+                        // secondary reasons are sent
+                        'IsPrimary' => true
+                        // 'IsPrimary' => !empty($reason['is_primary'])
+                    ];
+                }
+                $caseClient['ReasonsForAssistance'] = $reasons;
+            }
+
+            // Optional exit reason
+            if (!empty($client['exit_reason_code'])) {
+                $caseClient['ExitReasonCode'] = $client['exit_reason_code'];
+            }
+
+            $clients[] = $caseClient;
+        }
+
+        return $clients;
     }
 
     /**
@@ -2136,5 +2397,17 @@ class DataExchangeService
         ];
 
         return $this->soapClient->call('GenerateReport', $parameters);
+    }
+
+    /**
+     * Get available outlet activities for the organization
+     */
+    public function getOutletActivities()
+    {
+        $parameters = [
+            'OrganisationID' => config('soap.dss.organisation_id')
+        ];
+
+        return $this->soapClient->call('GetOutletActivities', $parameters);
     }
 }
