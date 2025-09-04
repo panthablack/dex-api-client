@@ -419,6 +419,56 @@ class DataExchangeService
     }
 
     /**
+     * Bulk submit multiple case records
+     */
+    public function bulkSubmitCaseData($caseDataArray)
+    {
+        $results = [];
+
+        foreach ($caseDataArray as $index => $caseData) {
+            try {
+                $result = $this->submitCaseData($caseData);
+                $results[$index] = [
+                    'status' => 'success',
+                    'result' => $result
+                ];
+            } catch (\Exception $e) {
+                $results[$index] = [
+                    'status' => 'error',
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Bulk submit multiple session records
+     */
+    public function bulkSubmitSessionData($sessionDataArray)
+    {
+        $results = [];
+
+        foreach ($sessionDataArray as $index => $sessionData) {
+            try {
+                $result = $this->submitSessionData($sessionData);
+                $results[$index] = [
+                    'status' => 'success',
+                    'result' => $result
+                ];
+            } catch (\Exception $e) {
+                $results[$index] = [
+                    'status' => 'error',
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * Generate sample client data for testing
      */
     public function generateSampleClientData()

@@ -64,7 +64,7 @@
                             <select class="form-select @error('format') is-invalid @enderror" 
                                     id="format" name="format" required>
                                 <option value="">Select Format</option>
-                                <option value="json" {{ old('format') == 'json' ? 'selected' : '' }}>JSON</option>
+                                <option value="json" {{ old('format', 'json') == 'json' ? 'selected' : '' }}>JSON</option>
                                 <option value="xml" {{ old('format') == 'xml' ? 'selected' : '' }}>XML</option>
                                 <option value="csv" {{ old('format') == 'csv' ? 'selected' : '' }}>CSV</option>
                             </select>
@@ -208,7 +208,7 @@
                             <label for="report_format" class="form-label">Format</label>
                             <select class="form-select" id="report_format" name="format" required>
                                 <option value="">Select Format</option>
-                                <option value="json">JSON</option>
+                                <option value="json" selected>JSON</option>
                                 <option value="xml">XML</option>
                                 <option value="csv">CSV</option>
                             </select>

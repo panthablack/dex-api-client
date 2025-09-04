@@ -17,6 +17,12 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     Route::get('/session-form', [DataExchangeController::class, 'showSessionForm'])->name('session-form');
     Route::post('/submit-session', [DataExchangeController::class, 'submitSessionData'])->name('submit-session');
     Route::get('/bulk-form', [DataExchangeController::class, 'showBulkForm'])->name('bulk-form');
+    Route::get('/bulk-clients', [DataExchangeController::class, 'showBulkClientsForm'])->name('bulk-clients');
+    Route::post('/bulk-clients-upload', [DataExchangeController::class, 'bulkUploadClients'])->name('bulk-clients-upload');
+    Route::get('/bulk-cases', [DataExchangeController::class, 'showBulkCasesForm'])->name('bulk-cases');
+    Route::post('/bulk-cases-upload', [DataExchangeController::class, 'bulkUploadCases'])->name('bulk-cases-upload');
+    Route::get('/bulk-sessions', [DataExchangeController::class, 'showBulkSessionsForm'])->name('bulk-sessions');
+    Route::post('/bulk-sessions-upload', [DataExchangeController::class, 'bulkUploadSessions'])->name('bulk-sessions-upload');
     Route::post('/bulk-upload', [DataExchangeController::class, 'bulkUpload'])->name('bulk-upload');
 
     // Data Retrieval Routes

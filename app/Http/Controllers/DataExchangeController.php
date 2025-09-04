@@ -243,6 +243,102 @@ class DataExchangeController extends Controller
     }
 
     /**
+     * Show bulk clients form
+     */
+    public function showBulkClientsForm()
+    {
+        return view('data-exchange.bulk-clients');
+    }
+
+    /**
+     * Handle bulk clients upload
+     */
+    public function bulkUploadClients(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator);
+        }
+
+        try {
+            $file = $request->file('csv_file');
+            $clientDataArray = $this->parseCsvFile($file, 'clients');
+            $results = $this->dataExchangeService->bulkSubmitClientData($clientDataArray);
+            return view('data-exchange.bulk-results', compact('results'));
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to process bulk client upload: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Show bulk cases form
+     */
+    public function showBulkCasesForm()
+    {
+        return view('data-exchange.bulk-cases');
+    }
+
+    /**
+     * Handle bulk cases upload
+     */
+    public function bulkUploadCases(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator);
+        }
+
+        try {
+            $file = $request->file('csv_file');
+            $caseDataArray = $this->parseCsvFile($file, 'cases');
+            $results = $this->dataExchangeService->bulkSubmitCaseData($caseDataArray);
+            return view('data-exchange.bulk-results', compact('results'));
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to process bulk case upload: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Show bulk sessions form
+     */
+    public function showBulkSessionsForm()
+    {
+        return view('data-exchange.bulk-sessions');
+    }
+
+    /**
+     * Handle bulk sessions upload
+     */
+    public function bulkUploadSessions(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator);
+        }
+
+        try {
+            $file = $request->file('csv_file');
+            $sessionDataArray = $this->parseCsvFile($file, 'sessions');
+            $results = $this->dataExchangeService->bulkSubmitSessionData($sessionDataArray);
+            return view('data-exchange.bulk-results', compact('results'));
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to process bulk session upload: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Get submission status
      */
     public function getSubmissionStatus(Request $request)
@@ -565,32 +661,85 @@ class DataExchangeController extends Controller
     /**
      * Parse CSV file for bulk upload
      */
-    protected function parseCsvFile($file)
+    protected function parseCsvFile($file, $type = 'clients')
     {
-        $clientDataArray = [];
+        $dataArray = [];
         $handle = fopen($file->getPathname(), 'r');
 
-        // Skip header row
-        fgetcsv($handle);
+        // Get header row to understand column structure
+        $headers = fgetcsv($handle);
 
         while (($data = fgetcsv($handle)) !== FALSE) {
-            $clientDataArray[] = [
-                'client_id' => $data[0] ?? null,
-                'first_name' => $data[1] ?? null,
-                'last_name' => $data[2] ?? null,
-                'date_of_birth' => $data[3] ?? null,
-                'gender' => $data[4] ?? null,
-                'indigenous_status' => $data[5] ?? null,
-                'country_of_birth' => $data[6] ?? null,
-                'postal_code' => $data[7] ?? null,
-                'primary_language' => $data[8] ?? null,
-                'interpreter_required' => $data[9] === 'true' ? true : false,
-                'disability_flag' => $data[10] === 'true' ? true : false,
-                'client_type' => $data[11] ?? null,
-            ];
+            // Create associative array with headers as keys
+            $rowData = array_combine($headers, $data);
+
+            // Clean up the data based on type
+            if ($type === 'clients') {
+                $dataArray[] = $this->cleanClientData($rowData);
+            } elseif ($type === 'cases') {
+                $dataArray[] = $this->cleanCaseData($rowData);
+            } elseif ($type === 'sessions') {
+                $dataArray[] = $this->cleanSessionData($rowData);
+            }
         }
 
         fclose($handle);
-        return $clientDataArray;
+        return $dataArray;
+    }
+
+    protected function cleanClientData($rowData)
+    {
+        return [
+            'client_id' => $rowData['client_id'] ?? null,
+            'first_name' => $rowData['first_name'] ?? null,
+            'last_name' => $rowData['last_name'] ?? null,
+            'date_of_birth' => $rowData['date_of_birth'] ?? null,
+            'is_birth_date_estimate' => in_array(strtolower($rowData['is_birth_date_estimate'] ?? ''), ['true', '1', 'yes']),
+            'gender' => $rowData['gender'] ?? null,
+            'suburb' => $rowData['suburb'] ?? null,
+            'state' => $rowData['state'] ?? null,
+            'postal_code' => $rowData['postal_code'] ?? null,
+            'country_of_birth' => $rowData['country_of_birth'] ?? null,
+            'primary_language' => $rowData['primary_language'] ?? null,
+            'indigenous_status' => $rowData['indigenous_status'] ?? '9',
+            'interpreter_required' => in_array(strtolower($rowData['interpreter_required'] ?? ''), ['true', '1', 'yes']),
+            'disability_flag' => in_array(strtolower($rowData['disability_flag'] ?? ''), ['true', '1', 'yes']),
+            'is_using_pseudonym' => in_array(strtolower($rowData['is_using_pseudonym'] ?? ''), ['true', '1', 'yes']),
+            'consent_to_provide_details' => in_array(strtolower($rowData['consent_to_provide_details'] ?? ''), ['true', '1', 'yes']),
+            'consent_to_be_contacted' => in_array(strtolower($rowData['consent_to_be_contacted'] ?? ''), ['true', '1', 'yes']),
+            'client_type' => $rowData['client_type'] ?? 'Individual',
+        ];
+    }
+
+    protected function cleanCaseData($rowData)
+    {
+        return [
+            'case_id' => $rowData['case_id'] ?? null,
+            'client_id' => $rowData['client_id'] ?? null,
+            'case_type' => $rowData['case_type'] ?? null,
+            'case_status' => $rowData['case_status'] ?? null,
+            'start_date' => $rowData['start_date'] ?? null,
+            'end_date' => $rowData['end_date'] ?? null,
+            'case_worker' => $rowData['case_worker'] ?? null,
+            'priority' => $rowData['priority'] ?? null,
+            'description' => $rowData['description'] ?? null,
+            'notes' => $rowData['notes'] ?? null,
+        ];
+    }
+
+    protected function cleanSessionData($rowData)
+    {
+        return [
+            'session_id' => $rowData['session_id'] ?? null,
+            'case_id' => $rowData['case_id'] ?? null,
+            'session_type' => $rowData['session_type'] ?? null,
+            'session_date' => $rowData['session_date'] ?? null,
+            'duration_minutes' => intval($rowData['duration_minutes'] ?? 0),
+            'location' => $rowData['location'] ?? null,
+            'session_status' => $rowData['session_status'] ?? null,
+            'attendees' => $rowData['attendees'] ?? null,
+            'outcome' => $rowData['outcome'] ?? null,
+            'notes' => $rowData['notes'] ?? null,
+        ];
     }
 }
