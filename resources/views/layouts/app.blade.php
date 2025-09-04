@@ -62,6 +62,9 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('data-exchange.retrieve-form') ? 'active' : '' }}" href="{{ route('data-exchange.retrieve-form') }}">Retrieve Data</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('data-exchange.reference-data') ? 'active' : '' }}" href="{{ route('data-exchange.reference-data') }}">Reference Data</a>
+                    </li>
                 </ul>
             </div>
         </div>

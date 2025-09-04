@@ -802,6 +802,73 @@ class DataExchangeController extends Controller
     }
 
     /**
+     * Show reference data explorer page
+     */
+    public function showReferenceData()
+    {
+        return view('data-exchange.reference-data');
+    }
+
+    /**
+     * Get reference data via AJAX
+     */
+    public function getReferenceData(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'reference_type' => 'required|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Reference type is required'
+            ], 400);
+        }
+
+        $referenceType = $request->reference_type;
+        
+        try {
+            $referenceData = $this->dataExchangeService->getReferenceData($referenceType);
+            
+            return response()->json([
+                'success' => true,
+                'reference_type' => $referenceType,
+                'data' => $referenceData
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'reference_type' => $referenceType
+            ], 500);
+        }
+    }
+
+    /**
+     * Test reference data retrieval (legacy method)
+     */
+    public function testReferenceData(Request $request)
+    {
+        $referenceType = $request->get('type', 'CountryCode');
+        
+        try {
+            $referenceData = $this->dataExchangeService->getReferenceData($referenceType);
+            
+            return response()->json([
+                'success' => true,
+                'reference_type' => $referenceType,
+                'data' => $referenceData
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'reference_type' => $referenceType
+            ], 500);
+        }
+    }
+
+    /**
      * Parse CSV file for bulk upload
      */
     protected function parseCsvFile($file, $type = 'clients')

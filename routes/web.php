@@ -40,6 +40,11 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     Route::post('/generate-fake-dataset', [DataExchangeController::class, 'generateFakeDataset'])->name('generate-fake-dataset');
     Route::get('/download-fake-csv/{type}/{timestamp}', [DataExchangeController::class, 'downloadFakeCSV'])->name('download-fake-csv');
 
+    // Reference Data Routes
+    Route::get('/reference-data', [DataExchangeController::class, 'showReferenceData'])->name('reference-data');
+    Route::post('/get-reference-data', [DataExchangeController::class, 'getReferenceData'])->name('get-reference-data');
+    Route::get('/test-reference-data', [DataExchangeController::class, 'testReferenceData'])->name('test-reference-data');
+
     // Debug route for session testing
     Route::post('/debug-session', function (\Illuminate\Http\Request $request) {
         return response()->json([

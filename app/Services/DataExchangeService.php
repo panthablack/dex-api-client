@@ -67,6 +67,19 @@ class DataExchangeService
     }
 
     /**
+     * Get reference data for country codes, language codes, etc.
+     */
+    public function getReferenceData($referenceType)
+    {
+        $parameters = [
+            'OrganisationID' => config('soap.dss.organisation_id'),
+            'ReferenceDataCode' => $referenceType
+        ];
+
+        return $this->soapClient->call('GetReferenceData', $parameters);
+    }
+
+    /**
      * Format client data according to DSS specifications
      */
     protected function formatClientData($data)
@@ -143,16 +156,17 @@ class DataExchangeService
     }
 
     /**
-     * Map ATSI status to DSS codes
+     * Map ATSI status to DSS codes based on reference data
      */
     protected function mapATSICode($status)
     {
+        // Use the actual DSS reference data codes
         $atsiMap = [
-            '2' => 'NEITHER',           // Non indigenous – neither Aboriginal nor Torres Strait Islander origin
+            '2' => 'NO',                // Non indigenous – neither Aboriginal nor Torres Strait Islander origin
             '3' => 'ABORIGINAL',        // Of Aboriginal origin but not Torres Strait Islander
-            '4' => 'TORRES_STRAIT_ISLANDER', // Of Torres Strait Islander origin but not Aboriginal
+            '4' => 'TSI',               // Of Torres Strait Islander origin but not Aboriginal (Torres Strait Islander)
             '5' => 'BOTH',              // Both Aboriginal and Torres Strait Islander origin
-            '9' => 'NOTSTATED'          // No information
+            '9' => 'NOTSTATED'          // No information/Not stated
         ];
 
         return $atsiMap[$status ?? '9'] ?? 'NOTSTATED';
@@ -167,28 +181,28 @@ class DataExchangeService
         // Clean names - remove hyphens, apostrophes, spaces, non-alphabetic characters
         $firstName = preg_replace('/[^A-Z]/i', '', strtoupper($data['first_name'] ?? ''));
         $lastName = preg_replace('/[^A-Z]/i', '', strtoupper($data['last_name'] ?? ''));
-        
+
         // Extract letters from last name (2nd, 3rd, 5th positions)
         $lastNamePart = '';
         $lastNamePart .= isset($lastName[1]) ? $lastName[1] : '2'; // 2nd letter or '2' if missing
-        $lastNamePart .= isset($lastName[2]) ? $lastName[2] : '2'; // 3rd letter or '2' if missing  
+        $lastNamePart .= isset($lastName[2]) ? $lastName[2] : '2'; // 3rd letter or '2' if missing
         $lastNamePart .= isset($lastName[4]) ? $lastName[4] : '2'; // 5th letter or '2' if missing
-        
+
         // If name is missing entirely, use '9' for unknown
         if (empty($lastName)) {
             $lastNamePart = '999';
         }
-        
+
         // Extract letters from first name (2nd, 3rd positions)
         $firstNamePart = '';
         $firstNamePart .= isset($firstName[1]) ? $firstName[1] : '2'; // 2nd letter or '2' if missing
         $firstNamePart .= isset($firstName[2]) ? $firstName[2] : '2'; // 3rd letter or '2' if missing
-        
+
         // If name is missing entirely, use '9' for unknown
         if (empty($firstName)) {
             $firstNamePart = '99';
         }
-        
+
         // Format date as ddmmyyyy
         $dob = $data['date_of_birth'] ?? '';
         if ($dob) {
@@ -201,17 +215,34 @@ class DataExchangeService
         } else {
             $datePart = '01011900'; // Default if no date provided
         }
-        
+
         // Map gender to SLK codes (1=Male, 2=Female, 3=Non-binary/Other, 9=Not stated)
         $gender = strtoupper($data['gender'] ?? '');
-        $genderCode = match($gender) {
+        $genderCode = match ($gender) {
             'M' => '1',
-            'F' => '2', 
+            'F' => '2',
             'X' => '3',
             default => '9'
         };
-        
-        return $lastNamePart . $firstNamePart . $datePart . $genderCode;
+
+        $slk = $lastNamePart . $firstNamePart . $datePart . $genderCode;
+
+        // Debug SLK generation for troubleshooting
+        Log::info('Generated SLK', [
+            'first_name' => $data['first_name'] ?? '',
+            'last_name' => $data['last_name'] ?? '',
+            'date_of_birth' => $data['date_of_birth'] ?? '',
+            'gender' => $data['gender'] ?? '',
+            'cleaned_first_name' => $firstName,
+            'cleaned_last_name' => $lastName,
+            'last_name_part' => $lastNamePart,
+            'first_name_part' => $firstNamePart,
+            'date_part' => $datePart,
+            'gender_code' => $genderCode,
+            'final_slk' => $slk
+        ]);
+
+        return $slk;
     }
 
     /**
@@ -229,7 +260,14 @@ class DataExchangeService
      */
     protected function mapCountryCode($country)
     {
-        // For now, default common values. In production, you'd want a full mapping
+        // Try to get from reference data first
+        $validCountries = $this->getValidCountryCodes();
+
+        if ($validCountries && isset($validCountries[$country])) {
+            return $validCountries[$country];
+        }
+
+        // Fallback to hardcoded values if reference data is unavailable
         $countryMap = [
             'Australia' => '1101',
             'australia' => '1101',
@@ -246,7 +284,14 @@ class DataExchangeService
      */
     protected function mapLanguageCode($language)
     {
-        // For now, default common values. In production, you'd want a full mapping
+        // Try to get from reference data first
+        $validLanguages = $this->getValidLanguageCodes();
+
+        if ($validLanguages && isset($validLanguages[$language])) {
+            return $validLanguages[$language];
+        }
+
+        // Fallback to hardcoded values if reference data is unavailable
         $languageMap = [
             'English' => '1201',
             'english' => '1201',
@@ -403,10 +448,10 @@ class DataExchangeService
         foreach ($clientDataArray as $index => $clientData) {
             try {
                 $result = $this->submitClientData($clientData);
-                
+
                 // Check if the response contains a failed transaction status
                 $transactionStatus = $this->extractTransactionStatus($result);
-                
+
                 if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
                     $errorMessage = $transactionStatus['message'] ?? 'Client data submission failed';
                     $results[$index] = [
@@ -444,10 +489,10 @@ class DataExchangeService
         foreach ($caseDataArray as $index => $caseData) {
             try {
                 $result = $this->submitCaseData($caseData);
-                
+
                 // Check if the response contains a failed transaction status
                 $transactionStatus = $this->extractTransactionStatus($result);
-                
+
                 if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
                     $errorMessage = $transactionStatus['message'] ?? 'Case data submission failed';
                     $results[$index] = [
@@ -485,10 +530,10 @@ class DataExchangeService
         foreach ($sessionDataArray as $index => $sessionData) {
             try {
                 $result = $this->submitSessionData($sessionData);
-                
+
                 // Check if the response contains a failed transaction status
                 $transactionStatus = $this->extractTransactionStatus($result);
-                
+
                 if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
                     $errorMessage = $transactionStatus['message'] ?? 'Session data submission failed';
                     $results[$index] = [
@@ -522,11 +567,11 @@ class DataExchangeService
     public function generateSampleClientData()
     {
         $fake = fake();
-        
+
         // Generate basic data first - ensure names are long enough for SLK generation
         $firstName = $fake->firstName();
         $lastName = $fake->lastName();
-        
+
         // Ensure names are at least 5 characters for proper SLK generation (need 2nd, 3rd, 5th letters)
         while (strlen($firstName) < 3) {
             $firstName = $fake->firstName();
@@ -534,11 +579,11 @@ class DataExchangeService
         while (strlen($lastName) < 5) {
             $lastName = $fake->lastName();
         }
-        
+
         $dateOfBirth = $fake->dateTimeBetween('-80 years', '-18 years')->format('Y-m-d');
         $isBirthDateEstimate = $fake->boolean(20); // 20% chance of being estimate
         $gender = $fake->randomElement(['M', 'F']);
-        
+
         // Use real Australian suburbs and appropriate postcodes
         $locations = [
             ['suburb' => 'Sydney', 'state' => 'NSW', 'postcode' => '2000'],
@@ -556,9 +601,9 @@ class DataExchangeService
             ['suburb' => 'Norwood', 'state' => 'SA', 'postcode' => '5067'],
             ['suburb' => 'Launceston', 'state' => 'TAS', 'postcode' => '7250']
         ];
-        
+
         $location = $fake->randomElement($locations);
-        
+
         // Create the base client data
         $clientData = [
             'client_id' => 'CLIENT_' . $fake->unique()->numberBetween(1000, 9999),
@@ -567,14 +612,14 @@ class DataExchangeService
             'date_of_birth' => $dateOfBirth,
             'is_birth_date_estimate' => $isBirthDateEstimate,
             'gender' => $gender,
-            'country_of_birth' => 'Australia', // Always use Australia to avoid country code validation issues
+            'country_of_birth' => $this->getSafeCountryForFakeData(), // Use reference data for valid country
             'suburb' => $location['suburb'],
             'state' => $location['state'],
             'postal_code' => $location['postcode'],
             'address_line1' => $fake->streetAddress(),
             'address_line2' => $fake->boolean(30) ? $fake->secondaryAddress() : null,
-            'primary_language' => 'English', // Always use English to avoid language code validation issues
-            'indigenous_status' => $fake->randomElement(['2', '3', '4', '5', '9']), // Valid DSS ATSI codes: 2=Non-indigenous, 3=Aboriginal, 4=Torres Strait Islander, 5=Both, 9=No info
+            'primary_language' => $this->getSafeLanguageForFakeData(), // Use reference data for valid language
+            'indigenous_status' => $this->getSafeATSIForFakeData(), // Use reference data for valid ATSI status
             'interpreter_required' => $fake->boolean(10), // 10% chance
             'disability_flag' => false, // Disable for now to avoid complications
             'client_type' => 'Individual', // Always use Individual for consistency
@@ -582,7 +627,7 @@ class DataExchangeService
             'consent_to_be_contacted' => true, // Always true to avoid validation issues
             'is_using_pseudonym' => false // Always false for simplicity
         ];
-        
+
         return $clientData;
     }
 
@@ -592,14 +637,19 @@ class DataExchangeService
     public function generateSampleCaseData($clientId = null)
     {
         $fake = fake();
-        
+
         return [
             'case_id' => 'CASE_' . $fake->unique()->numberBetween(1000, 9999),
             'client_id' => $clientId ?? 'CLIENT_' . $fake->numberBetween(1000, 9999),
             'case_type' => $fake->randomElement([
-                'Individual Support', 'Family Support', 'Crisis Intervention', 
-                'Counselling', 'Financial Assistance', 'Housing Support',
-                'Employment Support', 'Mental Health Support'
+                'Individual Support',
+                'Family Support',
+                'Crisis Intervention',
+                'Counselling',
+                'Financial Assistance',
+                'Housing Support',
+                'Employment Support',
+                'Mental Health Support'
             ]),
             'case_status' => $fake->randomElement(['Active', 'Closed', 'On Hold', 'Pending']),
             'start_date' => $fake->dateTimeBetween('-2 years', 'now')->format('Y-m-d'),
@@ -617,30 +667,45 @@ class DataExchangeService
     public function generateSampleSessionData($caseId = null)
     {
         $fake = fake();
-        
+
         return [
             'session_id' => 'SESSION_' . $fake->unique()->numberBetween(1000, 9999),
             'case_id' => $caseId ?? 'CASE_' . $fake->numberBetween(1000, 9999),
             'session_type' => $fake->randomElement([
-                'Individual Counselling', 'Family Therapy', 'Group Session',
-                'Assessment', 'Follow-up', 'Crisis Intervention',
-                'Skills Training', 'Support Planning'
+                'Individual Counselling',
+                'Family Therapy',
+                'Group Session',
+                'Assessment',
+                'Follow-up',
+                'Crisis Intervention',
+                'Skills Training',
+                'Support Planning'
             ]),
             'session_date' => $fake->dateTimeBetween('-6 months', '+1 month')->format('Y-m-d'),
             'duration_minutes' => $fake->randomElement([30, 45, 60, 90, 120]),
             'location' => $fake->randomElement([
-                'Office Room 1', 'Office Room 2', 'Community Center',
-                'Client Home', 'Phone/Video Call', 'Public Space'
+                'Office Room 1',
+                'Office Room 2',
+                'Community Center',
+                'Client Home',
+                'Phone/Video Call',
+                'Public Space'
             ]),
             'session_status' => $fake->randomElement(['Scheduled', 'Completed', 'Cancelled', 'No Show']),
             'notes' => $fake->paragraph(1),
             'attendees' => $fake->randomElement([
-                'Client, Counsellor', 'Client, Family, Social Worker',
-                'Client, Case Manager', 'Client, Therapist, Psychiatrist'
+                'Client, Counsellor',
+                'Client, Family, Social Worker',
+                'Client, Case Manager',
+                'Client, Therapist, Psychiatrist'
             ]),
             'outcome' => $fake->randomElement([
-                'Ongoing', 'Goals Met', 'Referred', 'Discontinued',
-                'Needs Review', 'Emergency Response'
+                'Ongoing',
+                'Goals Met',
+                'Referred',
+                'Discontinued',
+                'Needs Review',
+                'Emergency Response'
             ])
         ];
     }
@@ -1659,7 +1724,7 @@ class DataExchangeService
         // Check for TransactionStatus in the response
         if (isset($result['TransactionStatus'])) {
             $transactionStatus = $result['TransactionStatus'];
-            
+
             return [
                 'statusCode' => $transactionStatus['TransactionStatusCode'] ?? null,
                 'message' => $transactionStatus['Messages']['Message']['MessageDescription'] ?? null
@@ -1670,17 +1735,181 @@ class DataExchangeService
     }
 
     /**
+     * Get valid country codes from DSS reference data
+     */
+    protected function getValidCountryCodes()
+    {
+        static $countryCodes = null;
+
+        if ($countryCodes === null) {
+            try {
+                $referenceData = $this->getReferenceData('CountryCode');
+                $countryCodes = $this->parseReferenceData($referenceData);
+            } catch (\Exception $e) {
+                Log::warning('Failed to fetch country reference data: ' . $e->getMessage());
+                $countryCodes = false; // Cache the failure
+            }
+        }
+
+        return $countryCodes ?: null;
+    }
+
+    /**
+     * Get valid language codes from DSS reference data
+     */
+    protected function getValidLanguageCodes()
+    {
+        static $languageCodes = null;
+
+        if ($languageCodes === null) {
+            try {
+                $referenceData = $this->getReferenceData('LanguageCode');
+                $languageCodes = $this->parseReferenceData($referenceData);
+            } catch (\Exception $e) {
+                Log::warning('Failed to fetch language reference data: ' . $e->getMessage());
+                $languageCodes = false; // Cache the failure
+            }
+        }
+
+        return $languageCodes ?: null;
+    }
+
+    /**
+     * Parse reference data response into key-value pairs
+     */
+    protected function parseReferenceData($referenceData)
+    {
+        $parsed = [];
+
+        if (is_object($referenceData)) {
+            $referenceData = json_decode(json_encode($referenceData), true);
+        }
+
+        // Parse the DSS reference data structure
+        // Handle the format: Data.ReferenceData array with Code/Description pairs
+        if (isset($referenceData['Data']['ReferenceData']) && is_array($referenceData['Data']['ReferenceData'])) {
+            foreach ($referenceData['Data']['ReferenceData'] as $item) {
+                if (isset($item['Code']) && isset($item['Description'])) {
+                    $parsed[$item['Description']] = $item['Code'];
+                }
+            }
+        }
+        // Fallback for other possible formats
+        elseif (isset($referenceData['ReferenceItems']) && is_array($referenceData['ReferenceItems'])) {
+            foreach ($referenceData['ReferenceItems'] as $item) {
+                if (isset($item['Code']) && isset($item['Description'])) {
+                    $parsed[$item['Description']] = $item['Code'];
+                }
+            }
+        }
+        // Handle direct array format
+        elseif (is_array($referenceData) && isset($referenceData[0]['Code'])) {
+            foreach ($referenceData as $item) {
+                if (isset($item['Code']) && isset($item['Description'])) {
+                    $parsed[$item['Description']] = $item['Code'];
+                }
+            }
+        }
+
+        return $parsed;
+    }
+
+    /**
+     * Get valid ATSI codes from DSS reference data
+     */
+    protected function getValidATSICodes()
+    {
+        static $atsiCodes = null;
+        
+        if ($atsiCodes === null) {
+            try {
+                $referenceData = $this->getReferenceData('AboriginalOrTorresStraitIslanderOrigin');
+                $atsiCodes = $this->parseReferenceData($referenceData);
+            } catch (\Exception $e) {
+                Log::warning('Failed to fetch ATSI reference data: ' . $e->getMessage());
+                $atsiCodes = false; // Cache the failure
+            }
+        }
+        
+        return $atsiCodes ?: null;
+    }
+
+    /**
+     * Get a safe ATSI status for fake data generation
+     */
+    protected function getSafeATSIForFakeData()
+    {
+        $validATSI = $this->getValidATSICodes();
+        
+        if ($validATSI) {
+            // Look for "No" (non-indigenous) first as most common
+            if (isset($validATSI['No'])) {
+                return '2'; // Our internal code for NO
+            }
+            // Otherwise look for "Not stated"
+            if (isset($validATSI['Not stated/Inadequately described'])) {
+                return '9'; // Our internal code for NOTSTATED
+            }
+        }
+        
+        // Fallback to safest default
+        return '2'; // Non-indigenous
+    }
+
+    /**
+     * Get a safe country for fake data generation
+     */
+    protected function getSafeCountryForFakeData()
+    {
+        $validCountries = $this->getValidCountryCodes();
+
+        if ($validCountries) {
+            // Look for Australia first
+            if (isset($validCountries['Australia'])) {
+                return 'Australia';
+            }
+            // Otherwise return a random valid country
+            $countryNames = array_keys($validCountries);
+            return $countryNames[array_rand($countryNames)];
+        }
+
+        // Fallback to hardcoded safe value
+        return 'Australia';
+    }
+
+    /**
+     * Get a safe language for fake data generation
+     */
+    protected function getSafeLanguageForFakeData()
+    {
+        $validLanguages = $this->getValidLanguageCodes();
+
+        if ($validLanguages) {
+            // Look for English first
+            if (isset($validLanguages['English'])) {
+                return 'English';
+            }
+            // Otherwise return a random valid language
+            $languageNames = array_keys($validLanguages);
+            return $languageNames[array_rand($languageNames)];
+        }
+
+        // Fallback to hardcoded safe value
+        return 'English';
+    }
+
+    /**
      * Generate multiple fake client records for bulk upload
      */
     public function generateFakeClientData($count = 10)
     {
         $clients = [];
         fake()->unique(true); // Reset unique generator
-        
+
         for ($i = 0; $i < $count; $i++) {
             $clients[] = $this->generateSampleClientData();
         }
-        
+
         return $clients;
     }
 
@@ -1691,12 +1920,12 @@ class DataExchangeService
     {
         $cases = [];
         fake()->unique(true); // Reset unique generator
-        
+
         for ($i = 0; $i < $count; $i++) {
             $clientId = $clientIds ? ($clientIds[$i % count($clientIds)] ?? null) : null;
             $cases[] = $this->generateSampleCaseData($clientId);
         }
-        
+
         return $cases;
     }
 
@@ -1707,12 +1936,12 @@ class DataExchangeService
     {
         $sessions = [];
         fake()->unique(true); // Reset unique generator
-        
+
         for ($i = 0; $i < $count; $i++) {
             $caseId = $caseIds ? ($caseIds[$i % count($caseIds)] ?? null) : null;
             $sessions[] = $this->generateSampleSessionData($caseId);
         }
-        
+
         return $sessions;
     }
 
@@ -1722,10 +1951,10 @@ class DataExchangeService
     public function generateFakeDataSet($clientCount = 5, $casesPerClient = 2, $sessionsPerCase = 3)
     {
         fake()->unique(true); // Reset unique generator
-        
+
         $clients = $this->generateFakeClientData($clientCount);
         $clientIds = array_column($clients, 'client_id');
-        
+
         // Generate cases for clients
         $cases = [];
         foreach ($clientIds as $clientId) {
@@ -1734,7 +1963,7 @@ class DataExchangeService
             }
         }
         $caseIds = array_column($cases, 'case_id');
-        
+
         // Generate sessions for cases
         $sessions = [];
         foreach ($caseIds as $caseId) {
@@ -1742,7 +1971,7 @@ class DataExchangeService
                 $sessions[] = $this->generateSampleSessionData($caseId);
             }
         }
-        
+
         return [
             'clients' => $clients,
             'cases' => $cases,
@@ -1768,7 +1997,7 @@ class DataExchangeService
             default:
                 throw new \InvalidArgumentException("Unsupported type: {$type}");
         }
-        
+
         return $this->arrayToCsv($data);
     }
 
