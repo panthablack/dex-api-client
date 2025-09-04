@@ -123,8 +123,18 @@
                                 </td>
                                 <td>
                                     @if($result['status'] === 'success')
-                                        @if(isset($result['result']['SubmissionID']))
-                                            <small class="text-success">Submission ID: {{ $result['result']['SubmissionID'] }}</small>
+                                        @php
+                                            $submissionId = null;
+                                            if (isset($result['result'])) {
+                                                if (is_array($result['result']) && isset($result['result']['SubmissionID'])) {
+                                                    $submissionId = $result['result']['SubmissionID'];
+                                                } elseif (is_object($result['result']) && property_exists($result['result'], 'SubmissionID')) {
+                                                    $submissionId = $result['result']->SubmissionID;
+                                                }
+                                            }
+                                        @endphp
+                                        @if($submissionId)
+                                            <small class="text-success">Submission ID: {{ $submissionId }}</small>
                                         @else
                                             <small class="text-success">Successfully processed</small>
                                         @endif
@@ -133,9 +143,9 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($result['status'] === 'success' && isset($result['result']['SubmissionID']))
+                                    @if($result['status'] === 'success' && $submissionId)
                                         <button class="btn btn-outline-info btn-sm" 
-                                                onclick="checkSubmissionStatus('{{ $result['result']['SubmissionID'] }}')"
+                                                onclick="checkSubmissionStatus('{{ $submissionId }}')"
                                                 title="Check Status">
                                             <i class="fas fa-search"></i>
                                         </button>
@@ -265,15 +275,27 @@ function checkSubmissionStatus(submissionId) {
 }
 
 function exportResults(format) {
-    const exportData = results.map((result, index) => ({
-        row: index + 1,
-        status: result.status,
-        client_id: result.client_data?.client_id || 'N/A',
-        first_name: result.client_data?.first_name || 'N/A',
-        last_name: result.client_data?.last_name || 'N/A',
-        submission_id: result.result?.SubmissionID || 'N/A',
-        error: result.error || 'N/A'
-    }));
+    const exportData = results.map((result, index) => {
+        // Safely extract SubmissionID from either array or object
+        let submissionId = 'N/A';
+        if (result.result) {
+            if (typeof result.result === 'object' && result.result.SubmissionID) {
+                submissionId = result.result.SubmissionID;
+            } else if (Array.isArray(result.result) && result.result.SubmissionID) {
+                submissionId = result.result.SubmissionID;
+            }
+        }
+
+        return {
+            row: index + 1,
+            status: result.status,
+            client_id: result.client_data?.client_id || 'N/A',
+            first_name: result.client_data?.first_name || 'N/A',
+            last_name: result.client_data?.last_name || 'N/A',
+            submission_id: submissionId,
+            error: result.error || 'N/A'
+        };
+    });
 
     if (format === 'csv') {
         const csvContent = convertToCSV(exportData);

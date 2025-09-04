@@ -403,14 +403,30 @@ class DataExchangeService
         foreach ($clientDataArray as $index => $clientData) {
             try {
                 $result = $this->submitClientData($clientData);
-                $results[$index] = [
-                    'status' => 'success',
-                    'result' => $result
-                ];
+                
+                // Check if the response contains a failed transaction status
+                $transactionStatus = $this->extractTransactionStatus($result);
+                
+                if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
+                    $errorMessage = $transactionStatus['message'] ?? 'Client data submission failed';
+                    $results[$index] = [
+                        'status' => 'error',
+                        'error' => $errorMessage,
+                        'result' => $result,
+                        'client_data' => $clientData
+                    ];
+                } else {
+                    $results[$index] = [
+                        'status' => 'success',
+                        'result' => $result,
+                        'client_data' => $clientData
+                    ];
+                }
             } catch (\Exception $e) {
                 $results[$index] = [
                     'status' => 'error',
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
+                    'client_data' => $clientData
                 ];
             }
         }
@@ -428,14 +444,30 @@ class DataExchangeService
         foreach ($caseDataArray as $index => $caseData) {
             try {
                 $result = $this->submitCaseData($caseData);
-                $results[$index] = [
-                    'status' => 'success',
-                    'result' => $result
-                ];
+                
+                // Check if the response contains a failed transaction status
+                $transactionStatus = $this->extractTransactionStatus($result);
+                
+                if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
+                    $errorMessage = $transactionStatus['message'] ?? 'Case data submission failed';
+                    $results[$index] = [
+                        'status' => 'error',
+                        'error' => $errorMessage,
+                        'result' => $result,
+                        'case_data' => $caseData
+                    ];
+                } else {
+                    $results[$index] = [
+                        'status' => 'success',
+                        'result' => $result,
+                        'case_data' => $caseData
+                    ];
+                }
             } catch (\Exception $e) {
                 $results[$index] = [
                     'status' => 'error',
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
+                    'case_data' => $caseData
                 ];
             }
         }
@@ -453,14 +485,30 @@ class DataExchangeService
         foreach ($sessionDataArray as $index => $sessionData) {
             try {
                 $result = $this->submitSessionData($sessionData);
-                $results[$index] = [
-                    'status' => 'success',
-                    'result' => $result
-                ];
+                
+                // Check if the response contains a failed transaction status
+                $transactionStatus = $this->extractTransactionStatus($result);
+                
+                if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
+                    $errorMessage = $transactionStatus['message'] ?? 'Session data submission failed';
+                    $results[$index] = [
+                        'status' => 'error',
+                        'error' => $errorMessage,
+                        'result' => $result,
+                        'session_data' => $sessionData
+                    ];
+                } else {
+                    $results[$index] = [
+                        'status' => 'success',
+                        'result' => $result,
+                        'session_data' => $sessionData
+                    ];
+                }
             } catch (\Exception $e) {
                 $results[$index] = [
                     'status' => 'error',
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
+                    'session_data' => $sessionData
                 ];
             }
         }
@@ -1528,6 +1576,33 @@ class DataExchangeService
         }
 
         return $output;
+    }
+
+    /**
+     * Extract transaction status from DSS API response
+     */
+    protected function extractTransactionStatus($result)
+    {
+        // Convert objects to arrays for consistent handling
+        if (is_object($result)) {
+            $result = json_decode(json_encode($result), true);
+        }
+
+        if (!is_array($result)) {
+            return null;
+        }
+
+        // Check for TransactionStatus in the response
+        if (isset($result['TransactionStatus'])) {
+            $transactionStatus = $result['TransactionStatus'];
+            
+            return [
+                'statusCode' => $transactionStatus['TransactionStatusCode'] ?? null,
+                'message' => $transactionStatus['Messages']['Message']['MessageDescription'] ?? null
+            ];
+        }
+
+        return null;
     }
 
     /**
