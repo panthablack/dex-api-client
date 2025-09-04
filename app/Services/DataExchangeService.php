@@ -333,8 +333,8 @@ class DataExchangeService
     protected function formatCaseData($data)
     {
         return [
-            'CaseID' => $data['case_id'] ?? null,
-            'ClientID' => $data['client_id'] ?? null,
+            'CaseId' => $data['case_id'] ?? null,
+            'ClientId' => $data['client_id'] ?? null,
             'CaseType' => $data['case_type'] ?? null,
             'CaseStatus' => $data['case_status'] ?? null,
             'StartDate' => $this->formatDate($data['start_date'] ?? null),
@@ -1820,7 +1820,7 @@ class DataExchangeService
     protected function getValidATSICodes()
     {
         static $atsiCodes = null;
-        
+
         if ($atsiCodes === null) {
             try {
                 $referenceData = $this->getReferenceData('AboriginalOrTorresStraitIslanderOrigin');
@@ -1830,7 +1830,7 @@ class DataExchangeService
                 $atsiCodes = false; // Cache the failure
             }
         }
-        
+
         return $atsiCodes ?: null;
     }
 
@@ -1841,7 +1841,7 @@ class DataExchangeService
     {
         try {
             $atsiOptions = \App\Helpers\ReferenceData::aboriginalOrTorresStraitIslanderOrigin();
-            
+
             if (!empty($atsiOptions)) {
                 // Use the weighted random selection to favor non-indigenous
                 $weights = [
@@ -1851,10 +1851,10 @@ class DataExchangeService
                     'TSI' => 1,  // 1% chance
                     'BOTH' => 1  // 1% chance
                 ];
-                
+
                 $randomValue = fake()->numberBetween(1, 100);
                 $cumulative = 0;
-                
+
                 foreach ($weights as $code => $weight) {
                     $cumulative += $weight;
                     if ($randomValue <= $cumulative) {
@@ -1866,7 +1866,7 @@ class DataExchangeService
                         }
                     }
                 }
-                
+
                 // Fallback to first option if weighting fails
                 return $atsiOptions[0]->Code;
             }
@@ -1874,7 +1874,7 @@ class DataExchangeService
             // Log error but continue with fallback
             \Log::warning('Failed to get ATSI options from ReferenceData helper: ' . $e->getMessage());
         }
-        
+
         // Fallback to safest default
         return 'NO';
     }
@@ -1886,7 +1886,7 @@ class DataExchangeService
     {
         try {
             $countries = \App\Helpers\ReferenceData::countries();
-            
+
             if (!empty($countries)) {
                 // Look for Australia first (most common)
                 foreach ($countries as $country) {
@@ -1894,11 +1894,11 @@ class DataExchangeService
                         return $country->Code;
                     }
                 }
-                
+
                 // Use weighted selection for realistic distribution
                 $commonCountries = ['1101', '2102', '1201', '2201']; // Australia, UK, NZ, USA
                 $randomValue = fake()->numberBetween(1, 100);
-                
+
                 if ($randomValue <= 70) {
                     // 70% chance of common countries
                     foreach ($countries as $country) {
@@ -1907,7 +1907,7 @@ class DataExchangeService
                         }
                     }
                 }
-                
+
                 // Otherwise random country
                 return $countries[array_rand($countries)]->Code;
             }
@@ -1915,7 +1915,7 @@ class DataExchangeService
             // Log error but continue with fallback
             \Log::warning('Failed to get countries from ReferenceData helper: ' . $e->getMessage());
         }
-        
+
         // Fallback to Australia code
         return '1101';
     }
@@ -1927,7 +1927,7 @@ class DataExchangeService
     {
         try {
             $languages = \App\Helpers\ReferenceData::languages();
-            
+
             if (!empty($languages)) {
                 // Look for English first (most common in Australia)
                 foreach ($languages as $language) {
@@ -1935,11 +1935,11 @@ class DataExchangeService
                         return $language->Code;
                     }
                 }
-                
+
                 // Use weighted selection for realistic language distribution in Australia
                 $commonLanguages = [];
                 $languagePriorities = ['English', 'Mandarin', 'Arabic', 'Vietnamese', 'Italian', 'Greek'];
-                
+
                 foreach ($languagePriorities as $priority) {
                     foreach ($languages as $language) {
                         if (stripos($language->Description, $priority) !== false) {
@@ -1948,7 +1948,7 @@ class DataExchangeService
                         }
                     }
                 }
-                
+
                 if (!empty($commonLanguages)) {
                     // 80% chance of common languages
                     $randomValue = fake()->numberBetween(1, 100);
@@ -1956,7 +1956,7 @@ class DataExchangeService
                         return $commonLanguages[array_rand($commonLanguages)]->Code;
                     }
                 }
-                
+
                 // Otherwise random language
                 return $languages[array_rand($languages)]->Code;
             }
@@ -1964,7 +1964,7 @@ class DataExchangeService
             // Log error but continue with fallback
             \Log::warning('Failed to get languages from ReferenceData helper: ' . $e->getMessage());
         }
-        
+
         // Fallback to English code
         return '1201';
     }
