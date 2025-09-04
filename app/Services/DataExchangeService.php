@@ -84,13 +84,24 @@ class DataExchangeService
      */
     protected function formatClientData($data)
     {
+        // Process birth date first to determine what will actually be sent to API
+        $isEstimate = !empty($data['is_birth_date_estimate']);
+        $processedBirthDate = $this->formatBirthDate($data['date_of_birth'] ?? null, $isEstimate);
+        
+        // Create modified data for SLK generation using the processed birth date
+        $dataForSLK = $data;
+        if ($processedBirthDate && $isEstimate) {
+            // Extract just the date part from the DateTime for SLK calculation
+            $dataForSLK['date_of_birth'] = substr($processedBirthDate, 0, 10); // yyyy-mm-dd part only
+        }
+        
         $clientData = [
             'ClientId' => $data['client_id'] ?? null,
-            'SLK' => $this->generateSLK($data),
+            'SLK' => $this->generateSLK($dataForSLK), // Use processed data for SLK
             'GivenName' => $data['first_name'] ?? null,
             'FamilyName' => $data['last_name'] ?? null,
-            'BirthDate' => $this->formatBirthDate($data['date_of_birth'] ?? null, !empty($data['is_birth_date_estimate'])),
-            'IsBirthDateAnEstimate' => !empty($data['is_birth_date_estimate']),
+            'BirthDate' => $processedBirthDate,
+            'IsBirthDateAnEstimate' => $isEstimate,
             'GenderCode' => $this->mapGenderCode($data['gender'] ?? null),
             'AboriginalOrTorresStraitIslanderOriginCode' => $this->mapATSICode($data['indigenous_status'] ?? '9'),
             'CountryOfBirthCode' => $this->mapCountryCode($data['country_of_birth'] ?? null),
@@ -126,15 +137,15 @@ class DataExchangeService
             return null;
         }
 
-        // If it's already in the correct format, return as is
-        if (preg_match('/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $date)) {
+        // If it's already in the correct format with milliseconds, return as is
+        if (preg_match('/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}/', $date)) {
             return $date;
         }
 
-        // Convert date to ISO 8601 format with time component
+        // Convert date to DSS DateTime format with milliseconds
         try {
-            $dateObj = new \DateTime($date);
-            return $dateObj->format('Y-m-d\TH:i:s');
+            $dateObj = $this->parseFlexibleDate($date);
+            return $dateObj->format('Y-m-d\TH:i:s.000');
         } catch (\Exception $e) {
             return null;
         }
@@ -182,33 +193,43 @@ class DataExchangeService
         $firstName = preg_replace('/[^A-Z]/i', '', strtoupper($data['first_name'] ?? ''));
         $lastName = preg_replace('/[^A-Z]/i', '', strtoupper($data['last_name'] ?? ''));
 
-        // Extract letters from last name (2nd, 3rd, 5th positions)
-        $lastNamePart = '';
-        $lastNamePart .= isset($lastName[1]) ? $lastName[1] : '2'; // 2nd letter or '2' if missing
-        $lastNamePart .= isset($lastName[2]) ? $lastName[2] : '2'; // 3rd letter or '2' if missing
-        $lastNamePart .= isset($lastName[4]) ? $lastName[4] : '2'; // 5th letter or '2' if missing
-
-        // If name is missing entirely, use '9' for unknown
+        // Handle missing names according to DSS spec
         if (empty($lastName)) {
-            $lastNamePart = '999';
+            $lastNamePart = '999'; // All 9s for missing name
+        } else {
+            // Extract letters from last name (2nd, 3rd, 5th positions)
+            $lastNamePart = '';
+            $lastNamePart .= isset($lastName[1]) ? $lastName[1] : '2'; // 2nd letter or '2' if missing
+            $lastNamePart .= isset($lastName[2]) ? $lastName[2] : '2'; // 3rd letter or '2' if missing  
+            $lastNamePart .= isset($lastName[4]) ? $lastName[4] : '2'; // 5th letter or '2' if missing
+            
+            // DSS Rule: "a 2 should always be proceeded by a letter of the alphabet"
+            // If first character would be '2', it means lastName has only 1 character, which violates this rule
+            if ($lastNamePart[0] === '2') {
+                $lastNamePart = '999'; // Use 9s for invalid short name
+            }
         }
 
-        // Extract letters from first name (2nd, 3rd positions)
-        $firstNamePart = '';
-        $firstNamePart .= isset($firstName[1]) ? $firstName[1] : '2'; // 2nd letter or '2' if missing
-        $firstNamePart .= isset($firstName[2]) ? $firstName[2] : '2'; // 3rd letter or '2' if missing
-
-        // If name is missing entirely, use '9' for unknown
         if (empty($firstName)) {
-            $firstNamePart = '99';
+            $firstNamePart = '99'; // All 9s for missing name
+        } else {
+            // Extract letters from first name (2nd, 3rd positions)
+            $firstNamePart = '';
+            $firstNamePart .= isset($firstName[1]) ? $firstName[1] : '2'; // 2nd letter or '2' if missing
+            $firstNamePart .= isset($firstName[2]) ? $firstName[2] : '2'; // 3rd letter or '2' if missing
+            
+            // DSS Rule: "a 2 should always be proceeded by a letter of the alphabet"
+            // If first character would be '2', it means firstName has only 1 character, which violates this rule
+            if ($firstNamePart[0] === '2') {
+                $firstNamePart = '99'; // Use 9s for invalid short name
+            }
         }
 
-        // Format date as ddmmyyyy
+        // Format date as ddmmyyyy (DSS specification format)
         $dob = $data['date_of_birth'] ?? '';
         if ($dob) {
             try {
-                $dateObj = new \DateTime($dob);
-                $datePart = $dateObj->format('dmY'); // ddmmyyyy format
+                $datePart = $this->formatDateForSLK($dob);
             } catch (\Exception $e) {
                 $datePart = '01011900'; // Default if parsing fails
             }
@@ -216,16 +237,28 @@ class DataExchangeService
             $datePart = '01011900'; // Default if no date provided
         }
 
-        // Map gender to SLK codes (1=Male, 2=Female, 3=Non-binary/Other, 9=Not stated)
+        // Map gender to SLK codes according to DSS spec:
+        // Code 1 for Man or male, Code 2 for Woman or female, Code 3 for Non-binary, Code 3 for [I/They] use different term, Code 9 for Not stated
         $gender = strtoupper($data['gender'] ?? '');
         $genderCode = match ($gender) {
-            'M' => '1',
-            'F' => '2',
-            'X' => '3',
+            'M', 'MALE', 'MAN' => '1',
+            'F', 'FEMALE', 'WOMAN' => '2', 
+            'X', 'NONBINARY', 'NON-BINARY', 'OTHER' => '3',
             default => '9'
         };
 
         $slk = $lastNamePart . $firstNamePart . $datePart . $genderCode;
+
+        // Validate SLK against DSS regex pattern
+        if (!$this->validateSLK($slk)) {
+            Log::warning('Generated SLK failed validation', [
+                'slk' => $slk,
+                'first_name' => $data['first_name'] ?? '',
+                'last_name' => $data['last_name'] ?? '',
+                'date_of_birth' => $data['date_of_birth'] ?? '',
+                'gender' => $data['gender'] ?? ''
+            ]);
+        }
 
         // Debug SLK generation for troubleshooting
         Log::info('Generated SLK', [
@@ -239,10 +272,47 @@ class DataExchangeService
             'first_name_part' => $firstNamePart,
             'date_part' => $datePart,
             'gender_code' => $genderCode,
-            'final_slk' => $slk
+            'final_slk' => $slk,
+            'is_valid' => $this->validateSLK($slk)
         ]);
 
         return $slk;
+    }
+
+    /**
+     * Format date for SLK generation, handling Australian dd/mm/yyyy format
+     */
+    protected function formatDateForSLK($dateString)
+    {
+        // Handle different date formats correctly
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $dateString, $matches)) {
+            // dd/mm/yyyy format (Australian format)
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return $day . $month . $year; // ddmmyyyy
+        } elseif (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $dateString, $matches)) {
+            // yyyy-mm-dd format (ISO format)
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return $day . $month . $year; // ddmmyyyy
+        } else {
+            // Try to parse with DateTime as fallback
+            $dateObj = new \DateTime($dateString);
+            return $dateObj->format('dmY'); // ddmmyyyy format
+        }
+    }
+
+    /**
+     * Validate SLK against DSS regular expression pattern
+     */
+    protected function validateSLK($slk)
+    {
+        // DSS SLK regular expression from specification
+        $pattern = '/^([9]{3}|[A-Z]([2]{2}|[A-Z][A-Z,2]))([9]{2}|[A-Z][A-Z,2])(((((0[1-9]|[1-2][0-9]))|(3[01]))((0[13578])|(1[02])))|((((0[1-9]|[1-2][0-9]))|(30))((0[469])|(11)))|((0[1-9]|[1-2][0-9])02))(19|2[0-9])[0-9]{2}[1239]$/';
+        
+        return preg_match($pattern, $slk) === 1;
     }
 
     /**
@@ -304,7 +374,10 @@ class DataExchangeService
     }
 
     /**
-     * Format birth date with special handling for estimates
+     * Format birth date according to DSS specification  
+     * - If IsBirthDateAnEstimate is true: format as 'yyyy-01-01T00:00:00.000'
+     * - If IsBirthDateAnEstimate is false: format as 'yyyy-mm-ddT00:00:00.000' (real birth date)
+     * Note: DSS API requires DateTime format, not just date
      */
     protected function formatBirthDate($date, $isEstimate = false)
     {
@@ -313,18 +386,42 @@ class DataExchangeService
         }
 
         if ($isEstimate) {
-            // For estimates, MUST use January 1st (01/01) as day and month
+            // DSS Spec: If IsBirthDateAnEstimate is true, use yyyy-01-01 but with DateTime format
             try {
-                $dateObj = new \DateTime($date);
+                // Parse the date to extract the year, but always use January 1st
+                $dateObj = $this->parseFlexibleDate($date);
                 $year = $dateObj->format('Y');
-                return $year . '-01-01T00:00:00';
+                return $year . '-01-01T00:00:00.000';
             } catch (\Exception $e) {
                 // If date parsing fails, use a reasonable default year
-                return '1990-01-01T00:00:00';
+                return '1990-01-01T00:00:00.000';
             }
         }
 
-        return $this->formatDate($date);
+        // DSS Spec: If IsBirthDateAnEstimate is false, use real birth date with DateTime format
+        try {
+            $dateObj = $this->parseFlexibleDate($date);
+            return $dateObj->format('Y-m-d\T00:00:00.000');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Parse dates in various formats (dd/mm/yyyy, yyyy-mm-dd, etc.)
+     */
+    protected function parseFlexibleDate($dateString)
+    {
+        // Handle dd/mm/yyyy format (Australian format)
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $dateString, $matches)) {
+            $day = (int)$matches[1];
+            $month = (int)$matches[2];
+            $year = (int)$matches[3];
+            return new \DateTime("{$year}-{$month}-{$day}");
+        }
+        
+        // Handle yyyy-mm-dd or other formats via DateTime
+        return new \DateTime($dateString);
     }
 
     /**
