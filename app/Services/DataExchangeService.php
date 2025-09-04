@@ -159,29 +159,59 @@ class DataExchangeService
     }
 
     /**
-     * Generate SLK (Statistical Linkage Key) - simplified version
-     * In production, this should follow proper SLK generation rules
+     * Generate SLK (Statistical Linkage Key) according to DSS specifications
+     * Uses 2nd, 3rd, 5th letters of last name + 2nd, 3rd letters of first name + ddmmyyyy + gender code
      */
     protected function generateSLK($data)
     {
-        $firstName = strtoupper(substr($data['first_name'] ?? '', 0, 2));
-        $lastName = strtoupper(substr($data['last_name'] ?? '', 0, 3));
-        $dob = $data['date_of_birth'] ?? '';
-        $gender = strtoupper($data['gender'] ?? 'X');
-
-        // Extract date parts
-        if ($dob) {
-            $dateObj = new \DateTime($dob);
-            $day = $dateObj->format('d');
-            $month = $dateObj->format('m');
-            $year = $dateObj->format('Y');
-        } else {
-            $day = '01';
-            $month = '01';
-            $year = '1900';
+        // Clean names - remove hyphens, apostrophes, spaces, non-alphabetic characters
+        $firstName = preg_replace('/[^A-Z]/i', '', strtoupper($data['first_name'] ?? ''));
+        $lastName = preg_replace('/[^A-Z]/i', '', strtoupper($data['last_name'] ?? ''));
+        
+        // Extract letters from last name (2nd, 3rd, 5th positions)
+        $lastNamePart = '';
+        $lastNamePart .= isset($lastName[1]) ? $lastName[1] : '2'; // 2nd letter or '2' if missing
+        $lastNamePart .= isset($lastName[2]) ? $lastName[2] : '2'; // 3rd letter or '2' if missing  
+        $lastNamePart .= isset($lastName[4]) ? $lastName[4] : '2'; // 5th letter or '2' if missing
+        
+        // If name is missing entirely, use '9' for unknown
+        if (empty($lastName)) {
+            $lastNamePart = '999';
         }
-
-        return $firstName . $lastName . $day . $month . $year . '00' . $gender;
+        
+        // Extract letters from first name (2nd, 3rd positions)
+        $firstNamePart = '';
+        $firstNamePart .= isset($firstName[1]) ? $firstName[1] : '2'; // 2nd letter or '2' if missing
+        $firstNamePart .= isset($firstName[2]) ? $firstName[2] : '2'; // 3rd letter or '2' if missing
+        
+        // If name is missing entirely, use '9' for unknown
+        if (empty($firstName)) {
+            $firstNamePart = '99';
+        }
+        
+        // Format date as ddmmyyyy
+        $dob = $data['date_of_birth'] ?? '';
+        if ($dob) {
+            try {
+                $dateObj = new \DateTime($dob);
+                $datePart = $dateObj->format('dmY'); // ddmmyyyy format
+            } catch (\Exception $e) {
+                $datePart = '01011900'; // Default if parsing fails
+            }
+        } else {
+            $datePart = '01011900'; // Default if no date provided
+        }
+        
+        // Map gender to SLK codes (1=Male, 2=Female, 3=Non-binary/Other, 9=Not stated)
+        $gender = strtoupper($data['gender'] ?? '');
+        $genderCode = match($gender) {
+            'M' => '1',
+            'F' => '2', 
+            'X' => '3',
+            default => '9'
+        };
+        
+        return $lastNamePart . $firstNamePart . $datePart . $genderCode;
     }
 
     /**
