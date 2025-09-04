@@ -34,7 +34,8 @@
                 <p class="card-text">Submit client information, service data, or upload CSV files in bulk</p>
                 <div class="d-grid gap-2">
                     <a href="{{ route('data-exchange.client-form') }}" class="btn btn-outline-primary btn-sm">Submit Client Data</a>
-                    <a href="{{ route('data-exchange.service-form') }}" class="btn btn-outline-primary btn-sm">Submit Service Data</a>
+                    <a href="{{ route('data-exchange.case-form') }}" class="btn btn-outline-primary btn-sm">Submit Case Data</a>
+                    <a href="{{ route('data-exchange.session-form') }}" class="btn btn-outline-primary btn-sm">Submit Session Data</a>
                     <a href="{{ route('data-exchange.bulk-form') }}" class="btn btn-outline-primary btn-sm">Bulk Upload</a>
                 </div>
             </div>
@@ -76,7 +77,8 @@
                         <h6>Features</h6>
                         <ul class="list-unstyled">
                             <li>✓ Client data submission</li>
-                            <li>✓ Service data submission</li>
+                            <li>✓ Case data submission</li>
+                            <li>✓ Session data submission</li>
                             <li>✓ Bulk upload via CSV</li>
                             <li>✓ Connection testing</li>
                             <li>✓ Request/Response debugging</li>

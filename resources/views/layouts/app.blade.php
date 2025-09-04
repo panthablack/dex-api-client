@@ -49,12 +49,13 @@
                         <a class="nav-link {{ request()->routeIs('home') ? 'active' : '' }}" href="{{ route('home') }}">Dashboard</a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {{ request()->routeIs('data-exchange.client-form', 'data-exchange.service-form', 'data-exchange.bulk-form') ? 'active' : '' }}" href="#" id="submitDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle {{ request()->routeIs('data-exchange.client-form', 'data-exchange.case-form', 'data-exchange.session-form', 'data-exchange.bulk-form') ? 'active' : '' }}" href="#" id="submitDropdown" role="button" data-bs-toggle="dropdown">
                             Submit Data
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ route('data-exchange.client-form') }}">Submit Client Data</a></li>
-                            <li><a class="dropdown-item" href="{{ route('data-exchange.service-form') }}">Submit Service Data</a></li>
+                            <li><a class="dropdown-item" href="{{ route('data-exchange.case-form') }}">Submit Case Data</a></li>
+                            <li><a class="dropdown-item" href="{{ route('data-exchange.session-form') }}">Submit Session Data</a></li>
                             <li><a class="dropdown-item" href="{{ route('data-exchange.bulk-form') }}">Bulk Upload</a></li>
                         </ul>
                     </li>

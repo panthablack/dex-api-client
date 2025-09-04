@@ -67,9 +67,10 @@ DSS_LOG_CHANNEL=daily
 Navigate to the web interface to access:
 
 - **Dashboard** (`/`): Connection testing and system overview
-- **Submit Data**: Client forms, service forms, and bulk upload capabilities
+- **Submit Data**: Client forms, case forms, session forms, and bulk upload capabilities
   - **Client Form** (`/data-exchange/client-form`): Submit individual client data
-  - **Service Form** (`/data-exchange/service-form`): Submit service delivery data
+  - **Case Form** (`/data-exchange/case-form`): Submit case management data
+  - **Session Form** (`/data-exchange/session-form`): Submit session/service delivery data
   - **Bulk Upload** (`/data-exchange/bulk-form`): Upload CSV files for bulk processing
 - **Retrieve Data** (`/data-exchange/retrieve-form`): Retrieve and download data in multiple formats
   - Filter by client ID, name, service type, date ranges

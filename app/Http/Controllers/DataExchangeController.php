@@ -76,12 +76,21 @@ class DataExchangeController extends Controller
     }
 
     /**
-     * Show service data form
+     * Show case data form
      */
-    public function showServiceForm()
+    public function showCaseForm()
     {
-        $sampleData = $this->dataExchangeService->generateSampleServiceData();
-        return view('data-exchange.service-form', compact('sampleData'));
+        $sampleData = $this->dataExchangeService->generateSampleCaseData();
+        return view('data-exchange.case-form', compact('sampleData'));
+    }
+
+    /**
+     * Show session data form
+     */
+    public function showSessionForm()
+    {
+        $sampleData = $this->dataExchangeService->generateSampleSessionData();
+        return view('data-exchange.session-form', compact('sampleData'));
     }
 
     /**
@@ -121,18 +130,19 @@ class DataExchangeController extends Controller
     }
 
     /**
-     * Submit service data
+     * Submit case data
      */
-    public function submitServiceData(Request $request)
+    public function submitCaseData(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'service_id' => 'required|string|max:50',
-            'client_id' => 'required|string|max:50',
             'case_id' => 'required|string|max:50',
-            'service_type' => 'required|string|max:100',
-            'service_date' => 'required|date',
-            'duration_minutes' => 'required|integer|min:1',
-            'location' => 'nullable|string|max:200'
+            'client_id' => 'required|string|max:50',
+            'case_type' => 'required|string|max:100',
+            'case_status' => 'required|string|max:50',
+            'start_date' => 'required|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'case_worker' => 'nullable|string|max:100',
+            'priority' => 'nullable|string|max:20'
         ]);
 
         if ($validator->fails()) {
@@ -142,15 +152,52 @@ class DataExchangeController extends Controller
         }
 
         try {
-            $result = $this->dataExchangeService->submitServiceData($request->all());
+            $result = $this->dataExchangeService->submitCaseData($request->all());
 
-            $response = redirect()->back()->with('success', 'Service data submitted successfully')
+            $response = redirect()->back()->with('success', 'Case data submitted successfully')
                 ->with('result', $result);
 
             return $this->withDebugInfo($response);
         } catch (\Exception $e) {
             $response = redirect()->back()
-                ->with('error', 'Failed to submit service data: ' . $e->getMessage())
+                ->with('error', 'Failed to submit case data: ' . $e->getMessage())
+                ->withInput();
+
+            return $this->withDebugInfo($response);
+        }
+    }
+
+    /**
+     * Submit session data
+     */
+    public function submitSessionData(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'session_id' => 'required|string|max:50',
+            'case_id' => 'required|string|max:50',
+            'session_type' => 'required|string|max:100',
+            'session_date' => 'required|date',
+            'duration_minutes' => 'required|integer|min:1',
+            'location' => 'nullable|string|max:200',
+            'session_status' => 'nullable|string|max:50'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        try {
+            $result = $this->dataExchangeService->submitSessionData($request->all());
+
+            $response = redirect()->back()->with('success', 'Session data submitted successfully')
+                ->with('result', $result);
+
+            return $this->withDebugInfo($response);
+        } catch (\Exception $e) {
+            $response = redirect()->back()
+                ->with('error', 'Failed to submit session data: ' . $e->getMessage())
                 ->withInput();
 
             return $this->withDebugInfo($response);

@@ -87,20 +87,40 @@ class DataExchangeService
     }
 
     /**
-     * Format service data according to DSS specifications
+     * Format case data according to DSS specifications
      */
-    protected function formatServiceData($data)
+    protected function formatCaseData($data)
     {
         return [
+            'CaseID' => $data['case_id'] ?? null,
             'ClientID' => $data['client_id'] ?? null,
-            'ServiceType' => $data['service_type'] ?? null,
-            'ServiceStartDate' => $data['service_start_date'] ?? null,
-            'ServiceEndDate' => $data['service_end_date'] ?? null,
-            'ServiceOutcome' => $data['service_outcome'] ?? null,
-            'ServiceLocation' => $data['service_location'] ?? null,
-            'ServiceProvider' => $data['service_provider'] ?? null,
-            'FundingSource' => $data['funding_source'] ?? null,
-            'ServiceUnits' => $data['service_units'] ?? null,
+            'CaseType' => $data['case_type'] ?? null,
+            'CaseStatus' => $data['case_status'] ?? null,
+            'StartDate' => $data['start_date'] ?? null,
+            'EndDate' => $data['end_date'] ?? null,
+            'CaseWorker' => $data['case_worker'] ?? null,
+            'Priority' => $data['priority'] ?? null,
+            'Description' => $data['description'] ?? null,
+            'Notes' => $data['notes'] ?? null,
+        ];
+    }
+
+    /**
+     * Format session data according to DSS specifications
+     */
+    protected function formatSessionData($data)
+    {
+        return [
+            'SessionID' => $data['session_id'] ?? null,
+            'CaseID' => $data['case_id'] ?? null,
+            'SessionType' => $data['session_type'] ?? null,
+            'SessionDate' => $data['session_date'] ?? null,
+            'DurationMinutes' => $data['duration_minutes'] ?? null,
+            'Location' => $data['location'] ?? null,
+            'SessionStatus' => $data['session_status'] ?? null,
+            'Notes' => $data['notes'] ?? null,
+            'Attendees' => $data['attendees'] ?? null,
+            'Outcome' => $data['outcome'] ?? null,
         ];
     }
 
@@ -224,20 +244,40 @@ class DataExchangeService
     }
 
     /**
-     * Generate sample service data for testing
+     * Generate sample case data for testing
      */
-    public function generateSampleServiceData()
+    public function generateSampleCaseData()
     {
         return [
+            'case_id' => 'CASE001',
             'client_id' => 'TEST001',
-            'service_type' => 'Counselling',
-            'service_start_date' => '2024-01-01',
-            'service_end_date' => '2024-01-31',
-            'service_outcome' => 'Completed',
-            'service_location' => 'Sydney',
-            'service_provider' => 'Test Provider',
-            'funding_source' => 'Government',
-            'service_units' => 10
+            'case_type' => 'Individual Support',
+            'case_status' => 'Active',
+            'start_date' => date('Y-m-d'),
+            'end_date' => date('Y-m-d', strtotime('+6 months')),
+            'case_worker' => 'John Smith',
+            'priority' => 'Medium',
+            'description' => 'Individual support case for client counselling services',
+            'notes' => 'Initial case setup for ongoing support services'
+        ];
+    }
+
+    /**
+     * Generate sample session data for testing
+     */
+    public function generateSampleSessionData()
+    {
+        return [
+            'session_id' => 'SESSION001',
+            'case_id' => 'CASE001',
+            'session_type' => 'Individual Counselling',
+            'session_date' => date('Y-m-d'),
+            'duration_minutes' => 60,
+            'location' => 'Office Room 1',
+            'session_status' => 'Scheduled',
+            'notes' => 'Initial counselling session',
+            'attendees' => 'Client, Counsellor',
+            'outcome' => 'Ongoing'
         ];
     }
 
@@ -1269,16 +1309,29 @@ class DataExchangeService
     }
 
     /**
-     * Submit service data to DSS Data Exchange
+     * Submit case data to DSS Data Exchange
      */
-    public function submitServiceData($serviceData)
+    public function submitCaseData($caseData)
     {
         $parameters = [
             'OrganisationID' => config('soap.dss.organisation_id'),
-            'ServiceData' => $this->formatServiceData($serviceData)
+            'CaseData' => $this->formatCaseData($caseData)
         ];
 
-        return $this->soapClient->call('SubmitServiceData', $parameters);
+        return $this->soapClient->call('SubmitCaseData', $parameters);
+    }
+
+    /**
+     * Submit session data to DSS Data Exchange
+     */
+    public function submitSessionData($sessionData)
+    {
+        $parameters = [
+            'OrganisationID' => config('soap.dss.organisation_id'),
+            'SessionData' => $this->formatSessionData($sessionData)
+        ];
+
+        return $this->soapClient->call('SubmitSessionData', $parameters);
     }
 
     /**

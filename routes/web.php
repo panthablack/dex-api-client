@@ -12,8 +12,10 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     // Data Submission Routes
     Route::get('/client-form', [DataExchangeController::class, 'showClientForm'])->name('client-form');
     Route::post('/submit-client', [DataExchangeController::class, 'submitClientData'])->name('submit-client');
-    Route::get('/service-form', [DataExchangeController::class, 'showServiceForm'])->name('service-form');
-    Route::post('/submit-service', [DataExchangeController::class, 'submitServiceData'])->name('submit-service');
+    Route::get('/case-form', [DataExchangeController::class, 'showCaseForm'])->name('case-form');
+    Route::post('/submit-case', [DataExchangeController::class, 'submitCaseData'])->name('submit-case');
+    Route::get('/session-form', [DataExchangeController::class, 'showSessionForm'])->name('session-form');
+    Route::post('/submit-session', [DataExchangeController::class, 'submitSessionData'])->name('submit-session');
     Route::get('/bulk-form', [DataExchangeController::class, 'showBulkForm'])->name('bulk-form');
     Route::post('/bulk-upload', [DataExchangeController::class, 'bulkUpload'])->name('bulk-upload');
 
