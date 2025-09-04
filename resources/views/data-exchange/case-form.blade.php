@@ -191,10 +191,18 @@
                             <select class="form-select @error('exit_reason_code') is-invalid @enderror" 
                                     id="exit_reason_code" name="exit_reason_code">
                                 <option value="">Select Exit Reason</option>
-                                <option value="MOVED" {{ old('exit_reason_code') == 'MOVED' ? 'selected' : '' }}>Moved</option>
-                                <option value="COMPLETED" {{ old('exit_reason_code') == 'COMPLETED' ? 'selected' : '' }}>Completed</option>
-                                <option value="VOLUNTARY" {{ old('exit_reason_code') == 'VOLUNTARY' ? 'selected' : '' }}>Voluntary</option>
-                                <option value="OTHER" {{ old('exit_reason_code') == 'OTHER' ? 'selected' : '' }}>Other</option>
+                                @if(isset($exitReasons) && !empty($exitReasons))
+                                    @foreach($exitReasons as $reason)
+                                        <option value="{{ $reason->Code }}" {{ old('exit_reason_code') == $reason->Code ? 'selected' : '' }}>
+                                            {{ $reason->Description }}
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="MOVED" {{ old('exit_reason_code') == 'MOVED' ? 'selected' : '' }}>Moved</option>
+                                    <option value="COMPLETED" {{ old('exit_reason_code') == 'COMPLETED' ? 'selected' : '' }}>Completed</option>
+                                    <option value="VOLUNTARY" {{ old('exit_reason_code') == 'VOLUNTARY' ? 'selected' : '' }}>Voluntary</option>
+                                    <option value="OTHER" {{ old('exit_reason_code') == 'OTHER' ? 'selected' : '' }}>Other</option>
+                                @endif
                             </select>
                             @error('exit_reason_code')
                                 <div class="invalid-feedback">{{ $message }}</div>

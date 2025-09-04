@@ -110,7 +110,10 @@ class DataExchangeController extends Controller
         // Get attendance profile options from ReferenceData helper
         $attendanceProfiles = \App\Helpers\ReferenceData::attendanceProfile();
         
-        return view('data-exchange.case-form', compact('sampleData', 'outletActivities', 'referralSources', 'attendanceProfiles'));
+        // Get exit reason options from ReferenceData helper
+        $exitReasons = \App\Helpers\ReferenceData::exitReason();
+        
+        return view('data-exchange.case-form', compact('sampleData', 'outletActivities', 'referralSources', 'attendanceProfiles', 'exitReasons'));
     }
 
     /**
@@ -192,7 +195,7 @@ class DataExchangeController extends Controller
             'total_unidentified_clients' => 'nullable|integer|min:0|max:100',
             'client_attendance_profile_code' => 'nullable|string|in:PSGROUP,INDIVIDUAL,FAMILY',
             'end_date' => 'nullable|date|before:today|after:' . now()->subDays(60)->format('Y-m-d'),
-            'exit_reason_code' => 'nullable|string|in:MOVED,COMPLETED,VOLUNTARY,OTHER',
+            'exit_reason_code' => 'nullable|string|in:NOLONGERASSIST,CANNOTASSIST,HIGHERASSISTANCE,MOVED,QUITSERVICE,DECEASED,NEEDSMET,NOLONGERELIGIBLE,OTHER',
             'ag_business_type_code' => 'nullable|string|max:10',
         ]);
 
@@ -983,14 +986,16 @@ class DataExchangeController extends Controller
         return [
             'case_id' => $rowData['case_id'] ?? null,
             'client_id' => $rowData['client_id'] ?? null,
-            'case_type' => $rowData['case_type'] ?? null,
-            'case_status' => $rowData['case_status'] ?? null,
-            'start_date' => $rowData['start_date'] ?? null,
+            'outlet_activity_id' => intval($rowData['outlet_activity_id'] ?? 61932),
+            'referral_source_code' => $rowData['referral_source_code'] ?? 'COMMUNITY',
+            'reasons_for_assistance' => isset($rowData['reasons_for_assistance']) ? 
+                (is_string($rowData['reasons_for_assistance']) ? explode(',', $rowData['reasons_for_assistance']) : $rowData['reasons_for_assistance']) : 
+                ['PHYSICAL'],
+            'total_unidentified_clients' => !empty($rowData['total_unidentified_clients']) ? intval($rowData['total_unidentified_clients']) : null,
+            'client_attendance_profile_code' => $rowData['client_attendance_profile_code'] ?? null,
             'end_date' => $rowData['end_date'] ?? null,
-            'case_worker' => $rowData['case_worker'] ?? null,
-            'priority' => $rowData['priority'] ?? null,
-            'description' => $rowData['description'] ?? null,
-            'notes' => $rowData['notes'] ?? null,
+            'exit_reason_code' => $rowData['exit_reason_code'] ?? null,
+            'ag_business_type_code' => $rowData['ag_business_type_code'] ?? null,
         ];
     }
 

@@ -701,7 +701,7 @@ class DataExchangeService
             // Removed business type code temporarily as there are strange validations based on the
             // outlet activity that aren't documented properly
             // 'ag_business_type_code' => $fake->boolean(10) ? '0111' : null,
-            'exit_reason_code' => $fake->boolean(30) ? $fake->randomElement(['MOVED', 'COMPLETED', 'VOLUNTARY', 'OTHER']) : null,
+            'exit_reason_code' => $fake->boolean(30) ? $this->getSafeExitReasonForFakeData() : null,
         ];
 
         // Add client information for the case
@@ -2118,6 +2118,40 @@ class DataExchangeService
 
         // Fallback to individual
         return 'INDIVIDUAL';
+    }
+
+    /**
+     * Get a safe exit reason code from ReferenceData helper for fake data generation
+     */
+    protected function getSafeExitReasonForFakeData()
+    {
+        try {
+            $exitReasons = \App\Helpers\ReferenceData::exitReason();
+            
+            if (!empty($exitReasons)) {
+                // Use weighted selection for realistic distribution
+                $commonReasons = ['NEEDSMET', 'NOLONGERASSIST', 'MOVED'];
+                $randomValue = fake()->numberBetween(1, 100);
+                
+                if ($randomValue <= 70) {
+                    // 70% chance of common exit reasons
+                    foreach ($exitReasons as $reason) {
+                        if (in_array($reason->Code, $commonReasons)) {
+                            return $reason->Code;
+                        }
+                    }
+                }
+                
+                // Otherwise random exit reason
+                return $exitReasons[array_rand($exitReasons)]->Code;
+            }
+        } catch (\Exception $e) {
+            // Log error but continue with fallback
+            \Log::warning('Failed to get exit reasons from ReferenceData helper: ' . $e->getMessage());
+        }
+        
+        // Fallback to needs met
+        return 'NEEDSMET';
     }
 
     /**
