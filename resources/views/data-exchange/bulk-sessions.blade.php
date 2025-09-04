@@ -98,12 +98,9 @@
                     <input type="number" class="form-control form-control-sm" id="fake_count" value="10" min="1" max="1000">
                 </div>
                 
-                <div class="d-grid gap-2">
+                <div class="d-grid">
                     <button type="button" class="btn btn-success btn-sm" onclick="generateFakeSessionsCSV()">
                         <i class="fas fa-magic"></i> Generate Fake CSV
-                    </button>
-                    <button type="button" class="btn btn-outline-info btn-sm" onclick="downloadSampleSessionsCSV()">
-                        <i class="fas fa-download"></i> Download Sample
                     </button>
                 </div>
                 
@@ -116,23 +113,6 @@
 
 @push('scripts')
 <script>
-function downloadSampleSessionsCSV() {
-    const csvContent = `session_id,case_id,session_type,session_date,duration_minutes,location,session_status,attendees,outcome,notes
-SES001,CASE001,Individual Counselling,2024-01-15,60,Office Room 1,Completed,Client and Counsellor,Positive,Good progress made in session
-SES002,CASE001,Individual Counselling,2024-01-22,60,Office Room 1,Scheduled,Client and Counsellor,Ongoing,Follow-up session planned
-SES003,CASE002,Group Counselling,2024-02-01,90,Conference Room,Completed,Multiple clients and facilitator,Positive,Group dynamic working well`;
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sample_sessions_bulk_upload.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-}
-
 function generateFakeSessionsCSV() {
     const count = parseInt(document.getElementById('fake_count').value);
     const statusDiv = document.getElementById('fake-generation-status');

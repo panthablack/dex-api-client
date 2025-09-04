@@ -98,12 +98,9 @@
                     <input type="number" class="form-control form-control-sm" id="fake_count" value="10" min="1" max="1000">
                 </div>
                 
-                <div class="d-grid gap-2">
+                <div class="d-grid">
                     <button type="button" class="btn btn-success btn-sm" onclick="generateFakeClientsCSV()">
                         <i class="fas fa-magic"></i> Generate Fake CSV
-                    </button>
-                    <button type="button" class="btn btn-outline-info btn-sm" onclick="downloadSampleClientsCSV()">
-                        <i class="fas fa-download"></i> Download Sample
                     </button>
                 </div>
                 
@@ -116,23 +113,6 @@
 
 @push('scripts')
 <script>
-function downloadSampleClientsCSV() {
-    const csvContent = `client_id,first_name,last_name,date_of_birth,is_birth_date_estimate,gender,suburb,state,postal_code,country_of_birth,primary_language,indigenous_status,interpreter_required,disability_flag,is_using_pseudonym,consent_to_provide_details,consent_to_be_contacted,client_type
-CLI001,John,Smith,1990-05-15,false,M,Sydney,NSW,2000,Australia,English,4,false,false,false,true,true,Individual
-CLI002,Jane,Doe,1985-03-22,false,F,Melbourne,VIC,3000,Australia,English,4,true,false,false,true,true,Individual
-CLI003,Bob,Johnson,1975-01-01,true,M,Brisbane,QLD,4000,Australia,English,1,false,true,false,true,true,Individual`;
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sample_clients_bulk_upload.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-}
-
 function generateFakeClientsCSV() {
     const count = parseInt(document.getElementById('fake_count').value);
     const statusDiv = document.getElementById('fake-generation-status');

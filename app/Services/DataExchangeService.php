@@ -148,11 +148,11 @@ class DataExchangeService
     protected function mapATSICode($status)
     {
         $atsiMap = [
-            '1' => 'ABORIGINAL',
-            '2' => 'TORRES_STRAIT_ISLANDER',
-            '3' => 'BOTH',
-            '4' => 'NEITHER',
-            '9' => 'NOTSTATED'
+            '2' => 'NEITHER',           // Non indigenous – neither Aboriginal nor Torres Strait Islander origin
+            '3' => 'ABORIGINAL',        // Of Aboriginal origin but not Torres Strait Islander
+            '4' => 'TORRES_STRAIT_ISLANDER', // Of Torres Strait Islander origin but not Aboriginal
+            '5' => 'BOTH',              // Both Aboriginal and Torres Strait Islander origin
+            '9' => 'NOTSTATED'          // No information
         ];
 
         return $atsiMap[$status ?? '9'] ?? 'NOTSTATED';
@@ -523,28 +523,67 @@ class DataExchangeService
     {
         $fake = fake();
         
-        return [
+        // Generate basic data first - ensure names are long enough for SLK generation
+        $firstName = $fake->firstName();
+        $lastName = $fake->lastName();
+        
+        // Ensure names are at least 5 characters for proper SLK generation (need 2nd, 3rd, 5th letters)
+        while (strlen($firstName) < 3) {
+            $firstName = $fake->firstName();
+        }
+        while (strlen($lastName) < 5) {
+            $lastName = $fake->lastName();
+        }
+        
+        $dateOfBirth = $fake->dateTimeBetween('-80 years', '-18 years')->format('Y-m-d');
+        $isBirthDateEstimate = $fake->boolean(20); // 20% chance of being estimate
+        $gender = $fake->randomElement(['M', 'F']);
+        
+        // Use real Australian suburbs and appropriate postcodes
+        $locations = [
+            ['suburb' => 'Sydney', 'state' => 'NSW', 'postcode' => '2000'],
+            ['suburb' => 'Melbourne', 'state' => 'VIC', 'postcode' => '3000'],
+            ['suburb' => 'Brisbane', 'state' => 'QLD', 'postcode' => '4000'],
+            ['suburb' => 'Perth', 'state' => 'WA', 'postcode' => '6000'],
+            ['suburb' => 'Adelaide', 'state' => 'SA', 'postcode' => '5000'],
+            ['suburb' => 'Hobart', 'state' => 'TAS', 'postcode' => '7000'],
+            ['suburb' => 'Canberra', 'state' => 'ACT', 'postcode' => '2600'],
+            ['suburb' => 'Darwin', 'state' => 'NT', 'postcode' => '0800'],
+            ['suburb' => 'Parramatta', 'state' => 'NSW', 'postcode' => '2150'],
+            ['suburb' => 'Richmond', 'state' => 'VIC', 'postcode' => '3121'],
+            ['suburb' => 'Fortitude Valley', 'state' => 'QLD', 'postcode' => '4006'],
+            ['suburb' => 'Fremantle', 'state' => 'WA', 'postcode' => '6160'],
+            ['suburb' => 'Norwood', 'state' => 'SA', 'postcode' => '5067'],
+            ['suburb' => 'Launceston', 'state' => 'TAS', 'postcode' => '7250']
+        ];
+        
+        $location = $fake->randomElement($locations);
+        
+        // Create the base client data
+        $clientData = [
             'client_id' => 'CLIENT_' . $fake->unique()->numberBetween(1000, 9999),
-            'first_name' => $fake->firstName(),
-            'last_name' => $fake->lastName(),
-            'date_of_birth' => $fake->dateTimeBetween('-80 years', '-18 years')->format('Y-m-d'),
-            'is_birth_date_estimate' => $fake->boolean(20), // 20% chance of being estimate
-            'gender' => $fake->randomElement(['M', 'F', 'X']),
-            'country_of_birth' => $fake->randomElement(['Australia', 'United Kingdom', 'New Zealand', 'China', 'India', 'Philippines']),
-            'suburb' => $fake->city(),
-            'state' => $fake->randomElement(['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']),
-            'postal_code' => $fake->postcode(),
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'date_of_birth' => $dateOfBirth,
+            'is_birth_date_estimate' => $isBirthDateEstimate,
+            'gender' => $gender,
+            'country_of_birth' => 'Australia', // Always use Australia to avoid country code validation issues
+            'suburb' => $location['suburb'],
+            'state' => $location['state'],
+            'postal_code' => $location['postcode'],
             'address_line1' => $fake->streetAddress(),
             'address_line2' => $fake->boolean(30) ? $fake->secondaryAddress() : null,
-            'primary_language' => $fake->randomElement(['English', 'Mandarin', 'Arabic', 'Vietnamese', 'Italian', 'Greek']),
-            'indigenous_status' => $fake->randomElement(['1', '2', '3', '4', '9']),
-            'interpreter_required' => $fake->boolean(15), // 15% chance
-            'disability_flag' => $fake->boolean(10), // 10% chance
-            'client_type' => $fake->randomElement(['Individual', 'Family', 'Group']),
-            'consent_to_provide_details' => $fake->boolean(90), // 90% consent rate
-            'consent_to_be_contacted' => $fake->boolean(85), // 85% consent rate
-            'is_using_pseudonym' => $fake->boolean(5) // 5% chance
+            'primary_language' => 'English', // Always use English to avoid language code validation issues
+            'indigenous_status' => $fake->randomElement(['2', '3', '4', '5', '9']), // Valid DSS ATSI codes: 2=Non-indigenous, 3=Aboriginal, 4=Torres Strait Islander, 5=Both, 9=No info
+            'interpreter_required' => $fake->boolean(10), // 10% chance
+            'disability_flag' => false, // Disable for now to avoid complications
+            'client_type' => 'Individual', // Always use Individual for consistency
+            'consent_to_provide_details' => true, // Always true for valid submissions
+            'consent_to_be_contacted' => true, // Always true to avoid validation issues
+            'is_using_pseudonym' => false // Always false for simplicity
         ];
+        
+        return $clientData;
     }
 
     /**
