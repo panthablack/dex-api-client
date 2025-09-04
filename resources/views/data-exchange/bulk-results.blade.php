@@ -3,55 +3,42 @@
 @section('title', 'Bulk Upload Results - DSS Data Exchange')
 
 @section('content')
+@php
+    // Detect the data type based on the first result
+    $dataType = 'clients'; // default
+    if (!empty($results)) {
+        $firstResult = $results[0];
+        if (isset($firstResult['case_data'])) {
+            $dataType = 'cases';
+        } elseif (isset($firstResult['session_data'])) {
+            $dataType = 'sessions';
+        } elseif (isset($firstResult['client_data'])) {
+            $dataType = 'clients';
+        }
+    }
+    
+    $typeLabels = [
+        'clients' => 'Client Data',
+        'cases' => 'Case Data',
+        'sessions' => 'Session Data'
+    ];
+    $typeLabel = $typeLabels[$dataType] ?? 'Data';
+    
+    $totalRecords = count($results);
+    $successfulRecords = collect($results)->where('status', 'success')->count();
+    $failedRecords = collect($results)->where('status', 'error')->count();
+@endphp
+
 <div class="row">
     <div class="col-12">
         <h1 class="mb-4">Bulk Upload Results</h1>
-        <p class="text-muted">Results from your bulk client data upload</p>
+        <p class="text-muted">Results from your bulk {{ strtolower($typeLabel) }} upload</p>
     </div>
 </div>
 
 <div class="row mb-4">
     <div class="col-12">
-        @php
-            $totalRecords = count($results);
-            $successfulRecords = collect($results)->where('status', 'success')->count();
-            $failedRecords = collect($results)->where('status', 'error')->count();
-        @endphp
-        
-        <div class="row">
-            <div class="col-md-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body text-center">
-                        <h3>{{ $totalRecords }}</h3>
-                        <p class="mb-0">Total Records</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body text-center">
-                        <h3>{{ $successfulRecords }}</h3>
-                        <p class="mb-0">Successful</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-danger text-white">
-                    <div class="card-body text-center">
-                        <h3>{{ $failedRecords }}</h3>
-                        <p class="mb-0">Failed</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body text-center">
-                        <h3>{{ $totalRecords > 0 ? number_format(($successfulRecords / $totalRecords) * 100, 1) : 0 }}%</h3>
-                        <p class="mb-0">Success Rate</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <x-bulk-results-stats :results="$results" :type="$dataType" />
     </div>
 </div>
 
@@ -84,83 +71,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Row #</th>
-                                <th>Status</th>
-                                <th>Client ID</th>
-                                <th>Name</th>
-                                <th>Result/Error</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($results as $index => $result)
-                            <tr class="{{ $result['status'] === 'success' ? 'table-success' : 'table-danger' }}">
-                                <td>{{ $index + 1 }}</td>
-                                <td>
-                                    @if($result['status'] === 'success')
-                                        <span class="badge bg-success">Success</span>
-                                    @else
-                                        <span class="badge bg-danger">Error</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if(isset($result['client_data']['client_id']))
-                                        {{ $result['client_data']['client_id'] }}
-                                    @else
-                                        <em class="text-muted">N/A</em>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if(isset($result['client_data']['first_name']) && isset($result['client_data']['last_name']))
-                                        {{ $result['client_data']['first_name'] }} {{ $result['client_data']['last_name'] }}
-                                    @else
-                                        <em class="text-muted">N/A</em>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($result['status'] === 'success')
-                                        @php
-                                            $submissionId = null;
-                                            if (isset($result['result'])) {
-                                                if (is_array($result['result']) && isset($result['result']['SubmissionID'])) {
-                                                    $submissionId = $result['result']['SubmissionID'];
-                                                } elseif (is_object($result['result']) && property_exists($result['result'], 'SubmissionID')) {
-                                                    $submissionId = $result['result']->SubmissionID;
-                                                }
-                                            }
-                                        @endphp
-                                        @if($submissionId)
-                                            <small class="text-success">Submission ID: {{ $submissionId }}</small>
-                                        @else
-                                            <small class="text-success">Successfully processed</small>
-                                        @endif
-                                    @else
-                                        <small class="text-danger">{{ $result['error'] ?? 'Unknown error' }}</small>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($result['status'] === 'success' && $submissionId)
-                                        <button class="btn btn-outline-info btn-sm" 
-                                                onclick="checkSubmissionStatus('{{ $submissionId }}')"
-                                                title="Check Status">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                    @endif
-                                    <button class="btn btn-outline-secondary btn-sm" 
-                                            onclick="showDetails({{ $index }})"
-                                            title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                <x-bulk-results-table :results="$results" :type="$dataType" />
             </div>
         </div>
     </div>
@@ -224,6 +135,7 @@
 @push('scripts')
 <script>
 const results = @json($results);
+const dataType = @json($dataType);
 
 function showDetails(index) {
     const result = results[index];
@@ -286,23 +198,36 @@ function exportResults(format) {
             }
         }
 
-        return {
+        let exportRow = {
             row: index + 1,
             status: result.status,
-            client_id: result.client_data?.client_id || 'N/A',
-            first_name: result.client_data?.first_name || 'N/A',
-            last_name: result.client_data?.last_name || 'N/A',
             submission_id: submissionId,
             error: result.error || 'N/A'
         };
+
+        // Add type-specific fields
+        if (dataType === 'clients') {
+            exportRow.client_id = result.client_data?.client_id || 'N/A';
+            exportRow.first_name = result.client_data?.first_name || 'N/A';
+            exportRow.last_name = result.client_data?.last_name || 'N/A';
+        } else if (dataType === 'cases') {
+            exportRow.case_id = result.case_data?.case_id || 'N/A';
+            exportRow.client_id = result.case_data?.client_id || 'N/A';
+        } else if (dataType === 'sessions') {
+            exportRow.session_id = result.session_data?.session_id || 'N/A';
+            exportRow.case_id = result.session_data?.case_id || 'N/A';
+        }
+
+        return exportRow;
     });
 
+    const filename = `bulk_upload_${dataType}_results`;
     if (format === 'csv') {
         const csvContent = convertToCSV(exportData);
-        downloadFile(csvContent, 'bulk_upload_results.csv', 'text/csv');
+        downloadFile(csvContent, `${filename}.csv`, 'text/csv');
     } else if (format === 'json') {
         const jsonContent = JSON.stringify(exportData, null, 2);
-        downloadFile(jsonContent, 'bulk_upload_results.json', 'application/json');
+        downloadFile(jsonContent, `${filename}.json`, 'application/json');
     }
 }
 
