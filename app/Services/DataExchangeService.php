@@ -20,11 +20,12 @@ class DataExchangeService
     public function submitClientData($clientData)
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
-            'ClientData' => $this->formatClientData($clientData)
+            'Client' => $this->formatClientData($clientData),
+            'HasValidatedForDuplicateClient' => 'true'
+
         ];
 
-        return $this->soapClient->call('SubmitClientData', $parameters);
+        return $this->soapClient->call('AddClient', $parameters);
     }
 
     /**
@@ -71,19 +72,47 @@ class DataExchangeService
     protected function formatClientData($data)
     {
         return [
-            'ClientID' => $data['client_id'] ?? null,
-            'FirstName' => $data['first_name'] ?? null,
-            'LastName' => $data['last_name'] ?? null,
-            'DateOfBirth' => $data['date_of_birth'] ?? null,
-            'Gender' => $data['gender'] ?? null,
+            'ClientId' => $data['client_id'] ?? null,
+            'GivenName' => $data['first_name'] ?? null,
+            'FamilyName' => $data['last_name'] ?? null,
+            'BirthDate' => $this->formatDate($data['date_of_birth'] ?? null),
+            'IsBirthDateAnEstimate' => !empty($data['is_birth_date_estimate']) ? 'true' : 'false',
+            'GenderCode' => $data['gender'] ?? null,
             'IndigenousStatus' => $data['indigenous_status'] ?? null,
-            'CountryOfBirth' => $data['country_of_birth'] ?? null,
+            'CountryOfBirthCode' => $data['country_of_birth'] ?? null,
             'PostalCode' => $data['postal_code'] ?? null,
-            'PrimaryLanguage' => $data['primary_language'] ?? null,
-            'InterpreterRequired' => $data['interpreter_required'] ?? false,
-            'DisabilityFlag' => $data['disability_flag'] ?? false,
+            'LanguageSpokenAtHomeCode' => $data['primary_language'] ?? null,
+            'InterpreterRequired' => !empty($data['interpreter_required']) ? 'true' : 'false',
+            'HasDisabilities' => !empty($data['disability_flag']) ? 'true' : 'false',
             'ClientType' => $data['client_type'] ?? null,
+            'ConsentToProvideDetails' => !empty($data['consent_to_provide_details']) ? 'true' : 'false',
+            'ConsentToBeContacted' => !empty($data['consent_to_be_contacted']) ? 'true' : 'false',
+            'IsUsingPsuedonym' => !empty($data['is_using_pseudonym']) ? 'true' : 'false',
+            'HasValidatedForDuplicateClient' => 'true'
         ];
+    }
+
+    /**
+     * Format date to ISO 8601 format with time component as required by DSS API
+     */
+    protected function formatDate($date)
+    {
+        if (empty($date)) {
+            return null;
+        }
+        
+        // If it's already in the correct format, return as is
+        if (preg_match('/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $date)) {
+            return $date;
+        }
+        
+        // Convert date to ISO 8601 format with time component
+        try {
+            $dateObj = new \DateTime($date);
+            return $dateObj->format('Y-m-d\TH:i:s');
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
@@ -96,8 +125,8 @@ class DataExchangeService
             'ClientID' => $data['client_id'] ?? null,
             'CaseType' => $data['case_type'] ?? null,
             'CaseStatus' => $data['case_status'] ?? null,
-            'StartDate' => $data['start_date'] ?? null,
-            'EndDate' => $data['end_date'] ?? null,
+            'StartDate' => $this->formatDate($data['start_date'] ?? null),
+            'EndDate' => $this->formatDate($data['end_date'] ?? null),
             'CaseWorker' => $data['case_worker'] ?? null,
             'Priority' => $data['priority'] ?? null,
             'Description' => $data['description'] ?? null,
@@ -114,7 +143,7 @@ class DataExchangeService
             'SessionID' => $data['session_id'] ?? null,
             'CaseID' => $data['case_id'] ?? null,
             'SessionType' => $data['session_type'] ?? null,
-            'SessionDate' => $data['session_date'] ?? null,
+            'SessionDate' => $this->formatDate($data['session_date'] ?? null),
             'DurationMinutes' => $data['duration_minutes'] ?? null,
             'Location' => $data['location'] ?? null,
             'SessionStatus' => $data['session_status'] ?? null,
@@ -232,6 +261,7 @@ class DataExchangeService
             'first_name' => 'John',
             'last_name' => 'Doe',
             'date_of_birth' => '1990-01-15',
+            'is_birth_date_estimate' => false,
             'gender' => 'M',
             'indigenous_status' => 'N',
             'country_of_birth' => 'Australia',
@@ -239,7 +269,10 @@ class DataExchangeService
             'primary_language' => 'English',
             'interpreter_required' => false,
             'disability_flag' => false,
-            'client_type' => 'Individual'
+            'client_type' => 'Individual',
+            'consent_to_provide_details' => true,
+            'consent_to_be_contacted' => true,
+            'is_using_pseudonym' => false
         ];
     }
 
@@ -375,14 +408,14 @@ class DataExchangeService
             Log::info('Fetching full case data - starting with SearchCase', [
                 'filters' => $filters
             ]);
-            
+
             $searchResult = $this->getCaseData($filters);
-            
+
             // Convert objects to arrays for consistent handling
             if (is_object($searchResult)) {
                 $searchResult = json_decode(json_encode($searchResult), true);
             }
-            
+
             // Handle different response structures
             $cases = [];
             if (isset($searchResult['Cases']['Case'])) {
@@ -416,7 +449,7 @@ class DataExchangeService
 
             foreach ($cases as $index => $caseInfo) {
                 $caseId = null;
-                
+
                 // Extract Case ID (should be array after conversion above)
                 if (is_array($caseInfo) && isset($caseInfo['CaseId'])) {
                     $caseId = $caseInfo['CaseId'];
@@ -441,25 +474,24 @@ class DataExchangeService
 
                 try {
                     Log::info('Fetching full data for case', ['case_id' => $caseId]);
-                    
+
                     // Get detailed case data using GetCase
                     $fullCaseResult = $this->getCaseById($caseId);
-                    
+
                     // Extract clean case data from the SOAP response
                     $cleanCaseData = $this->extractCleanCaseData($fullCaseResult);
-                    
+
                     // Only include successfully retrieved cases
                     if ($cleanCaseData) {
                         $fullCaseData[] = $cleanCaseData;
                         $successCount++;
                     }
-
                 } catch (\Exception $e) {
                     Log::error('Failed to get full data for case', [
                         'case_id' => $caseId,
                         'error' => $e->getMessage()
                     ]);
-                    
+
                     // Don't include failed cases in the response
                     $errors[] = [
                         'case_id' => $caseId,
@@ -476,13 +508,12 @@ class DataExchangeService
 
             // Return only successful cases with clean structure
             return $fullCaseData;
-
         } catch (\Exception $e) {
             Log::error('Failed to fetch full case data', [
                 'error' => $e->getMessage(),
                 'filters' => $filters
             ]);
-            
+
             throw new \Exception('Failed to fetch full case data: ' . $e->getMessage());
         }
     }
@@ -500,9 +531,11 @@ class DataExchangeService
             }
 
             // Check for successful transaction
-            if (isset($soapResponse['TransactionStatus']['TransactionStatusCode']) && 
-                $soapResponse['TransactionStatus']['TransactionStatusCode'] !== 'Success') {
-                
+            if (
+                isset($soapResponse['TransactionStatus']['TransactionStatusCode']) &&
+                $soapResponse['TransactionStatus']['TransactionStatusCode'] !== 'Success'
+            ) {
+
                 Log::info('Case retrieval failed', [
                     'status' => $soapResponse['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
                     'message' => $soapResponse['TransactionStatus']['Messages']['Message']['MessageDescription'] ?? 'No message'
@@ -518,7 +551,6 @@ class DataExchangeService
             // If no proper case structure, return null
             Log::info('No case data found in response structure');
             return null;
-
         } catch (\Exception $e) {
             Log::error('Error extracting clean case data', [
                 'error' => $e->getMessage()
@@ -538,9 +570,9 @@ class DataExchangeService
             Log::info('Fetching full session data - starting with fetchFullCaseData', [
                 'filters' => $filters
             ]);
-            
+
             $fullCaseData = $this->fetchFullCaseData($filters);
-            
+
             if (empty($fullCaseData)) {
                 Log::info('No cases found, returning empty session array');
                 return [];
@@ -558,7 +590,7 @@ class DataExchangeService
 
             foreach ($fullCaseData as $caseIndex => $caseData) {
                 $caseId = $caseData['CaseDetail']['CaseId'] ?? $caseData['CaseId'] ?? null;
-                
+
                 if (!$caseId) {
                     Log::warning('Case without CaseId found', ['case_data_keys' => array_keys($caseData)]);
                     continue;
@@ -566,7 +598,7 @@ class DataExchangeService
 
                 // Extract session IDs from the case data
                 $sessionIds = $this->extractSessionIdsFromCase($caseData);
-                
+
                 if (empty($sessionIds)) {
                     Log::info('No sessions found in case', ['case_id' => $caseId]);
                     continue;
@@ -579,19 +611,19 @@ class DataExchangeService
 
                 foreach ($sessionIds as $sessionId) {
                     $totalSessions++;
-                    
+
                     try {
                         Log::info('Fetching full data for session', [
                             'session_id' => $sessionId,
                             'case_id' => $caseId
                         ]);
-                        
+
                         // Get detailed session data using GetSession
                         $fullSessionResult = $this->getSessionById($sessionId, $caseId);
-                        
+
                         // Extract clean session data from the SOAP response
                         $cleanSessionData = $this->extractCleanSessionData($fullSessionResult);
-                        
+
                         // Only include successfully retrieved sessions
                         if ($cleanSessionData) {
                             // Add case context to session data
@@ -600,18 +632,17 @@ class DataExchangeService
                                 'OutletName' => $caseData['OutletName'] ?? null,
                                 'ProgramActivityName' => $caseData['ProgramActivityName'] ?? null
                             ];
-                            
+
                             $fullSessionData[] = $cleanSessionData;
                             $successfulSessions++;
                         }
-
                     } catch (\Exception $e) {
                         Log::error('Failed to get full data for session', [
                             'session_id' => $sessionId,
                             'case_id' => $caseId,
                             'error' => $e->getMessage()
                         ]);
-                        
+
                         $errors[] = [
                             'session_id' => $sessionId,
                             'case_id' => $caseId,
@@ -630,13 +661,12 @@ class DataExchangeService
 
             // Return only successful sessions with clean structure
             return $fullSessionData;
-
         } catch (\Exception $e) {
             Log::error('Failed to fetch full session data', [
                 'error' => $e->getMessage(),
                 'filters' => $filters
             ]);
-            
+
             throw new \Exception('Failed to fetch full session data: ' . $e->getMessage());
         }
     }
@@ -647,11 +677,11 @@ class DataExchangeService
     protected function extractSessionIdsFromCase($caseData)
     {
         $sessionIds = [];
-        
+
         // Handle different possible session structures in case data
         if (isset($caseData['Sessions']['SessionId'])) {
             $sessions = $caseData['Sessions']['SessionId'];
-            
+
             // Single session
             if (is_string($sessions)) {
                 $sessionIds[] = $sessions;
@@ -677,7 +707,7 @@ class DataExchangeService
         }
 
         // Remove duplicates and filter out empty values
-        $sessionIds = array_filter(array_unique($sessionIds), function($id) {
+        $sessionIds = array_filter(array_unique($sessionIds), function ($id) {
             return !empty($id) && is_string($id);
         });
 
@@ -697,9 +727,11 @@ class DataExchangeService
             }
 
             // Check for successful transaction
-            if (isset($soapResponse['TransactionStatus']['TransactionStatusCode']) && 
-                $soapResponse['TransactionStatus']['TransactionStatusCode'] !== 'Success') {
-                
+            if (
+                isset($soapResponse['TransactionStatus']['TransactionStatusCode']) &&
+                $soapResponse['TransactionStatus']['TransactionStatusCode'] !== 'Success'
+            ) {
+
                 Log::info('Session retrieval failed', [
                     'status' => $soapResponse['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
                     'message' => $soapResponse['TransactionStatus']['Messages']['Message']['MessageDescription'] ?? 'No message'
@@ -715,7 +747,6 @@ class DataExchangeService
             // If no proper session structure, return null
             Log::info('No session data found in response structure');
             return null;
-
         } catch (\Exception $e) {
             Log::error('Error extracting clean session data', [
                 'error' => $e->getMessage()
@@ -780,7 +811,7 @@ class DataExchangeService
             'SessionId' => $sessionId,
             'Criteria' => []  // Empty criteria array as the IDs are the main selectors
         ];
-        
+
         // Add CaseId if provided (required for DSS API)
         if ($caseId) {
             $parameters['CaseId'] = $caseId;
@@ -1314,11 +1345,10 @@ class DataExchangeService
     public function submitCaseData($caseData)
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
-            'CaseData' => $this->formatCaseData($caseData)
+            'Case' => $this->formatCaseData($caseData)
         ];
 
-        return $this->soapClient->call('SubmitCaseData', $parameters);
+        return $this->soapClient->call('AddCase', $parameters);
     }
 
     /**
@@ -1327,11 +1357,10 @@ class DataExchangeService
     public function submitSessionData($sessionData)
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
-            'SessionData' => $this->formatSessionData($sessionData)
+            'Session' => $this->formatSessionData($sessionData)
         ];
 
-        return $this->soapClient->call('SubmitSessionData', $parameters);
+        return $this->soapClient->call('AddSession', $parameters);
     }
 
     /**

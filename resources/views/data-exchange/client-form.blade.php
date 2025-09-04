@@ -86,6 +86,13 @@
                             @error('date_of_birth')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="is_birth_date_estimate" 
+                                       name="is_birth_date_estimate" value="1" {{ old('is_birth_date_estimate') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="is_birth_date_estimate">
+                                    Birth date is an estimate
+                                </label>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label for="gender" class="form-label">Gender <span class="text-danger">*</span></label>
@@ -162,6 +169,39 @@
                                        name="disability_flag" value="1" {{ old('disability_flag') ? 'checked' : '' }}>
                                 <label class="form-check-label" for="disability_flag">
                                     Has Disability
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="consent_to_provide_details" 
+                                       name="consent_to_provide_details" value="1" {{ old('consent_to_provide_details', '1') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="consent_to_provide_details">
+                                    Consent to Provide Details <span class="text-danger">*</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="consent_to_be_contacted" 
+                                       name="consent_to_be_contacted" value="1" {{ old('consent_to_be_contacted', '1') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="consent_to_be_contacted">
+                                    Consent to be Contacted <span class="text-danger">*</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_using_pseudonym" 
+                                       name="is_using_pseudonym" value="1" {{ old('is_using_pseudonym') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="is_using_pseudonym">
+                                    Using Pseudonym
                                 </label>
                             </div>
                         </div>
