@@ -1,0 +1,84 @@
+<AddClientRequest>
+    <Client> <!--type: string-->
+        <ClientId>CL0012</ClientId> <!--type:
+        string-->
+        <SLK>LO2OE211220003</SLK> <!--type:
+        Boolean-->
+        <ConsentToProvideDetails>true</ConsentToProvideDetails> <!--type:
+        Boolean-->
+        <ConsentedForFutureContacts>true</ConsentedForFutureContacts> <!--type:
+        string-->
+        <GivenName>Joe</GivenName> <!--type:
+        string-->
+        <FamilyName>Blog</FamilyName> <!--type:
+        Boolean-->
+        <IsUsingPsuedonym>true</IsUsingPsuedonym> <!--type:
+        dateTime-->
+        <BirthDate>2000-12-21T00:00:00</BirthDate> <!--type:
+        Boolean-->
+        <IsBirthDateAnEstimate>false</IsBirthDateAnEstimate> <!--type:
+        string-->
+        <GenderCode>OTHER</GenderCode>
+        <GenderDetails>Genderfluid</GenderDetails>
+        <ResidentialAddress> <!--type:
+            string-->
+            <Suburb>Calwell</Suburb> <!--type:
+            string-->
+            <State>ACT</State> <!--type:
+            string-->
+            <Postcode>2905</Postcode> <!--Optional:--> <!--type:
+            string-->
+            <AddressLine1>1 temp pl</AddressLine1> <!--Optional:--> <!--type:
+            string-->
+            <AddressLine2 />
+        </ResidentialAddress> <!--type:
+        string-->
+        <CountryOfBirthCode>1101</CountryOfBirthCode> <!--type:
+        string-->
+        <LanguageSpokenAtHomeCode>1201</LanguageSpokenAtHomeCode> <!--type:
+        string-->
+        <AboriginalOrTorresStraitIslanderOriginCode>NOTSTATED</AboriginalOrTorresStraitIslanderOriginCode> <!--type:
+        Boolean-->
+        <HasDisabilities>true</HasDisabilities> <!--Optional:--> <!--type:
+        string-->
+        <HomelessIndicatorCode>ATRISK</HomelessIndicatorCode> <!--Optional:--> <!--type:
+        string-->
+        <HouseholdCompositionCode>SINGLE</HouseholdCompositionCode> <!--Optional:--> <!--type:
+        string-->
+        <MainSourceOfIncomeCode>EMPLOYED</MainSourceOfIncomeCode> <!--Optional:--> <!--type:
+        string-->
+        <IncomeFrequencyCode>WEEKLY</IncomeFrequencyCode> <!--Optional:--> <!--type:
+        int-->
+        <IncomeAmount>300</IncomeAmount> <!--Optional:--> <!--type:
+        Month - enumeration:
+        [January,February,March,April,May,June,July,August,September,October,November,December]-->
+        <FirstArrivalMonth>January</FirstArrivalMonth> <!--Optional:--> <!--type:
+        int-->
+        <FirstArrivalYear>1999</FirstArrivalYear> <!--Optional:--> <!--type:
+        string-->
+        <MigrationVisaCategoryCode>HUMANITARIAN</MigrationVisaCategoryCode> <!--Optional:--> <!--type:
+        string-->
+        <AncestryCode>1103</AncestryCode> <!--Optional:--> <!--type:
+        string-->
+        <AccommodationTypeCode>25</AccommodationTypeCode> <!--Optional:--> <!--type:
+        string-->
+        <DVACardStatusCode>GOLD</DVACardStatusCode> <!--Optional:--> <!--type:
+        Boolean-->
+        <HasCarer>false</HasCarer> <!--Optional:--> <!--type:
+        string-->
+        <EducationLevelCode>PREPRIMARY</EducationLevelCode> <!--Optional:--> <!--type:
+        string-->
+        <EmploymentStatusCode>WORKFULLTIME</EmploymentStatusCode> <!--Optional:--> <!--type:
+        Boolean-->
+        <IsClientACarer>false</IsClientACarer> <!--Optional:--> <!--type:
+        string-->
+        <NDISEligibilityCode>ELIGIBLE</NDISEligibilityCode>
+        <Disabilities> <!--Zero
+            or more repetitions:--> <!--type:
+            string-->
+            <dex:DisabilityCode>learning</dex:DisabilityCode>
+        </Disabilities>
+    </Client> <!--type:
+    Boolean-->
+    <HasValidatedForDuplicateClient>true</HasValidatedForDuplicateClient>
+</AddClientRequest>

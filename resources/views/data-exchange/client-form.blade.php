@@ -135,19 +135,69 @@
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="postal_code" class="form-label">Postal Code</label>
+                        <div class="col-md-4">
+                            <label for="suburb" class="form-label">Suburb <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control @error('suburb') is-invalid @enderror" 
+                                   id="suburb" name="suburb" value="{{ old('suburb') }}" required>
+                            @error('suburb')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-4">
+                            <label for="state" class="form-label">State <span class="text-danger">*</span></label>
+                            <select class="form-select @error('state') is-invalid @enderror" 
+                                    id="state" name="state" required>
+                                <option value="">Select State</option>
+                                <option value="NSW" {{ old('state') == 'NSW' ? 'selected' : '' }}>NSW</option>
+                                <option value="VIC" {{ old('state') == 'VIC' ? 'selected' : '' }}>VIC</option>
+                                <option value="QLD" {{ old('state') == 'QLD' ? 'selected' : '' }}>QLD</option>
+                                <option value="WA" {{ old('state') == 'WA' ? 'selected' : '' }}>WA</option>
+                                <option value="SA" {{ old('state') == 'SA' ? 'selected' : '' }}>SA</option>
+                                <option value="TAS" {{ old('state') == 'TAS' ? 'selected' : '' }}>TAS</option>
+                                <option value="ACT" {{ old('state') == 'ACT' ? 'selected' : '' }}>ACT</option>
+                                <option value="NT" {{ old('state') == 'NT' ? 'selected' : '' }}>NT</option>
+                            </select>
+                            @error('state')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-4">
+                            <label for="postal_code" class="form-label">Postal Code <span class="text-danger">*</span></label>
                             <input type="text" class="form-control @error('postal_code') is-invalid @enderror" 
-                                   id="postal_code" name="postal_code" value="{{ old('postal_code') }}">
+                                   id="postal_code" name="postal_code" value="{{ old('postal_code') }}" required>
                             @error('postal_code')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
+                    </div>
+
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="primary_language" class="form-label">Primary Language</label>
-                            <input type="text" class="form-control @error('primary_language') is-invalid @enderror" 
-                                   id="primary_language" name="primary_language" value="{{ old('primary_language') }}">
+                            <select class="form-select @error('primary_language') is-invalid @enderror" 
+                                    id="primary_language" name="primary_language">
+                                <option value="">Select Language</option>
+                                <option value="English" {{ old('primary_language') == 'English' ? 'selected' : '' }}>English</option>
+                                <option value="Mandarin" {{ old('primary_language') == 'Mandarin' ? 'selected' : '' }}>Mandarin</option>
+                                <option value="Arabic" {{ old('primary_language') == 'Arabic' ? 'selected' : '' }}>Arabic</option>
+                                <option value="Vietnamese" {{ old('primary_language') == 'Vietnamese' ? 'selected' : '' }}>Vietnamese</option>
+                            </select>
                             @error('primary_language')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label for="indigenous_status" class="form-label">Indigenous Status</label>
+                            <select class="form-select @error('indigenous_status') is-invalid @enderror" 
+                                    id="indigenous_status" name="indigenous_status">
+                                <option value="">Select Status</option>
+                                <option value="1" {{ old('indigenous_status') == '1' ? 'selected' : '' }}>Aboriginal but not Torres Strait Islander</option>
+                                <option value="2" {{ old('indigenous_status') == '2' ? 'selected' : '' }}>Torres Strait Islander but not Aboriginal</option>
+                                <option value="3" {{ old('indigenous_status') == '3' ? 'selected' : '' }}>Both Aboriginal and Torres Strait Islander</option>
+                                <option value="4" {{ old('indigenous_status') == '4' ? 'selected' : '' }}>Neither Aboriginal nor Torres Strait Islander</option>
+                                <option value="9" {{ old('indigenous_status') == '9' ? 'selected' : '' }}>Not stated/inadequately described</option>
+                            </select>
+                            @error('indigenous_status')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>

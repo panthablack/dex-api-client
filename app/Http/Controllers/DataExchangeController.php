@@ -104,7 +104,9 @@ class DataExchangeController extends Controller
             'last_name' => 'required|string|max:100',
             'date_of_birth' => 'required|date',
             'gender' => 'required|string|in:M,F,X,9',
-            'postal_code' => 'nullable|string|max:10',
+            'suburb' => 'required|string|max:100',
+            'state' => 'required|string|max:10',
+            'postal_code' => 'required|string|max:10',
             'consent_to_provide_details' => 'required|accepted',
             'consent_to_be_contacted' => 'required|accepted'
         ]);
