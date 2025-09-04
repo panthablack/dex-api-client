@@ -116,9 +116,11 @@
                             <select class="form-select @error('indigenous_status') is-invalid @enderror" 
                                     id="indigenous_status" name="indigenous_status">
                                 <option value="">Select Status</option>
-                                <option value="Y" {{ old('indigenous_status') == 'Y' ? 'selected' : '' }}>Yes</option>
-                                <option value="N" {{ old('indigenous_status') == 'N' ? 'selected' : '' }}>No</option>
-                                <option value="U" {{ old('indigenous_status') == 'U' ? 'selected' : '' }}>Unknown</option>
+                                @foreach($atsiOptions as $option)
+                                    <option value="{{ $option->Code }}" {{ old('indigenous_status') == $option->Code ? 'selected' : '' }}>
+                                        {{ $option->Description }}
+                                    </option>
+                                @endforeach
                             </select>
                             @error('indigenous_status')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -126,8 +128,15 @@
                         </div>
                         <div class="col-md-6">
                             <label for="country_of_birth" class="form-label">Country of Birth</label>
-                            <input type="text" class="form-control @error('country_of_birth') is-invalid @enderror" 
-                                   id="country_of_birth" name="country_of_birth" value="{{ old('country_of_birth') }}">
+                            <select class="form-select @error('country_of_birth') is-invalid @enderror" 
+                                    id="country_of_birth" name="country_of_birth">
+                                <option value="">Select Country</option>
+                                @foreach($countries as $country)
+                                    <option value="{{ $country->Code }}" {{ old('country_of_birth') == $country->Code ? 'selected' : '' }}>
+                                        {{ $country->Description }}
+                                    </option>
+                                @endforeach
+                            </select>
                             @error('country_of_birth')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -177,27 +186,13 @@
                             <select class="form-select @error('primary_language') is-invalid @enderror" 
                                     id="primary_language" name="primary_language">
                                 <option value="">Select Language</option>
-                                <option value="English" {{ old('primary_language') == 'English' ? 'selected' : '' }}>English</option>
-                                <option value="Mandarin" {{ old('primary_language') == 'Mandarin' ? 'selected' : '' }}>Mandarin</option>
-                                <option value="Arabic" {{ old('primary_language') == 'Arabic' ? 'selected' : '' }}>Arabic</option>
-                                <option value="Vietnamese" {{ old('primary_language') == 'Vietnamese' ? 'selected' : '' }}>Vietnamese</option>
+                                @foreach($languages as $language)
+                                    <option value="{{ $language->Code }}" {{ old('primary_language') == $language->Code ? 'selected' : '' }}>
+                                        {{ $language->Description }}
+                                    </option>
+                                @endforeach
                             </select>
                             @error('primary_language')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-6">
-                            <label for="indigenous_status" class="form-label">Indigenous Status</label>
-                            <select class="form-select @error('indigenous_status') is-invalid @enderror" 
-                                    id="indigenous_status" name="indigenous_status">
-                                <option value="">Select Status</option>
-                                <option value="1" {{ old('indigenous_status') == '1' ? 'selected' : '' }}>Aboriginal but not Torres Strait Islander</option>
-                                <option value="2" {{ old('indigenous_status') == '2' ? 'selected' : '' }}>Torres Strait Islander but not Aboriginal</option>
-                                <option value="3" {{ old('indigenous_status') == '3' ? 'selected' : '' }}>Both Aboriginal and Torres Strait Islander</option>
-                                <option value="4" {{ old('indigenous_status') == '4' ? 'selected' : '' }}>Neither Aboriginal nor Torres Strait Islander</option>
-                                <option value="9" {{ old('indigenous_status') == '9' ? 'selected' : '' }}>Not stated/inadequately described</option>
-                            </select>
-                            @error('indigenous_status')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>

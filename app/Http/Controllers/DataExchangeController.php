@@ -72,7 +72,13 @@ class DataExchangeController extends Controller
     public function showClientForm()
     {
         $sampleData = $this->dataExchangeService->generateSampleClientData();
-        return view('data-exchange.client-form', compact('sampleData'));
+        
+        // Get reference data for dropdowns
+        $countries = \App\Helpers\ReferenceData::countries();
+        $languages = \App\Helpers\ReferenceData::languages();
+        $atsiOptions = \App\Helpers\ReferenceData::aboriginalOrTorresStraitIslanderOrigin();
+        
+        return view('data-exchange.client-form', compact('sampleData', 'countries', 'languages', 'atsiOptions'));
     }
 
     /**

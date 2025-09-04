@@ -1839,21 +1839,44 @@ class DataExchangeService
      */
     protected function getSafeATSIForFakeData()
     {
-        $validATSI = $this->getValidATSICodes();
-        
-        if ($validATSI) {
-            // Look for "No" (non-indigenous) first as most common
-            if (isset($validATSI['No'])) {
-                return '2'; // Our internal code for NO
+        try {
+            $atsiOptions = \App\Helpers\ReferenceData::aboriginalOrTorresStraitIslanderOrigin();
+            
+            if (!empty($atsiOptions)) {
+                // Use the weighted random selection to favor non-indigenous
+                $weights = [
+                    'NO' => 80,  // 80% chance - most common
+                    'NOTSTATED' => 15,  // 15% chance
+                    'ABORIGINAL' => 3,  // 3% chance
+                    'TSI' => 1,  // 1% chance
+                    'BOTH' => 1  // 1% chance
+                ];
+                
+                $randomValue = fake()->numberBetween(1, 100);
+                $cumulative = 0;
+                
+                foreach ($weights as $code => $weight) {
+                    $cumulative += $weight;
+                    if ($randomValue <= $cumulative) {
+                        // Find the option with this code
+                        foreach ($atsiOptions as $option) {
+                            if ($option->Code === $code) {
+                                return $option->Code;
+                            }
+                        }
+                    }
+                }
+                
+                // Fallback to first option if weighting fails
+                return $atsiOptions[0]->Code;
             }
-            // Otherwise look for "Not stated"
-            if (isset($validATSI['Not stated/Inadequately described'])) {
-                return '9'; // Our internal code for NOTSTATED
-            }
+        } catch (\Exception $e) {
+            // Log error but continue with fallback
+            \Log::warning('Failed to get ATSI options from ReferenceData helper: ' . $e->getMessage());
         }
         
         // Fallback to safest default
-        return '2'; // Non-indigenous
+        return 'NO';
     }
 
     /**
@@ -1861,20 +1884,40 @@ class DataExchangeService
      */
     protected function getSafeCountryForFakeData()
     {
-        $validCountries = $this->getValidCountryCodes();
-
-        if ($validCountries) {
-            // Look for Australia first
-            if (isset($validCountries['Australia'])) {
-                return 'Australia';
+        try {
+            $countries = \App\Helpers\ReferenceData::countries();
+            
+            if (!empty($countries)) {
+                // Look for Australia first (most common)
+                foreach ($countries as $country) {
+                    if (stripos($country->Description, 'Australia') !== false) {
+                        return $country->Code;
+                    }
+                }
+                
+                // Use weighted selection for realistic distribution
+                $commonCountries = ['1101', '2102', '1201', '2201']; // Australia, UK, NZ, USA
+                $randomValue = fake()->numberBetween(1, 100);
+                
+                if ($randomValue <= 70) {
+                    // 70% chance of common countries
+                    foreach ($countries as $country) {
+                        if (in_array($country->Code, $commonCountries)) {
+                            return $country->Code;
+                        }
+                    }
+                }
+                
+                // Otherwise random country
+                return $countries[array_rand($countries)]->Code;
             }
-            // Otherwise return a random valid country
-            $countryNames = array_keys($validCountries);
-            return $countryNames[array_rand($countryNames)];
+        } catch (\Exception $e) {
+            // Log error but continue with fallback
+            \Log::warning('Failed to get countries from ReferenceData helper: ' . $e->getMessage());
         }
-
-        // Fallback to hardcoded safe value
-        return 'Australia';
+        
+        // Fallback to Australia code
+        return '1101';
     }
 
     /**
@@ -1882,20 +1925,48 @@ class DataExchangeService
      */
     protected function getSafeLanguageForFakeData()
     {
-        $validLanguages = $this->getValidLanguageCodes();
-
-        if ($validLanguages) {
-            // Look for English first
-            if (isset($validLanguages['English'])) {
-                return 'English';
+        try {
+            $languages = \App\Helpers\ReferenceData::languages();
+            
+            if (!empty($languages)) {
+                // Look for English first (most common in Australia)
+                foreach ($languages as $language) {
+                    if (stripos($language->Description, 'English') !== false) {
+                        return $language->Code;
+                    }
+                }
+                
+                // Use weighted selection for realistic language distribution in Australia
+                $commonLanguages = [];
+                $languagePriorities = ['English', 'Mandarin', 'Arabic', 'Vietnamese', 'Italian', 'Greek'];
+                
+                foreach ($languagePriorities as $priority) {
+                    foreach ($languages as $language) {
+                        if (stripos($language->Description, $priority) !== false) {
+                            $commonLanguages[] = $language;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!empty($commonLanguages)) {
+                    // 80% chance of common languages
+                    $randomValue = fake()->numberBetween(1, 100);
+                    if ($randomValue <= 80) {
+                        return $commonLanguages[array_rand($commonLanguages)]->Code;
+                    }
+                }
+                
+                // Otherwise random language
+                return $languages[array_rand($languages)]->Code;
             }
-            // Otherwise return a random valid language
-            $languageNames = array_keys($validLanguages);
-            return $languageNames[array_rand($languageNames)];
+        } catch (\Exception $e) {
+            // Log error but continue with fallback
+            \Log::warning('Failed to get languages from ReferenceData helper: ' . $e->getMessage());
         }
-
-        // Fallback to hardcoded safe value
-        return 'English';
+        
+        // Fallback to English code
+        return '1201';
     }
 
     /**
