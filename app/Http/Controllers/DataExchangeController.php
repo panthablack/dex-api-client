@@ -120,8 +120,20 @@ class DataExchangeController extends Controller
         try {
             $result = $this->dataExchangeService->submitClientData($request->all());
 
-            $response = redirect()->back()->with('success', 'Client data submitted successfully')
-                ->with('result', $result);
+            // Check if the response contains a failed transaction status
+            $transactionStatus = $this->extractTransactionStatus($result);
+            
+            if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
+                $errorMessage = $transactionStatus['message'] ?? 'Client data submission failed';
+                
+                $response = redirect()->back()
+                    ->with('error', $errorMessage)
+                    ->with('result', $result)
+                    ->withInput();
+            } else {
+                $response = redirect()->back()->with('success', 'Client data submitted successfully')
+                    ->with('result', $result);
+            }
 
             return $this->withDebugInfo($response);
         } catch (\Exception $e) {
@@ -592,5 +604,32 @@ class DataExchangeController extends Controller
 
         fclose($handle);
         return $clientDataArray;
+    }
+
+    /**
+     * Extract transaction status from DSS API response
+     */
+    protected function extractTransactionStatus($result)
+    {
+        // Convert objects to arrays for consistent handling
+        if (is_object($result)) {
+            $result = json_decode(json_encode($result), true);
+        }
+
+        if (!is_array($result)) {
+            return null;
+        }
+
+        // Check for TransactionStatus in the response
+        if (isset($result['TransactionStatus'])) {
+            $transactionStatus = $result['TransactionStatus'];
+            
+            return [
+                'statusCode' => $transactionStatus['TransactionStatusCode'] ?? null,
+                'message' => $transactionStatus['Messages']['Message']['MessageDescription'] ?? null
+            ];
+        }
+
+        return null;
     }
 }
