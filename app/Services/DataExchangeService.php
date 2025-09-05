@@ -2546,7 +2546,9 @@ class DataExchangeService
     public function submitSessionData($sessionData)
     {
         $parameters = [
-            'Session' => $this->formatSessionData($sessionData)
+            'Session' => $this->formatSessionData($sessionData),
+            'CaseId' => $sessionData['case_id'],
+            'SessionId' => $sessionData['session_id'],
         ];
 
         return $this->soapClient->call('AddSession', $parameters);
