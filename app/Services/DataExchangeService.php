@@ -1029,6 +1029,8 @@ class DataExchangeService
                 // Extract Case ID (should be array after conversion above)
                 if (is_array($caseInfo) && isset($caseInfo['CaseId'])) {
                     $caseId = $caseInfo['CaseId'];
+                } elseif (is_array($caseInfo) && isset($caseInfo['CaseDetail']['CaseId'])) {
+                    $caseId = $caseInfo['CaseDetail']['CaseId'];
                 } elseif (is_object($caseInfo)) {
                     // Convert this individual case to array if still an object
                     $caseInfo = json_decode(json_encode($caseInfo), true);
@@ -1038,7 +1040,7 @@ class DataExchangeService
                 }
 
                 // Skip invalid data - only process actual case IDs
-                if (!$caseId || !is_string($caseId)) {
+                if (!$caseId) {
                     Log::info('Skipping non-case data', [
                         'index' => $index,
                         'case_id' => $caseId,
