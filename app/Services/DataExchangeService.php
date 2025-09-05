@@ -34,7 +34,7 @@ class DataExchangeService
     public function getSubmissionStatus($submissionId)
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
+            'OrganisationId' => config('soap.dss.organisation_id'),
             'SubmissionID' => $submissionId
         ];
 
@@ -47,7 +47,7 @@ class DataExchangeService
     public function validateClientData($clientData)
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
+            'OrganisationId' => config('soap.dss.organisation_id'),
             'ClientData' => $this->formatClientData($clientData)
         ];
 
@@ -60,7 +60,7 @@ class DataExchangeService
     public function getAvailableServices()
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id')
+            'OrganisationId' => config('soap.dss.organisation_id')
         ];
 
         return $this->soapClient->call('GetAvailableServices', $parameters);
@@ -72,7 +72,7 @@ class DataExchangeService
     public function getReferenceData($referenceType)
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
+            'OrganisationId' => config('soap.dss.organisation_id'),
             'ReferenceDataCode' => $referenceType
         ];
 
@@ -484,8 +484,8 @@ class DataExchangeService
     protected function formatSessionData($data)
     {
         return [
-            'SessionID' => $data['session_id'] ?? null,
-            'CaseID' => $data['case_id'] ?? null,
+            'SessionId' => $data['session_id'] ?? null,
+            'CaseId' => $data['case_id'] ?? null,
             'SessionType' => $data['session_type'] ?? null,
             'SessionDate' => $this->formatDate($data['session_date'] ?? null),
             'DurationMinutes' => $data['duration_minutes'] ?? null,
@@ -1349,7 +1349,7 @@ class DataExchangeService
             Log::info('Getting sessions for specific case: ' . $filters['case_id']);
             // Use SearchCase to get the case data, which may include session information
             $caseFilters = ['case_id' => $filters['case_id']];
-            $caseResult = $this->getCaseData($caseFilters);
+            $caseResult = $this->fetchFullCaseData($caseFilters);
 
             // Check if the case result contains session data
             // Convert to array if it's an object for consistent handling
@@ -1357,9 +1357,11 @@ class DataExchangeService
                 $caseResult = json_decode(json_encode($caseResult), true);
             }
 
-            if (isset($caseResult['Sessions']) || isset($caseResult['SessionData'])) {
+            $sessions = $this->getSessionsFromCases($caseResult);
+
+            if (!empty($sessions)) {
                 Log::info('Found session data in case result');
-                return $caseResult;
+                return $sessions;
             }
 
             // If no session data found in case, return informative message
@@ -1375,6 +1377,38 @@ class DataExchangeService
         throw new \Exception('A Case ID is required to retrieve session data. Sessions in the DSS system are linked to specific cases. Please provide a Case ID to get sessions, or use "Get Sessions for Case" option instead. Filters received: ' . json_encode($filters));
     }
 
+
+    /**
+     * Get sessions from a case
+     */
+    public function getSessionsFromCase($case): array
+    {
+        if (!($case['Sessions']['SessionId'] ?? null))
+            throw new \Exception('Cannot get Sessions from a Case without a Case.');
+        $sessionIds = [];
+        foreach (explode(',', $case['Sessions']['SessionId']) as $sessionId) {
+            array_push($sessionIds, $sessionId);
+        }
+        $sessions = [];
+        foreach ($sessionIds as $sessionId) {
+            array_push($sessions, $this->getSessionById($sessionId, $case['CaseDetail']['CaseId']));
+        }
+        return $sessions;
+    }
+
+    /**
+     * Get sessions from cases
+     */
+    public function getSessionsFromCases($cases): array
+    {
+        if (empty($cases)) throw new \Exception('Cannot get Sessions from Cases without Cases.');
+
+        $sessions = [];
+        foreach ($cases as $case) {
+            array_push($sessions, $this->getSessionsFromCase($case));
+        }
+        return $sessions;
+    }
 
     /**
      * Get session by ID
@@ -1413,9 +1447,9 @@ class DataExchangeService
     public function getClientServices($clientId, $filters = [])
     {
         // Search for cases related to this client first
-        $searchFilters = array_merge($filters, ['ClientID' => $clientId]);
+        $searchFilters = array_merge($filters, ['ClientId' => $clientId]);
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
+            'OrganisationId' => config('soap.dss.organisation_id'),
             'Filters' => $this->formatFilters($searchFilters)
         ];
 
@@ -1428,7 +1462,7 @@ class DataExchangeService
     public function exportData($resourceType, $filters = [], $format = 'xml')
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
+            'OrganisationId' => config('soap.dss.organisation_id'),
             'ResourceType' => $resourceType,
             'Filters' => $this->formatFilters($filters),
             'Format' => strtoupper($format)
@@ -1453,7 +1487,7 @@ class DataExchangeService
         ];
 
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
+            'OrganisationId' => config('soap.dss.organisation_id'),
             'ResourceType' => $resourceType
         ];
 
@@ -2522,7 +2556,7 @@ class DataExchangeService
     public function generateReport($reportType, $filters = [])
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id'),
+            'OrganisationId' => config('soap.dss.organisation_id'),
             'ReportType' => $reportType,
             'Filters' => $this->formatFilters($filters)
         ];
@@ -2536,7 +2570,7 @@ class DataExchangeService
     public function getOutletActivities()
     {
         $parameters = [
-            'OrganisationID' => config('soap.dss.organisation_id')
+            'OrganisationId' => config('soap.dss.organisation_id')
         ];
 
         return $this->soapClient->call('GetOutletActivities', $parameters);
