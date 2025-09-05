@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\DataExchangeService;
+use App\Helpers\ReferenceData;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -72,12 +73,12 @@ class DataExchangeController extends Controller
     public function showClientForm()
     {
         $sampleData = $this->dataExchangeService->generateSampleClientData();
-        
+
         // Get reference data for dropdowns
-        $countries = \App\Helpers\ReferenceData::countries();
-        $languages = \App\Helpers\ReferenceData::languages();
-        $atsiOptions = \App\Helpers\ReferenceData::aboriginalOrTorresStraitIslanderOrigin();
-        
+        $countries = ReferenceData::countries();
+        $languages = ReferenceData::languages();
+        $atsiOptions = ReferenceData::aboriginalOrTorresStraitIslanderOrigin();
+
         return view('data-exchange.client-form', compact('sampleData', 'countries', 'languages', 'atsiOptions'));
     }
 
@@ -87,7 +88,7 @@ class DataExchangeController extends Controller
     public function showCaseForm()
     {
         $sampleData = $this->dataExchangeService->generateSampleCaseData();
-        
+
         // Try to fetch outlet activities
         $outletActivities = [];
         try {
@@ -101,18 +102,18 @@ class DataExchangeController extends Controller
             }
         } catch (\Exception $e) {
             // Log error but continue with empty array - form has fallback options
-            \Log::warning('Failed to fetch outlet activities: ' . $e->getMessage());
+            Log::warning('Failed to fetch outlet activities: ' . $e->getMessage());
         }
-        
+
         // Get referral source options from ReferenceData helper
-        $referralSources = \App\Helpers\ReferenceData::referralSource();
-        
+        $referralSources = ReferenceData::referralSource();
+
         // Get attendance profile options from ReferenceData helper
-        $attendanceProfiles = \App\Helpers\ReferenceData::attendanceProfile();
-        
+        $attendanceProfiles = ReferenceData::attendanceProfile();
+
         // Get exit reason options from ReferenceData helper
-        $exitReasons = \App\Helpers\ReferenceData::exitReason();
-        
+        $exitReasons = ReferenceData::exitReason();
+
         return view('data-exchange.case-form', compact('sampleData', 'outletActivities', 'referralSources', 'attendanceProfiles', 'exitReasons'));
     }
 
@@ -154,10 +155,10 @@ class DataExchangeController extends Controller
 
             // Check if the response contains a failed transaction status
             $transactionStatus = $this->extractTransactionStatus($result);
-            
+
             if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
                 $errorMessage = $transactionStatus['message'] ?? 'Client data submission failed';
-                
+
                 $response = redirect()->back()
                     ->with('error', $errorMessage)
                     ->with('result', $result)
@@ -190,7 +191,7 @@ class DataExchangeController extends Controller
             'referral_source_code' => 'required|string|max:50',
             'reasons_for_assistance' => 'required|array|min:1',
             'reasons_for_assistance.*' => 'string|in:PHYSICAL,EMOTIONAL,FINANCIAL,HOUSING,LEGAL',
-            
+
             // Optional DSS fields
             'total_unidentified_clients' => 'nullable|integer|min:0|max:100',
             'client_attendance_profile_code' => 'nullable|string|in:PSGROUP,INDIVIDUAL,FAMILY',
@@ -210,7 +211,7 @@ class DataExchangeController extends Controller
 
             // Check transaction status in the response
             $transactionStatus = $this->extractTransactionStatus($result);
-            
+
             if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
                 $errorMessage = $transactionStatus['message'] ?? 'Case submission failed';
                 $response = redirect()->back()
@@ -258,7 +259,7 @@ class DataExchangeController extends Controller
 
             // Check transaction status in the response
             $transactionStatus = $this->extractTransactionStatus($result);
-            
+
             if ($transactionStatus && $transactionStatus['statusCode'] === 'Failed') {
                 $errorMessage = $transactionStatus['message'] ?? 'Session submission failed';
                 $response = redirect()->back()
@@ -516,7 +517,7 @@ class DataExchangeController extends Controller
                         'request_case_id_value' => $request->get('case_id'),
                         'all_request_data' => $request->all()
                     ]);
-                    
+
                     if (empty($request->case_id)) {
                         throw new \Exception('Case ID is required for case lookup. Received: "' . ($request->case_id ?? 'null') . '" (type: ' . gettype($request->case_id) . ')');
                     }
@@ -678,7 +679,7 @@ class DataExchangeController extends Controller
         try {
             $filters = $this->buildFilters($request);
             $reportType = $request->report_type;
-            
+
             $data = $this->dataExchangeService->generateReport($reportType, $filters);
 
             if ($request->action === 'download') {
@@ -753,7 +754,7 @@ class DataExchangeController extends Controller
             if ($format === 'csv') {
                 $content = $this->dataExchangeService->generateFakeCSV($type, $count);
                 $filename = "fake_{$type}_" . date('Y-m-d_H-i-s') . '.csv';
-                
+
                 return response($content, 200, [
                     'Content-Type' => 'text/csv',
                     'Content-Disposition' => "attachment; filename=\"{$filename}\""
@@ -771,7 +772,7 @@ class DataExchangeController extends Controller
                         $data = $this->dataExchangeService->generateFakeSessionData($count);
                         break;
                 }
-                
+
                 return response()->json($data);
             }
         } catch (\Exception $e) {
@@ -804,15 +805,15 @@ class DataExchangeController extends Controller
             $format = $request->format;
 
             $dataset = $this->dataExchangeService->generateFakeDataSet(
-                $clientCount, 
-                $casesPerClient, 
+                $clientCount,
+                $casesPerClient,
                 $sessionsPerCase
             );
 
             if ($format === 'download_csv') {
                 // Generate separate CSV files for each type
                 $timestamp = date('Y-m-d_H-i-s');
-                
+
                 $response = response()->json([
                     'message' => 'Dataset generated successfully',
                     'summary' => [
@@ -826,10 +827,10 @@ class DataExchangeController extends Controller
                         'sessions' => route('data-exchange.download-fake-csv', ['type' => 'sessions', 'timestamp' => $timestamp])
                     ]
                 ]);
-                
+
                 // Store dataset in session for download
                 session(['fake_dataset_' . $timestamp => $dataset]);
-                
+
                 return $response;
             } else {
                 return response()->json($dataset);
@@ -847,7 +848,7 @@ class DataExchangeController extends Controller
     public function downloadFakeCSV($type, $timestamp)
     {
         $dataset = session('fake_dataset_' . $timestamp);
-        
+
         if (!$dataset || !isset($dataset[$type])) {
             abort(404, 'Dataset not found or expired');
         }
@@ -886,10 +887,10 @@ class DataExchangeController extends Controller
         }
 
         $referenceType = $request->reference_type;
-        
+
         try {
             $referenceData = $this->dataExchangeService->getReferenceData($referenceType);
-            
+
             return response()->json([
                 'success' => true,
                 'reference_type' => $referenceType,
@@ -910,10 +911,10 @@ class DataExchangeController extends Controller
     public function testReferenceData(Request $request)
     {
         $referenceType = $request->get('type', 'CountryCode');
-        
+
         try {
             $referenceData = $this->dataExchangeService->getReferenceData($referenceType);
-            
+
             return response()->json([
                 'success' => true,
                 'reference_type' => $referenceType,
@@ -988,8 +989,8 @@ class DataExchangeController extends Controller
             'client_id' => $rowData['client_id'] ?? null,
             'outlet_activity_id' => intval($rowData['outlet_activity_id'] ?? 61932),
             'referral_source_code' => $rowData['referral_source_code'] ?? 'COMMUNITY',
-            'reasons_for_assistance' => isset($rowData['reasons_for_assistance']) ? 
-                (is_string($rowData['reasons_for_assistance']) ? explode(',', $rowData['reasons_for_assistance']) : $rowData['reasons_for_assistance']) : 
+            'reasons_for_assistance' => isset($rowData['reasons_for_assistance']) ?
+                (is_string($rowData['reasons_for_assistance']) ? explode(',', $rowData['reasons_for_assistance']) : $rowData['reasons_for_assistance']) :
                 ['PHYSICAL'],
             'total_unidentified_clients' => !empty($rowData['total_unidentified_clients']) ? intval($rowData['total_unidentified_clients']) : null,
             'client_attendance_profile_code' => $rowData['client_attendance_profile_code'] ?? null,
@@ -1032,7 +1033,7 @@ class DataExchangeController extends Controller
         // Check for TransactionStatus in the response
         if (isset($result['TransactionStatus'])) {
             $transactionStatus = $result['TransactionStatus'];
-            
+
             return [
                 'statusCode' => $transactionStatus['TransactionStatusCode'] ?? null,
                 'message' => $transactionStatus['Messages']['Message']['MessageDescription'] ?? null

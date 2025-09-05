@@ -87,14 +87,14 @@ class DataExchangeService
         // Process birth date first to determine what will actually be sent to API
         $isEstimate = !empty($data['is_birth_date_estimate']);
         $processedBirthDate = $this->formatBirthDate($data['date_of_birth'] ?? null, $isEstimate);
-        
+
         // Create modified data for SLK generation using the processed birth date
         $dataForSLK = $data;
         if ($processedBirthDate && $isEstimate) {
             // Extract just the date part from the DateTime for SLK calculation
             $dataForSLK['date_of_birth'] = substr($processedBirthDate, 0, 10); // yyyy-mm-dd part only
         }
-        
+
         $clientData = [
             'ClientId' => $data['client_id'] ?? null,
             'SLK' => $this->generateSLK($dataForSLK), // Use processed data for SLK
@@ -200,9 +200,9 @@ class DataExchangeService
             // Extract letters from last name (2nd, 3rd, 5th positions)
             $lastNamePart = '';
             $lastNamePart .= isset($lastName[1]) ? $lastName[1] : '2'; // 2nd letter or '2' if missing
-            $lastNamePart .= isset($lastName[2]) ? $lastName[2] : '2'; // 3rd letter or '2' if missing  
+            $lastNamePart .= isset($lastName[2]) ? $lastName[2] : '2'; // 3rd letter or '2' if missing
             $lastNamePart .= isset($lastName[4]) ? $lastName[4] : '2'; // 5th letter or '2' if missing
-            
+
             // DSS Rule: "a 2 should always be proceeded by a letter of the alphabet"
             // If first character would be '2', it means lastName has only 1 character, which violates this rule
             if ($lastNamePart[0] === '2') {
@@ -217,7 +217,7 @@ class DataExchangeService
             $firstNamePart = '';
             $firstNamePart .= isset($firstName[1]) ? $firstName[1] : '2'; // 2nd letter or '2' if missing
             $firstNamePart .= isset($firstName[2]) ? $firstName[2] : '2'; // 3rd letter or '2' if missing
-            
+
             // DSS Rule: "a 2 should always be proceeded by a letter of the alphabet"
             // If first character would be '2', it means firstName has only 1 character, which violates this rule
             if ($firstNamePart[0] === '2') {
@@ -242,7 +242,7 @@ class DataExchangeService
         $gender = strtoupper($data['gender'] ?? '');
         $genderCode = match ($gender) {
             'M', 'MALE', 'MAN' => '1',
-            'F', 'FEMALE', 'WOMAN' => '2', 
+            'F', 'FEMALE', 'WOMAN' => '2',
             'X', 'NONBINARY', 'NON-BINARY', 'OTHER' => '3',
             default => '9'
         };
@@ -311,7 +311,7 @@ class DataExchangeService
     {
         // DSS SLK regular expression from specification
         $pattern = '/^([9]{3}|[A-Z]([2]{2}|[A-Z][A-Z,2]))([9]{2}|[A-Z][A-Z,2])(((((0[1-9]|[1-2][0-9]))|(3[01]))((0[13578])|(1[02])))|((((0[1-9]|[1-2][0-9]))|(30))((0[469])|(11)))|((0[1-9]|[1-2][0-9])02))(19|2[0-9])[0-9]{2}[1239]$/';
-        
+
         return preg_match($pattern, $slk) === 1;
     }
 
@@ -374,7 +374,7 @@ class DataExchangeService
     }
 
     /**
-     * Format birth date according to DSS specification  
+     * Format birth date according to DSS specification
      * - If IsBirthDateAnEstimate is true: format as 'yyyy-01-01T00:00:00.000'
      * - If IsBirthDateAnEstimate is false: format as 'yyyy-mm-ddT00:00:00.000' (real birth date)
      * Note: DSS API requires DateTime format, not just date
@@ -419,7 +419,7 @@ class DataExchangeService
             $year = (int)$matches[3];
             return new \DateTime("{$year}-{$month}-{$day}");
         }
-        
+
         // Handle yyyy-mm-dd or other formats via DateTime
         return new \DateTime($dateString);
     }
@@ -1826,7 +1826,7 @@ class DataExchangeService
     /**
      * Convert array to CSV
      */
-    protected function arrayToCsv($data)
+    public function arrayToCsv($data)
     {
         if (empty($data) || !is_array($data)) {
             return "No data available\n";
@@ -2052,7 +2052,7 @@ class DataExchangeService
             }
         } catch (\Exception $e) {
             // Log error but continue with fallback
-            \Log::warning('Failed to get ATSI options from ReferenceData helper: ' . $e->getMessage());
+            Log::warning('Failed to get ATSI options from ReferenceData helper: ' . $e->getMessage());
         }
 
         // Fallback to safest default
@@ -2093,7 +2093,7 @@ class DataExchangeService
             }
         } catch (\Exception $e) {
             // Log error but continue with fallback
-            \Log::warning('Failed to get countries from ReferenceData helper: ' . $e->getMessage());
+            Log::warning('Failed to get countries from ReferenceData helper: ' . $e->getMessage());
         }
 
         // Fallback to Australia code
@@ -2142,7 +2142,7 @@ class DataExchangeService
             }
         } catch (\Exception $e) {
             // Log error but continue with fallback
-            \Log::warning('Failed to get languages from ReferenceData helper: ' . $e->getMessage());
+            Log::warning('Failed to get languages from ReferenceData helper: ' . $e->getMessage());
         }
 
         // Fallback to English code
@@ -2176,7 +2176,7 @@ class DataExchangeService
             }
         } catch (\Exception $e) {
             // Log error but continue with fallback
-            \Log::warning('Failed to get referral sources from ReferenceData helper: ' . $e->getMessage());
+            Log::warning('Failed to get referral sources from ReferenceData helper: ' . $e->getMessage());
         }
 
         // Fallback to common referral source
@@ -2210,7 +2210,7 @@ class DataExchangeService
             }
         } catch (\Exception $e) {
             // Log error but continue with fallback
-            \Log::warning('Failed to get attendance profiles from ReferenceData helper: ' . $e->getMessage());
+            Log::warning('Failed to get attendance profiles from ReferenceData helper: ' . $e->getMessage());
         }
 
         // Fallback to individual
@@ -2224,12 +2224,12 @@ class DataExchangeService
     {
         try {
             $exitReasons = \App\Helpers\ReferenceData::exitReason();
-            
+
             if (!empty($exitReasons)) {
                 // Use weighted selection for realistic distribution
                 $commonReasons = ['NEEDSMET', 'NOLONGERASSIST', 'MOVED'];
                 $randomValue = fake()->numberBetween(1, 100);
-                
+
                 if ($randomValue <= 70) {
                     // 70% chance of common exit reasons
                     foreach ($exitReasons as $reason) {
@@ -2238,15 +2238,15 @@ class DataExchangeService
                         }
                     }
                 }
-                
+
                 // Otherwise random exit reason
                 return $exitReasons[array_rand($exitReasons)]->Code;
             }
         } catch (\Exception $e) {
             // Log error but continue with fallback
-            \Log::warning('Failed to get exit reasons from ReferenceData helper: ' . $e->getMessage());
+            Log::warning('Failed to get exit reasons from ReferenceData helper: ' . $e->getMessage());
         }
-        
+
         // Fallback to needs met
         return 'NEEDSMET';
     }
@@ -2293,15 +2293,15 @@ class DataExchangeService
                 $cachedClientIds = !empty($clientIds) ? $clientIds : false;
 
                 if ($cachedClientIds) {
-                    \Log::info('Retrieved existing client IDs for fake data', [
+                    Log::info('Retrieved existing client IDs for fake data', [
                         'count' => count($cachedClientIds),
                         'sample_ids' => array_slice($cachedClientIds, 0, 5)
                     ]);
                 } else {
-                    \Log::warning('No existing client IDs found in DSS system');
+                    Log::warning('No existing client IDs found in DSS system');
                 }
             } catch (\Exception $e) {
-                \Log::warning('Failed to fetch existing client IDs: ' . $e->getMessage());
+                Log::warning('Failed to fetch existing client IDs: ' . $e->getMessage());
                 $cachedClientIds = false; // Cache the failure
             }
         }
