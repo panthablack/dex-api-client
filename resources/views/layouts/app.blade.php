@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'DSS Data Exchange SOAP Client')</title>
 
     <!-- Favicons -->
@@ -69,9 +70,23 @@
                             </li>
                         </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('data-exchange.retrieve-form') ? 'active' : '' }}"
-                            href="{{ route('data-exchange.retrieve-form') }}">Retrieve Data</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ request()->routeIs('data-exchange.retrieve-form', 'data-exchange.clients.index', 'data-exchange.cases.index', 'data-exchange.sessions.index') ? 'active' : '' }}"
+                            href="#" id="retrieveDropdown" role="button" data-bs-toggle="dropdown">
+                            Retrieve Data
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('data-exchange.retrieve-form') }}">
+                                <i class="fas fa-search"></i> Search & Retrieve</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Browse Resources</h6></li>
+                            <li><a class="dropdown-item" href="{{ route('data-exchange.clients.index') }}">
+                                <i class="fas fa-users"></i> View All Clients</a></li>
+                            <li><a class="dropdown-item" href="{{ route('data-exchange.cases.index') }}">
+                                <i class="fas fa-folder-open"></i> View All Cases</a></li>
+                            <li><a class="dropdown-item" href="{{ route('data-exchange.sessions.index') }}">
+                                <i class="fas fa-calendar-alt"></i> View All Sessions</a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('data-exchange.reference-data') ? 'active' : '' }}"

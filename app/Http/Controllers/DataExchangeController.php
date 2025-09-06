@@ -551,7 +551,21 @@ class DataExchangeController extends Controller
                 ->with('success', 'Data retrieved successfully')
                 ->with('data', $data)
                 ->with('format', $request->format)
+                ->with('resource_type', $resourceType)
                 ->withInput();
+
+            // Store resource ID in session for individual resource lookups
+            if (in_array($resourceType, ['client_by_id', 'case_by_id', 'session_by_id'])) {
+                $resourceId = '';
+                if ($resourceType === 'client_by_id') {
+                    $resourceId = $request->client_id;
+                } elseif ($resourceType === 'case_by_id') {
+                    $resourceId = $request->case_id;
+                } elseif ($resourceType === 'session_by_id') {
+                    $resourceId = $request->session_id;
+                }
+                $response->with('resource_id', $resourceId);
+            }
 
             return $this->withDebugInfo($response);
         } catch (\Exception $e) {
@@ -638,6 +652,7 @@ class DataExchangeController extends Controller
             'last_name',
             'gender',
             'postal_code',
+            'state',
             'case_id',
             'case_id_filter',
             'case_status',
@@ -645,16 +660,32 @@ class DataExchangeController extends Controller
             'session_id',
             'session_status',
             'service_type',
+            'service_type_id',
             'service_start_date',
             'service_end_date',
             'date_from',
             'date_to',
-            'status'
+            'status',
+            'referral_source_code',
+            'outlet_activity_id',
+            'client_type',
+            'indigenous_status',
+            'country_of_birth',
+            'primary_language'
         ];
 
         foreach ($filterFields as $field) {
             if ($request->has($field) && !empty($request->get($field))) {
                 $filters[$field] = $request->get($field);
+            }
+        }
+
+        // Handle date_range parameter for convenience
+        if ($request->has('date_range') && !empty($request->get('date_range'))) {
+            $dateRange = intval($request->get('date_range'));
+            if ($dateRange > 0) {
+                $filters['date_from'] = now()->subDays($dateRange)->format('Y-m-d');
+                $filters['date_to'] = now()->format('Y-m-d');
             }
         }
 
@@ -1047,5 +1078,704 @@ class DataExchangeController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Get client data by ID for update form
+     */
+    public function getClient($id)
+    {
+        try {
+            $data = $this->dataExchangeService->getClientById($id);
+            return response()->json([
+                'success' => true,
+                'resource' => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update client data
+     */
+    public function updateClient(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'date_of_birth' => 'required|date',
+            'gender' => 'required|in:M,F,X,9'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $result = $this->dataExchangeService->updateClient($id, $request->all());
+            return response()->json([
+                'success' => true,
+                'message' => 'Client updated successfully',
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update client: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete client
+     */
+    public function deleteClient($id)
+    {
+        try {
+            $result = $this->dataExchangeService->deleteClient($id);
+            return response()->json([
+                'success' => true,
+                'message' => 'Client deleted successfully',
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete client: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get case data by ID for update form
+     */
+    public function getCase($id)
+    {
+        try {
+            $data = $this->dataExchangeService->getCaseById($id);
+            return response()->json([
+                'success' => true,
+                'resource' => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update case data
+     */
+    public function updateCase(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'referral_source_code' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $result = $this->dataExchangeService->updateCase($id, $request->all());
+            return response()->json([
+                'success' => true,
+                'message' => 'Case updated successfully',
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update case: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete case
+     */
+    public function deleteCase($id)
+    {
+        try {
+            $result = $this->dataExchangeService->deleteCase($id);
+            return response()->json([
+                'success' => true,
+                'message' => 'Case deleted successfully',
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete case: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get session data by ID for update form
+     */
+    public function getSession($id)
+    {
+        try {
+            // We need the case_id to get session data, but for now let's try without it
+            // In a real implementation, you might need to pass case_id as well
+            $data = $this->dataExchangeService->getSessionById($id, null);
+            return response()->json([
+                'success' => true,
+                'resource' => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update session data
+     */
+    public function updateSession(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'session_status' => 'nullable|string',
+            'duration_minutes' => 'nullable|integer|min:1',
+            'notes' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $result = $this->dataExchangeService->updateSession($id, $request->all());
+            return response()->json([
+                'success' => true,
+                'message' => 'Session updated successfully',
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update session: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete session
+     */
+    public function deleteSession($id)
+    {
+        try {
+            $result = $this->dataExchangeService->deleteSession($id);
+            return response()->json([
+                'success' => true,
+                'message' => 'Session deleted successfully',
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete session: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Show clients index page
+     */
+    public function clientsIndex(Request $request)
+    {
+        try {
+            $filters = $this->buildFilters($request);
+            $loading = false;
+            $clients = [];
+            $debugInfo = [];
+
+            // Load data with default filters
+            try {
+                $rawData = $this->dataExchangeService->getClientData($filters);
+                
+                $debugInfo['raw_data_type'] = gettype($rawData);
+                $debugInfo['filters_applied'] = $filters;
+                
+                // Convert to array if it's an object
+                if (is_object($rawData)) {
+                    $rawData = json_decode(json_encode($rawData), true);
+                }
+                
+                $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
+                
+                // Handle different response structures - be more flexible
+                $clients = $this->extractClientsFromResponse($rawData);
+                
+                $debugInfo['final_clients_count'] = count($clients);
+                $debugInfo['sample_client'] = !empty($clients) ? array_slice($clients, 0, 1) : null;
+                
+            } catch (\Exception $e) {
+                $debugInfo = [
+                    'error' => $e->getMessage(),
+                    'filters_applied' => $filters,
+                    'stack_trace' => $e->getTraceAsString()
+                ];
+                Log::error('Failed to load clients: ' . $e->getMessage());
+                
+                // Add sample data for testing when API fails (only in debug mode)
+                if (config('app.debug', false)) {
+                    $clients = $this->getSampleClients();
+                    $debugInfo['using_sample_data'] = true;
+                }
+            }
+
+            // Enable debug info only when needed (set to false for production)
+            $debugInfo['view_debug'] = config('app.debug', false);
+
+            return view('data-exchange.clients.index', compact('clients', 'loading', 'debugInfo'));
+        } catch (\Exception $e) {
+            return view('data-exchange.clients.index', [
+                'clients' => [],
+                'loading' => false,
+                'debugInfo' => ['controller_error' => $e->getMessage()]
+            ])->with('error', 'Failed to load clients: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Extract clients from various response structures
+     */
+    private function extractClientsFromResponse($data)
+    {
+        if (empty($data)) {
+            return [];
+        }
+
+        // If it's already an array of clients (has numeric keys)
+        if (is_array($data) && isset($data[0])) {
+            return $data;
+        }
+
+        // Check various nested structures
+        $possiblePaths = [
+            'Clients.Client',
+            'Client',
+            'clients',
+            'data'
+        ];
+
+        foreach ($possiblePaths as $path) {
+            $result = data_get($data, $path);
+            if (!empty($result)) {
+                // If single item, wrap in array
+                if (!is_array($result) || (is_array($result) && !isset($result[0]))) {
+                    return [$result];
+                }
+                return $result;
+            }
+        }
+
+        // If we have some data but couldn't extract it through normal paths
+        if (is_array($data)) {
+            // Check if this looks like a single client record
+            if (isset($data['client_id']) || isset($data['ClientId']) || 
+                isset($data['first_name']) || isset($data['FirstName'])) {
+                return [$data];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Show cases index page
+     */
+    public function casesIndex(Request $request)
+    {
+        try {
+            $filters = $this->buildFilters($request);
+            $loading = false;
+            $cases = [];
+            $debugInfo = [];
+            $outletActivities = [];
+
+            // Get outlet activities for filter dropdown
+            try {
+                $outletActivitiesResult = $this->dataExchangeService->getOutletActivities();
+                if (isset($outletActivitiesResult->OutletActivities->OutletActivity)) {
+                    $outletActivities = $outletActivitiesResult->OutletActivities->OutletActivity;
+                    if (!is_array($outletActivities)) {
+                        $outletActivities = [$outletActivities];
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to load outlet activities: ' . $e->getMessage());
+            }
+
+            // Load data with default filters
+            try {
+                $rawData = $this->dataExchangeService->fetchFullCaseData($filters);
+                
+                $debugInfo['raw_data_type'] = gettype($rawData);
+                $debugInfo['filters_applied'] = $filters;
+                
+                // Convert to array if it's an object
+                if (is_object($rawData)) {
+                    $rawData = json_decode(json_encode($rawData), true);
+                }
+                
+                $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
+                
+                // Handle different response structures - be more flexible
+                $cases = $this->extractCasesFromResponse($rawData);
+                
+                $debugInfo['final_cases_count'] = count($cases);
+                $debugInfo['sample_case'] = !empty($cases) ? array_slice($cases, 0, 1) : null;
+
+            } catch (\Exception $e) {
+                $debugInfo = [
+                    'error' => $e->getMessage(),
+                    'filters_applied' => $filters,
+                    'stack_trace' => $e->getTraceAsString()
+                ];
+                Log::error('Failed to load cases: ' . $e->getMessage());
+                
+                // Add sample data for testing when API fails (only in debug mode)
+                if (config('app.debug', false)) {
+                    $cases = $this->getSampleCases();
+                    $debugInfo['using_sample_data'] = true;
+                }
+            }
+
+            // Enable debug info only when needed (set to false for production)
+            $debugInfo['view_debug'] = config('app.debug', false);
+
+            return view('data-exchange.cases.index', compact('cases', 'loading', 'debugInfo', 'outletActivities'));
+        } catch (\Exception $e) {
+            return view('data-exchange.cases.index', [
+                'cases' => [],
+                'loading' => false,
+                'debugInfo' => ['controller_error' => $e->getMessage()],
+                'outletActivities' => []
+            ])->with('error', 'Failed to load cases: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Extract cases from various response structures
+     */
+    private function extractCasesFromResponse($data)
+    {
+        if (empty($data)) {
+            return [];
+        }
+
+        // If it's already an array of cases (has numeric keys)
+        if (is_array($data) && isset($data[0])) {
+            return $data;
+        }
+
+        // Check various nested structures
+        $possiblePaths = [
+            'Cases.Case',
+            'Case',
+            'cases',
+            'data'
+        ];
+
+        foreach ($possiblePaths as $path) {
+            $result = data_get($data, $path);
+            if (!empty($result)) {
+                // If single item, wrap in array
+                if (!is_array($result) || (is_array($result) && !isset($result[0]))) {
+                    return [$result];
+                }
+                return $result;
+            }
+        }
+
+        // If we have some data but couldn't extract it through normal paths
+        if (is_array($data)) {
+            // Check if this looks like a single case record
+            if (isset($data['case_id']) || isset($data['CaseId']) || 
+                isset($data['client_id']) || isset($data['ClientId'])) {
+                return [$data];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Show sessions index page
+     */
+    public function sessionsIndex(Request $request)
+    {
+        try {
+            $filters = $this->buildFilters($request);
+            
+            // For sessions, set a default date range to get some data
+            if (empty($filters['case_id']) && !$request->has('case_id') && empty($request->all())) {
+                $filters['date_from'] = now()->subDays(30)->format('Y-m-d');
+            }
+            
+            $loading = false;
+            $sessions = [];
+            $debugInfo = [];
+            $serviceTypes = [];
+
+            // Get service types for filter dropdown (if available)
+            try {
+                $serviceTypes = [
+                    (object)['ServiceTypeId' => '5', 'ServiceTypeName' => 'Counselling'],
+                    (object)['ServiceTypeId' => '1', 'ServiceTypeName' => 'Assessment'],
+                    (object)['ServiceTypeId' => '2', 'ServiceTypeName' => 'Support Group'],
+                    (object)['ServiceTypeId' => '3', 'ServiceTypeName' => 'Case Management'],
+                ];
+            } catch (\Exception $e) {
+                Log::error('Failed to load service types: ' . $e->getMessage());
+            }
+
+            // Load data with filters
+            try {
+                $rawData = $this->dataExchangeService->fetchFullSessionData($filters);
+                
+                $debugInfo['raw_data_type'] = gettype($rawData);
+                $debugInfo['filters_applied'] = $filters;
+                
+                // Convert to array if it's an object
+                if (is_object($rawData)) {
+                    $rawData = json_decode(json_encode($rawData), true);
+                }
+                
+                $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
+                
+                // Handle different response structures - be more flexible
+                $sessions = $this->extractSessionsFromResponse($rawData);
+                
+                $debugInfo['final_sessions_count'] = count($sessions);
+                $debugInfo['sample_session'] = !empty($sessions) ? array_slice($sessions, 0, 1) : null;
+
+            } catch (\Exception $e) {
+                $debugInfo = [
+                    'error' => $e->getMessage(),
+                    'filters_applied' => $filters,
+                    'stack_trace' => $e->getTraceAsString()
+                ];
+                Log::error('Failed to load sessions: ' . $e->getMessage());
+                
+                // Add sample data for testing when API fails (only in debug mode)
+                if (config('app.debug', false)) {
+                    $sessions = $this->getSampleSessions();
+                    $debugInfo['using_sample_data'] = true;
+                }
+            }
+
+            // Enable debug info only when needed (set to false for production)
+            $debugInfo['view_debug'] = config('app.debug', false);
+
+            return view('data-exchange.sessions.index', compact('sessions', 'loading', 'debugInfo', 'serviceTypes'));
+        } catch (\Exception $e) {
+            return view('data-exchange.sessions.index', [
+                'sessions' => [],
+                'loading' => false,
+                'debugInfo' => ['controller_error' => $e->getMessage()],
+                'serviceTypes' => []
+            ])->with('error', 'Failed to load sessions: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Extract sessions from various response structures
+     */
+    private function extractSessionsFromResponse($data)
+    {
+        if (empty($data)) {
+            return [];
+        }
+
+        // If it's already an array of sessions (has numeric keys)
+        if (is_array($data) && isset($data[0])) {
+            return $data;
+        }
+
+        // Check various nested structures
+        $possiblePaths = [
+            'Sessions.Session',
+            'Session',
+            'sessions',
+            'data'
+        ];
+
+        foreach ($possiblePaths as $path) {
+            $result = data_get($data, $path);
+            if (!empty($result)) {
+                // If single item, wrap in array
+                if (!is_array($result) || (is_array($result) && !isset($result[0]))) {
+                    return [$result];
+                }
+                return $result;
+            }
+        }
+
+        // If we have some data but couldn't extract it through normal paths
+        if (is_array($data)) {
+            // Check if this looks like a single session record
+            if (isset($data['session_id']) || isset($data['SessionId']) || 
+                isset($data['case_id']) || isset($data['CaseId'])) {
+                return [$data];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Get sample clients for testing table component
+     */
+    private function getSampleClients()
+    {
+        return [
+            [
+                'client_id' => 'CLIENT_001',
+                'first_name' => 'John',
+                'last_name' => 'Doe',
+                'date_of_birth' => '1990-05-15',
+                'gender' => 'M',
+                'state' => 'NSW',
+                'postal_code' => '2000',
+                'client_type' => 'Individual',
+                'suburb' => 'Sydney',
+                'country_of_birth' => 'AUS',
+                'primary_language' => 'ENG',
+                'indigenous_status' => 'N'
+            ],
+            [
+                'client_id' => 'CLIENT_002',
+                'first_name' => 'Jane',
+                'last_name' => 'Smith',
+                'date_of_birth' => '1985-09-22',
+                'gender' => 'F',
+                'state' => 'VIC',
+                'postal_code' => '3000',
+                'client_type' => 'Individual',
+                'suburb' => 'Melbourne',
+                'country_of_birth' => 'AUS',
+                'primary_language' => 'ENG',
+                'indigenous_status' => 'N'
+            ],
+            [
+                'client_id' => 'CLIENT_003',
+                'first_name' => 'Bob',
+                'last_name' => 'Wilson',
+                'date_of_birth' => '1978-12-03',
+                'gender' => 'M',
+                'state' => 'QLD',
+                'postal_code' => '4000',
+                'client_type' => 'Family',
+                'suburb' => 'Brisbane',
+                'country_of_birth' => 'UK',
+                'primary_language' => 'ENG',
+                'indigenous_status' => 'U'
+            ]
+        ];
+    }
+
+    /**
+     * Get sample cases for testing table component
+     */
+    private function getSampleCases()
+    {
+        return [
+            [
+                'case_id' => 'CASE_001',
+                'client_id' => 'CLIENT_001',
+                'outlet_activity_id' => '61936',
+                'referral_source_code' => 'SELF',
+                'client_attendance_profile_code' => 'INDIVIDUAL',
+                'end_date' => '2024-01-15',
+                'exit_reason_code' => 'COMPLETED',
+                'total_unidentified_clients' => 0
+            ],
+            [
+                'case_id' => 'CASE_002',
+                'client_id' => 'CLIENT_002',
+                'outlet_activity_id' => '61937',
+                'referral_source_code' => 'GP',
+                'client_attendance_profile_code' => 'FAMILY',
+                'end_date' => null,
+                'exit_reason_code' => null,
+                'total_unidentified_clients' => 1
+            ],
+            [
+                'case_id' => 'CASE_003',
+                'client_id' => 'CLIENT_003',
+                'outlet_activity_id' => '61936',
+                'referral_source_code' => 'COMMUNITY',
+                'client_attendance_profile_code' => 'PSGROUP',
+                'end_date' => '2023-12-20',
+                'exit_reason_code' => 'VOLUNTARY',
+                'total_unidentified_clients' => 0
+            ]
+        ];
+    }
+
+    /**
+     * Get sample sessions for testing table component
+     */
+    private function getSampleSessions()
+    {
+        return [
+            [
+                'session_id' => 'SESSION_001',
+                'case_id' => 'CASE_001',
+                'service_type_id' => '5',
+                'session_date' => '2024-01-10',
+                'duration_minutes' => 60,
+                'session_status' => 'Completed',
+                'location' => 'Office Room 1',
+                'outcome' => 'Positive',
+                'notes' => 'Initial counselling session went well. Client is engaged.'
+            ],
+            [
+                'session_id' => 'SESSION_002',
+                'case_id' => 'CASE_002',
+                'service_type_id' => '1',
+                'session_date' => '2024-01-12',
+                'duration_minutes' => 45,
+                'session_status' => 'Scheduled',
+                'location' => 'Community Center',
+                'outcome' => 'Ongoing',
+                'notes' => 'Assessment session scheduled for next week.'
+            ],
+            [
+                'session_id' => 'SESSION_003',
+                'case_id' => 'CASE_001',
+                'service_type_id' => '5',
+                'session_date' => '2024-01-08',
+                'duration_minutes' => 90,
+                'session_status' => 'No Show',
+                'location' => 'Office Room 2',
+                'outcome' => 'Challenging',
+                'notes' => 'Client did not attend scheduled session.'
+            ]
+        ];
     }
 }

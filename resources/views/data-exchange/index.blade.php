@@ -54,9 +54,19 @@
                     <h5 class="card-title">Retrieve Data</h5>
                     <p class="card-text">Retrieve, filter, and download data in JSON, XML, or CSV formats</p>
                     <div class="d-grid gap-2">
-                        <a href="{{ route('data-exchange.retrieve-form') }}" class="btn btn-success">Go to Data
-                            Retrieval</a>
-                        <small class="text-muted mt-2">Export clients, services, reports & more</small>
+                        <a href="{{ route('data-exchange.retrieve-form') }}" class="btn btn-success">Search & Retrieve</a>
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ route('data-exchange.clients.index') }}" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-users"></i> Clients
+                            </a>
+                            <a href="{{ route('data-exchange.cases.index') }}" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-folder-open"></i> Cases
+                            </a>
+                            <a href="{{ route('data-exchange.sessions.index') }}" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-calendar-alt"></i> Sessions
+                            </a>
+                        </div>
+                        <small class="text-muted mt-2">Browse by resource type or search specific records</small>
                     </div>
                 </div>
             </div>

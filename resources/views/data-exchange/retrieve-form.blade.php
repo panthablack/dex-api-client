@@ -337,6 +337,15 @@
                             <div class="xml-container">
                                 <pre><code id="dataContent">{{ is_string(session('data')) ? session('data') : json_encode(session('data'), JSON_PRETTY_PRINT) }}</code></pre>
                             </div>
+                            
+                            {{-- Show resource actions if we have individual resource data --}}
+                            @if (session('resource_type') && in_array(session('resource_type'), ['client_by_id', 'case_by_id', 'session_by_id']) && session('resource_id'))
+                                <x-resource-actions 
+                                    :resource-type="str_replace('_by_id', '', session('resource_type'))"
+                                    :resource-data="session('data')"
+                                    :resource-id="session('resource_id')"
+                                />
+                            @endif
                         @endif
 
                         @if (session('request'))

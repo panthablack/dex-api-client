@@ -2825,4 +2825,88 @@ class DataExchangeService
 
         return $this->soapClient->call('GetOutletActivities', $parameters);
     }
+
+    /**
+     * Update client data
+     */
+    public function updateClient($clientId, $clientData)
+    {
+        $parameters = [
+            'Client' => array_merge(
+                $this->formatClientData($clientData),
+                ['ClientId' => $clientId]
+            )
+        ];
+
+        return $this->soapClient->call('UpdateClient', $parameters);
+    }
+
+    /**
+     * Delete client
+     */
+    public function deleteClient($clientId)
+    {
+        $parameters = [
+            'ClientId' => $clientId,
+            'OrganisationId' => config('soap.dss.organisation_id')
+        ];
+
+        return $this->soapClient->call('DeleteClient', $parameters);
+    }
+
+    /**
+     * Update case data
+     */
+    public function updateCase($caseId, $caseData)
+    {
+        $parameters = [
+            'Case' => array_merge(
+                $this->formatCaseData($caseData),
+                ['CaseId' => $caseId]
+            )
+        ];
+
+        return $this->soapClient->call('UpdateCase', $parameters);
+    }
+
+    /**
+     * Delete case
+     */
+    public function deleteCase($caseId)
+    {
+        $parameters = [
+            'CaseId' => $caseId,
+            'OrganisationId' => config('soap.dss.organisation_id')
+        ];
+
+        return $this->soapClient->call('DeleteCase', $parameters);
+    }
+
+    /**
+     * Update session data
+     */
+    public function updateSession($sessionId, $sessionData)
+    {
+        $parameters = [
+            'Session' => array_merge(
+                $this->formatSessionData($sessionData),
+                ['SessionId' => $sessionId]
+            )
+        ];
+
+        return $this->soapClient->call('UpdateSession', $parameters);
+    }
+
+    /**
+     * Delete session
+     */
+    public function deleteSession($sessionId)
+    {
+        $parameters = [
+            'SessionId' => $sessionId,
+            'OrganisationId' => config('soap.dss.organisation_id')
+        ];
+
+        return $this->soapClient->call('DeleteSession', $parameters);
+    }
 }
