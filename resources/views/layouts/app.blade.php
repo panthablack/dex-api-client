@@ -19,7 +19,26 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
+        [x-cloak] {
+            display: none !important;
+        }
+        
+        .btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+        
+        .fa-spin {
+            animation: fa-spin 1s infinite linear;
+        }
+        
+        @keyframes fa-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         .xml-container {
             max-height: 400px;
             overflow-y: auto;
