@@ -4,11 +4,11 @@
     $totalRecords = count($results);
     $successfulRecords = collect($results)->where('status', 'success')->count();
     $failedRecords = collect($results)->where('status', 'error')->count();
-    
+
     $typeLabels = [
         'clients' => 'Client',
-        'cases' => 'Case', 
-        'sessions' => 'Session'
+        'cases' => 'Case',
+        'sessions' => 'Session',
     ];
     $typeLabel = $typeLabels[$type] ?? 'Record';
 @endphp

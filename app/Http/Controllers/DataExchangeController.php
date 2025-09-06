@@ -123,7 +123,14 @@ class DataExchangeController extends Controller
     public function showSessionForm()
     {
         $sampleData = $this->dataExchangeService->generateSampleSessionData();
-        return view('data-exchange.session-form', compact('sampleData'));
+
+        // TODO: Get actual ServiceTypeId values from GetOrganisationActivities API
+        // For now, using example ServiceTypeId from DSS spec
+        $serviceTypes = [
+            (object) ['ServiceTypeId' => 5, 'ServiceTypeName' => 'Counselling']
+        ];
+
+        return view('data-exchange.session-form', compact('sampleData', 'serviceTypes'));
     }
 
     /**
@@ -241,8 +248,8 @@ class DataExchangeController extends Controller
         $validator = Validator::make($request->all(), [
             'session_id' => 'required|string|max:50',
             'case_id' => 'required|string|max:50',
-            'session_type' => 'required|string|max:100',
-            'session_date' => 'required|date',
+            'service_type_id' => 'required|integer',
+            'session_date' => 'required|date|after_or_equal:' . now()->subDays(60)->format('Y-m-d') . '|before_or_equal:today',
             'duration_minutes' => 'required|integer|min:1',
             'location' => 'nullable|string|max:200',
             'session_status' => 'nullable|string|max:50'
@@ -636,7 +643,6 @@ class DataExchangeController extends Controller
             'case_status',
             'case_type',
             'session_id',
-            'session_type',
             'session_status',
             'service_type',
             'service_start_date',
@@ -1005,7 +1011,7 @@ class DataExchangeController extends Controller
         return [
             'session_id' => $rowData['session_id'] ?? null,
             'case_id' => $rowData['case_id'] ?? null,
-            'session_type' => $rowData['session_type'] ?? null,
+            'service_type_id' => $rowData['service_type_id'] ?? null,
             'session_date' => $rowData['session_date'] ?? null,
             'duration_minutes' => intval($rowData['duration_minutes'] ?? 0),
             'location' => $rowData['location'] ?? null,
