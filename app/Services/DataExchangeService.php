@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\ReferenceData;
 use App\Services\SoapClientService;
 use Illuminate\Support\Facades\Log;
 
@@ -483,18 +484,112 @@ class DataExchangeService
      */
     protected function formatSessionData($data)
     {
-        return [
+        $formatted = [
             'SessionId' => $data['session_id'] ?? null,
-            'CaseId' => $data['case_id'] ?? null,
-            'SessionType' => $data['session_type'] ?? null,
             'SessionDate' => $this->formatDate($data['session_date'] ?? null),
-            'DurationMinutes' => $data['duration_minutes'] ?? null,
-            'Location' => $data['location'] ?? null,
-            'SessionStatus' => $data['session_status'] ?? null,
-            'Notes' => $data['notes'] ?? null,
-            'Attendees' => $data['attendees'] ?? null,
-            'Outcome' => $data['outcome'] ?? null,
         ];
+
+        // Mandatory fields
+        if (isset($data['service_type_id']) && is_numeric($data['service_type_id'])) {
+            $formatted['ServiceTypeId'] = (int) $data['service_type_id'];
+        } else {
+            $formatted['ServiceTypeId'] = 5;
+        }
+
+        if (isset($data['fees_charged'])) {
+            $formatted['TotalNumberOfUnidentifiedClients'] = (int) $data['total_number_of_unidentified_clients'];
+        } else {
+            // Must always be set when no clients are passed so defaulting to 1
+            $formatted['TotalNumberOfUnidentifiedClients'] = 1;
+        }
+
+        // Optional fields
+        if (isset($data['fees_charged'])) {
+            $formatted['FeesCharged'] = (float) $data['fees_charged'];
+        }
+
+        if (isset($data['money_business_community_education_workshop_code'])) {
+            $formatted['MoneyBusinessCommunityEducationWorkshopCode'] = $data['money_business_community_education_workshop_code'];
+        }
+
+        if (isset($data['interpreter_present'])) {
+            $formatted['InterpreterPresent'] = (bool) $data['interpreter_present'];
+        }
+
+        if (isset($data['extra_items']) && is_array($data['extra_items'])) {
+            $formatted['ExtraItems'] = [];
+            foreach ($data['extra_items'] as $item) {
+                if (isset($item['extra_item_code'])) {
+                    $formatted['ExtraItems'][] = ['ExtraItemCode' => $item['extra_item_code']];
+                }
+            }
+        }
+
+        if (isset($data['quantity'])) {
+            $formatted['Quantity'] = (int) $data['quantity'];
+        }
+
+        // Handle both 'time' (DSS field) and 'duration_minutes' (form field)
+        // This doesn't work with the activity type we know works at the moment
+        // if (isset($data['time'])) {
+        //     $formatted['Time'] = (int) $data['time'];
+        // } elseif (isset($data['duration_minutes'])) {
+        //     $formatted['Time'] = (int) $data['duration_minutes'];
+        // }
+
+        if (isset($data['total_cost'])) {
+            $formatted['TotalCost'] = (int) $data['total_cost'];
+        }
+
+        if (isset($data['topic_code'])) {
+            $formatted['TopicCode'] = $data['topic_code'];
+        }
+
+        if (isset($data['service_setting_code'])) {
+            $formatted['ServiceSettingCode'] = $data['service_setting_code'];
+        }
+
+        if (isset($data['hardship_type_code'])) {
+            $formatted['HardshipTypeCode'] = $data['hardship_type_code'];
+        }
+
+        if (isset($data['external_referral_destination_code'])) {
+            $formatted['ExternalReferralDestinationCode'] = $data['external_referral_destination_code'];
+        }
+
+        // Clients array
+        if (isset($data['clients']) && is_array($data['clients'])) {
+            $formatted['Clients'] = [];
+            foreach ($data['clients'] as $client) {
+                $sessionClient = [
+                    'ClientId' => $client['client_id'] ?? null,
+                    'ParticipationCode' => $client['participation_code'] ?? null,
+                ];
+
+                // Client referral out with purpose
+                if (isset($client['client_referral_out_with_purpose']) && is_array($client['client_referral_out_with_purpose'])) {
+                    $sessionClient['ClientReferralOutWithPurpose'] = [];
+                    foreach ($client['client_referral_out_with_purpose'] as $referral) {
+                        $referralFormatted = [
+                            'TypeCode' => $referral['type_code'] ?? null,
+                        ];
+
+                        if (isset($referral['purpose_codes']) && is_array($referral['purpose_codes'])) {
+                            $referralFormatted['PurposeCodes'] = [];
+                            foreach ($referral['purpose_codes'] as $purposeCode) {
+                                $referralFormatted['PurposeCodes'][] = ['PurposeCode' => $purposeCode];
+                            }
+                        }
+
+                        $sessionClient['ClientReferralOutWithPurpose'][] = ['Referral' => $referralFormatted];
+                    }
+                }
+
+                $formatted['Clients'][] = ['SessionClient' => $sessionClient];
+            }
+        }
+
+        return $formatted;
     }
 
     /**
@@ -771,7 +866,9 @@ class DataExchangeService
         $fake = fake();
 
         // Available outlet activity IDs from your system
-        $outletActivityIds = [61932, 61936, 61933, 61937, 61935, 61934];
+        // $outletActivityIds = [61932, 61936, 61933, 61937, 61935, 61934];
+        // This is the only activity type we know works at the moment.
+        $outletActivityIds = [61936];
 
         // Use provided client ID, or get a real one from the system, or fallback to fake
         $selectedClientId = $clientId;
@@ -842,26 +939,39 @@ class DataExchangeService
     }
 
     /**
+     * Returns a random service type
+     */
+    public function getRandomServiceType()
+    {
+        $serviceTypes = ReferenceData::serviceTypes();
+        return $serviceTypes[random_int(1, count($serviceTypes) - 1)];
+    }
+
+    /**
      * Generate sample session data for testing using Laravel's fake() helper
      */
     public function generateSampleSessionData($caseId = null)
     {
         $fake = fake();
 
-        return [
+        // Use provided case ID, or get a real one from the system, or fallback to fake
+        $selectedCaseId = $caseId;
+        if (!$selectedCaseId) {
+            $existingCaseIds = $this->getExistingCaseIds();
+            if (!empty($existingCaseIds)) {
+                $selectedCaseId = $fake->randomElement($existingCaseIds);
+            } else {
+                // Fallback to fake case ID if no real ones available
+                $selectedCaseId = 'CASE_' . $fake->numberBetween(1000, 9999);
+            }
+        }
+
+        $sessionData = [
             'session_id' => 'SESSION_' . $fake->unique()->numberBetween(1000, 9999),
-            'case_id' => $caseId ?? 'CASE_' . $fake->numberBetween(1000, 9999),
-            'session_type' => $fake->randomElement([
-                'Individual Counselling',
-                'Family Therapy',
-                'Group Session',
-                'Assessment',
-                'Follow-up',
-                'Crisis Intervention',
-                'Skills Training',
-                'Support Planning'
-            ]),
-            'session_date' => $fake->dateTimeBetween('-6 months', '+1 month')->format('Y-m-d'),
+            'case_id' => $selectedCaseId,
+            'session_date' => $fake->dateTimeBetween('-60 days', 'now')->format('Y-m-d'),
+            // Get valid service type and use both ID and name
+            'service_type_id' => 5, // Hardcoded to Counselling as requested
             'duration_minutes' => $fake->randomElement([30, 45, 60, 90, 120]),
             'location' => $fake->randomElement([
                 'Office Room 1',
@@ -888,6 +998,86 @@ class DataExchangeService
                 'Emergency Response'
             ])
         ];
+
+        // Always add this in as it will cause issues if clients aren't added
+        $sessionData['total_number_of_unidentified_clients'] = $fake->numberBetween(1, 5);
+
+        // Optional DSS fields (added randomly)
+
+        if ($fake->boolean(60)) {
+            $sessionData['fees_charged'] = $fake->randomFloat(2, 0, 1000);
+        }
+
+        if ($fake->boolean(30)) {
+            $sessionData['money_business_community_education_workshop_code'] = 'WRK0' . $fake->numberBetween(1, 9);
+        }
+
+        if ($fake->boolean(40)) {
+            $sessionData['interpreter_present'] = $fake->boolean();
+        }
+
+        if ($fake->boolean(50)) {
+            $sessionData['extra_items'] = [
+                ['extra_item_code' => $fake->randomElement(['KITCHEN', 'TRANSPORT', 'CHILDCARE', 'MATERIALS'])]
+            ];
+        }
+
+        if ($fake->boolean(80)) {
+            $sessionData['quantity'] = $fake->numberBetween(1, 10);
+        }
+
+        // This doesn't work with the activity type we know works at the moment
+        // if ($fake->boolean(80)) {
+        //     $sessionData['time'] = $fake->randomElement([30, 45, 60, 90, 120]);
+        // }
+
+        if ($fake->boolean(60)) {
+            $sessionData['total_cost'] = $fake->numberBetween(50, 500);
+        }
+
+        if ($fake->boolean(70)) {
+            $sessionData['topic_code'] = $fake->randomElement(['ABUSENEGLECT', 'FINANCIAL', 'LEGAL', 'FAMILY', 'HOUSING']);
+        }
+
+        if ($fake->boolean(70)) {
+            $sessionData['service_setting_code'] = $fake->randomElement(['COMMVENUE', 'OFFICE', 'HOME', 'PHONE', 'VIDEO']);
+        }
+
+        if ($fake->boolean(40)) {
+            $sessionData['hardship_type_code'] = $fake->randomElement(['DROUGHT', 'FLOOD', 'FIRE', 'ECONOMIC', 'HEALTH']);
+        }
+
+        if ($fake->boolean(30)) {
+            $sessionData['external_referral_destination_code'] = $fake->randomElement(['LEGAL', 'MEDICAL', 'FINANCIAL', 'HOUSING']);
+        }
+
+        // Generate clients for the session
+        if ($fake->boolean(80)) {
+            $sessionData['clients'] = [];
+            $clientCount = $fake->numberBetween(1, 3);
+            for ($i = 0; $i < $clientCount; $i++) {
+                $client = [
+                    'client_id' => 'CL' . str_pad($fake->numberBetween(1, 9999), 4, '0', STR_PAD_LEFT),
+                    'participation_code' => $fake->randomElement(['Client', 'Support Person', 'Advocate', 'Interpreter']),
+                ];
+
+                // Add referrals sometimes
+                if ($fake->boolean(40)) {
+                    $client['client_referral_out_with_purpose'] = [
+                        [
+                            'type_code' => $fake->randomElement(['Internal', 'External']),
+                            'purpose_codes' => [
+                                $fake->randomElement(['PERSONAL', 'FINANCIAL', 'LEGAL', 'HOUSING', 'HEALTH'])
+                            ]
+                        ]
+                    ];
+                }
+
+                $sessionData['clients'][] = $client;
+            }
+        }
+
+        return $sessionData;
     }
 
     /**
@@ -1736,9 +1926,6 @@ class DataExchangeService
         if (!empty($filters['client_id'])) {
             $criteria['ClientId'] = $filters['client_id'];
         }
-        if (!empty($filters['session_type'])) {
-            $criteria['SessionType'] = $filters['session_type'];
-        }
         if (!empty($filters['service_type'])) {
             $criteria['ServiceType'] = $filters['service_type'];
         }
@@ -2346,6 +2533,66 @@ class DataExchangeService
     }
 
     /**
+     * Get existing case IDs from DSS system for use in fake data generation
+     */
+    protected function getExistingCaseIds($limit = 50)
+    {
+        static $cachedCaseIds = null;
+
+        if ($cachedCaseIds === null) {
+            try {
+                // Search for cases with minimal criteria to get a broad set
+                $searchResult = $this->getCaseData([
+                    'page_index' => 1,
+                    'page_size' => $limit,
+                    'sort_column' => 'CaseId',
+                    'is_ascending' => true
+                ]);
+
+                $caseIds = [];
+
+                // Convert objects to arrays for consistent handling
+                if (is_object($searchResult)) {
+                    $searchResult = json_decode(json_encode($searchResult), true);
+                }
+
+                // Extract case IDs from the response
+                if (isset($searchResult['Cases']['Case'])) {
+                    $cases = $searchResult['Cases']['Case'];
+                    // Ensure it's an array (single case comes as object)
+                    if (!is_array($cases) || (is_array($cases) && isset($cases['CaseId']))) {
+                        $cases = [$cases];
+                    }
+
+                    foreach ($cases as $case) {
+                        if (isset($case['CaseId']) && !empty($case['CaseId'])) {
+                            $caseIds[] = $case['CaseId'];
+                        } elseif (isset($case['CaseDetail']['CaseId']) && !empty($case['CaseDetail']['CaseId'])) {
+                            $caseIds[] = $case['CaseDetail']['CaseId'];
+                        }
+                    }
+                }
+
+                $cachedCaseIds = !empty($caseIds) ? $caseIds : false;
+
+                if ($cachedCaseIds) {
+                    Log::info('Retrieved existing case IDs for fake data', [
+                        'count' => count($cachedCaseIds),
+                        'sample_ids' => array_slice($cachedCaseIds, 0, 5)
+                    ]);
+                } else {
+                    Log::warning('No existing case IDs found in DSS system');
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to fetch existing case IDs: ' . $e->getMessage());
+                $cachedCaseIds = false; // Cache the failure
+            }
+        }
+
+        return $cachedCaseIds ?: [];
+    }
+
+    /**
      * Generate multiple fake client records for bulk upload
      */
     public function generateFakeClientData($count = 10)
@@ -2546,9 +2793,8 @@ class DataExchangeService
     public function submitSessionData($sessionData)
     {
         $parameters = [
-            'Session' => $this->formatSessionData($sessionData),
             'CaseId' => $sessionData['case_id'],
-            'SessionId' => $sessionData['session_id'],
+            'Session' => $this->formatSessionData($sessionData),
         ];
 
         return $this->soapClient->call('AddSession', $parameters);

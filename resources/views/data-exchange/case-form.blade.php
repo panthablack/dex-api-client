@@ -60,23 +60,9 @@
                                             </option>
                                         @endforeach
                                     @else
-                                        <option value="61932" {{ old('outlet_activity_id') == '61932' ? 'selected' : '' }}>
-                                            Assistance with Care and Housing - testing outlet 1</option>
-                                        <option value="61936"
-                                            {{ old('outlet_activity_id') == '61936' ? 'selected' : '' }}>Community Mental
+                                        <option value="61936" selected>
+                                            Community Mental
                                             Health - A Better Life - testing outlet 1</option>
-                                        <option value="61933"
-                                            {{ old('outlet_activity_id') == '61933' ? 'selected' : '' }}>Be Connected -
-                                            testing outlet 1</option>
-                                        <option value="61937"
-                                            {{ old('outlet_activity_id') == '61937' ? 'selected' : '' }}>Equipment and
-                                            products - testing outlet 1</option>
-                                        <option value="61935"
-                                            {{ old('outlet_activity_id') == '61935' ? 'selected' : '' }}>Allied health and
-                                            therapy services - testing outlet 1</option>
-                                        <option value="61934"
-                                            {{ old('outlet_activity_id') == '61934' ? 'selected' : '' }}>Domestic
-                                            assistance - testing outlet 1</option>
                                     @endif
                                 </select>
                                 @error('outlet_activity_id')
