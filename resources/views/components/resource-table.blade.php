@@ -207,7 +207,7 @@
                     }, 500);
                 },
                 
-                viewResource(resourceType, resourceId) {
+                viewResource(resourceType, resourceId, caseId = null) {
                     this.actionLoading = 'view-' + resourceId;
                     this.modalLoading = 'view';
                     
@@ -217,18 +217,59 @@
                     const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
                     viewModal.show();
                     
-                    fetch(`/data-exchange/get-${resourceType}/${resourceId}`)
-                        .then(response => response.json())
+                    // Build URL with case ID for sessions
+                    let url = `/data-exchange/get-${resourceType}/${resourceId}`;
+                    if (resourceType === 'session' && caseId) {
+                        url += `?case_id=${caseId}`;
+                    }
+                    
+                    // Add timeout to prevent indefinite loading
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                    
+                    fetch(url, {
+                        signal: controller.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => {
+                            clearTimeout(timeoutId);
+                            
+                            if (!response.ok) {
+                                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                            }
+                            
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
-                                this.generateViewContent(resourceType, resourceId, data.resource);
+                                // Extract the actual resource data from nested structure
+                                const resourceKey = resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
+                                const resourceData = data.resource[resourceKey] || data.resource;
+                                this.generateViewContent(resourceType, resourceId, resourceData);
                             } else {
                                 this.showNotification(data.message || 'Failed to load resource data', 'error');
                                 viewModal.hide();
                             }
                         })
                         .catch(error => {
-                            this.showNotification('Error loading resource data: ' + error.message, 'error');
+                            clearTimeout(timeoutId);
+                            
+                            let errorMessage = 'Unknown error occurred';
+                            
+                            if (error.name === 'AbortError') {
+                                errorMessage = 'Request timed out. Please try again.';
+                            } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                                errorMessage = 'Network error. Please check your connection and try again.';
+                            } else if (error.message.includes('Server error')) {
+                                errorMessage = error.message;
+                            } else {
+                                errorMessage = 'Error loading resource data: ' + error.message;
+                            }
+                            
+                            this.showNotification(errorMessage, 'error');
                             viewModal.hide();
                         })
                         .finally(() => {
@@ -247,18 +288,53 @@
                     const updateModal = new bootstrap.Modal(document.getElementById('updateModal'));
                     updateModal.show();
                     
-                    fetch(`/data-exchange/get-${resourceType}/${resourceId}`)
-                        .then(response => response.json())
+                    // Add timeout to prevent indefinite loading
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                    
+                    fetch(`/data-exchange/get-${resourceType}/${resourceId}`, {
+                        signal: controller.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => {
+                            clearTimeout(timeoutId);
+                            
+                            if (!response.ok) {
+                                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                            }
+                            
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
-                                this.generateUpdateForm(resourceType, resourceId, data.resource);
+                                // Extract the actual resource data from nested structure
+                                const resourceKey = resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
+                                const resourceData = data.resource[resourceKey] || data.resource;
+                                this.generateUpdateForm(resourceType, resourceId, resourceData);
                             } else {
                                 this.showNotification(data.message || 'Failed to load resource data', 'error');
                                 updateModal.hide();
                             }
                         })
                         .catch(error => {
-                            this.showNotification('Error loading resource data: ' + error.message, 'error');
+                            clearTimeout(timeoutId);
+                            
+                            let errorMessage = 'Unknown error occurred';
+                            
+                            if (error.name === 'AbortError') {
+                                errorMessage = 'Request timed out. Please try again.';
+                            } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                                errorMessage = 'Network error. Please check your connection and try again.';
+                            } else if (error.message.includes('Server error')) {
+                                errorMessage = error.message;
+                            } else {
+                                errorMessage = 'Error loading resource data: ' + error.message;
+                            }
+                            
+                            this.showNotification(errorMessage, 'error');
                             updateModal.hide();
                         })
                         .finally(() => {
@@ -279,14 +355,28 @@
                 handleDelete(resourceType, resourceId) {
                     this.modalLoading = 'delete';
                     
+                    // Add timeout to prevent indefinite loading
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                    
                     fetch(`/data-exchange/delete-${resourceType}/${resourceId}`, {
                         method: 'DELETE',
+                        signal: controller.signal,
                         headers: {
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
                         }
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        clearTimeout(timeoutId);
+                        
+                        if (!response.ok) {
+                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                        }
+                        
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             this.showNotification(`${resourceType} deleted successfully`, 'success');
@@ -297,7 +387,21 @@
                         }
                     })
                     .catch(error => {
-                        this.showNotification('Error deleting resource: ' + error.message, 'error');
+                        clearTimeout(timeoutId);
+                        
+                        let errorMessage = 'Unknown error occurred';
+                        
+                        if (error.name === 'AbortError') {
+                            errorMessage = 'Delete operation timed out. Please try again.';
+                        } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                            errorMessage = 'Network error. Please check your connection and try again.';
+                        } else if (error.message.includes('Server error')) {
+                            errorMessage = error.message;
+                        } else {
+                            errorMessage = 'Error deleting resource: ' + error.message;
+                        }
+                        
+                        this.showNotification(errorMessage, 'error');
                     })
                     .finally(() => {
                         this.modalLoading = null;
@@ -568,14 +672,28 @@
                     submitBtn.disabled = true;
                     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
                     
+                    // Add timeout to prevent indefinite loading
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                    
                     fetch(`/data-exchange/update-${resourceType}/${resourceId}`, {
                         method: 'POST',
+                        signal: controller.signal,
                         headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Accept': 'application/json'
                         },
                         body: formData
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        clearTimeout(timeoutId);
+                        
+                        if (!response.ok) {
+                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                        }
+                        
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             this.showNotification(`${resourceType} updated successfully`, 'success');
@@ -586,7 +704,21 @@
                         }
                     })
                     .catch(error => {
-                        this.showNotification('Error updating resource: ' + error.message, 'error');
+                        clearTimeout(timeoutId);
+                        
+                        let errorMessage = 'Unknown error occurred';
+                        
+                        if (error.name === 'AbortError') {
+                            errorMessage = 'Update operation timed out. Please try again.';
+                        } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                            errorMessage = 'Network error. Please check your connection and try again.';
+                        } else if (error.message.includes('Server error')) {
+                            errorMessage = error.message;
+                        } else {
+                            errorMessage = 'Error updating resource: ' + error.message;
+                        }
+                        
+                        this.showNotification(errorMessage, 'error');
                     })
                     .finally(() => {
                         submitBtn.disabled = false;

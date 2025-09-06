@@ -1228,20 +1228,52 @@ class DataExchangeController extends Controller
     /**
      * Get session data by ID for update form
      */
-    public function getSession($id)
+    public function getSession(Request $request, $id)
     {
         try {
-            // We need the case_id to get session data, but for now let's try without it
-            // In a real implementation, you might need to pass case_id as well
-            $data = $this->dataExchangeService->getSessionById($id, null);
+            $caseId = $request->get('case_id');
+            
+            // If case_id is provided, use it directly
+            if ($caseId) {
+                $data = $this->dataExchangeService->getSessionById($id, $caseId);
+                return response()->json([
+                    'success' => true,
+                    'resource' => $data
+                ]);
+            }
+            
+            // Fallback: try to find the case_id by searching through all sessions
+            $allSessionsData = $this->dataExchangeService->getSessionData([]);
+            $foundCaseId = null;
+            
+            if (isset($allSessionsData['sessions'])) {
+                foreach ($allSessionsData['sessions'] as $session) {
+                    if (isset($session['SessionDetails']['SessionId']) && 
+                        $session['SessionDetails']['SessionId'] === $id) {
+                        $foundCaseId = $session['CaseId'] ?? null;
+                        break;
+                    }
+                }
+            }
+            
+            if ($foundCaseId) {
+                $data = $this->dataExchangeService->getSessionById($id, $foundCaseId);
+                return response()->json([
+                    'success' => true,
+                    'resource' => $data
+                ]);
+            }
+            
+            // If all else fails, return a helpful error message
             return response()->json([
-                'success' => true,
-                'resource' => $data
-            ]);
+                'success' => false,
+                'message' => 'Session retrieval requires a Case ID. Unable to find Case ID for session: ' . $id
+            ], 400);
+            
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Session retrieval failed: ' . $e->getMessage()
             ], 500);
         }
     }
