@@ -8,7 +8,7 @@
     'loading' => false
 ])
 
-<div class="card" x-data="resourceTable()">
+<div class="card" x-data="resourceTableComponent">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">{{ $title }}</h5>
         <div class="d-flex align-items-center">
@@ -50,7 +50,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($data as $item)
+                        @foreach($data as $index => $item)
                             <tr>
                                 @foreach($columns as $column)
                                     <td>
@@ -87,24 +87,19 @@
                                         <div class="btn-group btn-group-sm" role="group">
                                             <button type="button" 
                                                 class="btn btn-outline-primary btn-sm" 
-                                                x-on:click="viewResource('{{ $resourceType }}', '{{ data_get($item, $columns[0]['key']) }}')"
-                                                x-bind:disabled="actionLoading === 'view-{{ data_get($item, $columns[0]['key']) }}'"
+                                                x-on:click="viewResource('{{ $resourceType }}', {{ $index }})"
                                                 title="View Details">
-                                                <i class="fas" 
-                                                   x-bind:class="actionLoading === 'view-{{ data_get($item, $columns[0]['key']) }}' ? 'fa-spinner fa-spin' : 'fa-eye'"></i>
+                                                <i class="fas fa-eye"></i>
                                             </button>
                                             <button type="button" 
                                                 class="btn btn-outline-warning btn-sm" 
-                                                x-on:click="showUpdateForm('{{ $resourceType }}', '{{ data_get($item, $columns[0]['key']) }}')"
-                                                x-bind:disabled="actionLoading === 'update-{{ data_get($item, $columns[0]['key']) }}'"
+                                                x-on:click="showUpdateForm('{{ $resourceType }}', {{ $index }})"
                                                 title="Update">
-                                                <i class="fas" 
-                                                   x-bind:class="actionLoading === 'update-{{ data_get($item, $columns[0]['key']) }}' ? 'fa-spinner fa-spin' : 'fa-edit'"></i>
+                                                <i class="fas fa-edit"></i>
                                             </button>
                                             <button type="button" 
                                                 class="btn btn-outline-danger btn-sm" 
-                                                x-on:click="confirmDelete('{{ $resourceType }}', '{{ data_get($item, $columns[0]['key']) }}')"
-                                                x-bind:disabled="actionLoading === 'delete-{{ data_get($item, $columns[0]['key']) }}'"
+                                                x-on:click="confirmDelete('{{ $resourceType }}', {{ $index }})"
                                                 title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -131,12 +126,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="updateModalBody">
-                    <div class="text-center py-4" x-show="modalLoading === 'update'" x-cloak>
-                        <div class="spinner-border text-warning" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-2 text-muted">Loading update form...</p>
-                    </div>
                     <div id="updateModalContent">
                         <!-- Update form will be loaded here -->
                     </div>
@@ -154,12 +143,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="viewModalBody">
-                    <div class="text-center py-4" x-show="modalLoading === 'view'" x-cloak>
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-2 text-muted">Loading resource details...</p>
-                    </div>
                     <div id="viewModalContent">
                         <!-- Resource details will be loaded here -->
                     </div>
@@ -182,10 +165,9 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn" 
-                            x-bind:disabled="modalLoading === 'delete'">
-                        <i class="fas" x-bind:class="modalLoading === 'delete' ? 'fa-spinner fa-spin me-1' : 'fa-trash me-1'"></i>
-                        <span x-text="modalLoading === 'delete' ? 'Deleting...' : 'Delete'"></span>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                        <i class="fas fa-trash me-1"></i>
+                        Delete
                     </button>
                 </div>
             </div>
@@ -194,11 +176,10 @@
 
     @push('scripts')
     <script>
-        function resourceTable() {
+        function resourceTable(preloadedData) {
             return {
                 isRefreshing: false,
-                actionLoading: null,
-                modalLoading: null,
+                data: preloadedData || [],
                 
                 refreshData() {
                     this.isRefreshing = true;
@@ -207,206 +188,51 @@
                     }, 500);
                 },
                 
-                viewResource(resourceType, resourceId, caseId = null) {
-                    this.actionLoading = 'view-' + resourceId;
-                    this.modalLoading = 'view';
+                viewResource(resourceType, itemIndex) {
+                    const item = this.data[itemIndex];
+                    if (!item) {
+                        this.showNotification('Resource data not found. Please refresh the page and try again.', 'error');
+                        return;
+                    }
                     
                     document.getElementById('viewResourceType').textContent = resourceType;
-                    document.getElementById('viewModalContent').innerHTML = '';
                     
                     const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
                     viewModal.show();
                     
-                    // Build URL with case ID for sessions
-                    let url = `/data-exchange/get-${resourceType}/${resourceId}`;
-                    if (resourceType === 'session' && caseId) {
-                        url += `?case_id=${caseId}`;
-                    }
-                    
-                    // Add timeout to prevent indefinite loading
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-                    
-                    fetch(url, {
-                        signal: controller.signal,
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                        .then(response => {
-                            clearTimeout(timeoutId);
-                            
-                            if (!response.ok) {
-                                throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                            }
-                            
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success) {
-                                // Extract the actual resource data from nested structure
-                                const resourceKey = resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
-                                const resourceData = data.resource[resourceKey] || data.resource;
-                                this.generateViewContent(resourceType, resourceId, resourceData);
-                            } else {
-                                this.showNotification(data.message || 'Failed to load resource data', 'error');
-                                viewModal.hide();
-                            }
-                        })
-                        .catch(error => {
-                            clearTimeout(timeoutId);
-                            
-                            let errorMessage = 'Unknown error occurred';
-                            
-                            if (error.name === 'AbortError') {
-                                errorMessage = 'Request timed out. Please try again.';
-                            } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                                errorMessage = 'Network error. Please check your connection and try again.';
-                            } else if (error.message.includes('Server error')) {
-                                errorMessage = error.message;
-                            } else {
-                                errorMessage = 'Error loading resource data: ' + error.message;
-                            }
-                            
-                            this.showNotification(errorMessage, 'error');
-                            viewModal.hide();
-                        })
-                        .finally(() => {
-                            this.actionLoading = null;
-                            this.modalLoading = null;
-                        });
+                    this.generateViewContent(resourceType, item);
                 },
                 
-                showUpdateForm(resourceType, resourceId) {
-                    this.actionLoading = 'update-' + resourceId;
-                    this.modalLoading = 'update';
+                showUpdateForm(resourceType, itemIndex) {
+                    const item = this.data[itemIndex];
+                    if (!item) {
+                        this.showNotification('Resource data not found. Please refresh the page and try again.', 'error');
+                        return;
+                    }
                     
                     document.getElementById('updateResourceType').textContent = resourceType;
-                    document.getElementById('updateModalContent').innerHTML = '';
                     
                     const updateModal = new bootstrap.Modal(document.getElementById('updateModal'));
                     updateModal.show();
                     
-                    // Add timeout to prevent indefinite loading
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-                    
-                    fetch(`/data-exchange/get-${resourceType}/${resourceId}`, {
-                        signal: controller.signal,
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                        .then(response => {
-                            clearTimeout(timeoutId);
-                            
-                            if (!response.ok) {
-                                throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                            }
-                            
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success) {
-                                // Extract the actual resource data from nested structure
-                                const resourceKey = resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
-                                const resourceData = data.resource[resourceKey] || data.resource;
-                                this.generateUpdateForm(resourceType, resourceId, resourceData);
-                            } else {
-                                this.showNotification(data.message || 'Failed to load resource data', 'error');
-                                updateModal.hide();
-                            }
-                        })
-                        .catch(error => {
-                            clearTimeout(timeoutId);
-                            
-                            let errorMessage = 'Unknown error occurred';
-                            
-                            if (error.name === 'AbortError') {
-                                errorMessage = 'Request timed out. Please try again.';
-                            } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                                errorMessage = 'Network error. Please check your connection and try again.';
-                            } else if (error.message.includes('Server error')) {
-                                errorMessage = error.message;
-                            } else {
-                                errorMessage = 'Error loading resource data: ' + error.message;
-                            }
-                            
-                            this.showNotification(errorMessage, 'error');
-                            updateModal.hide();
-                        })
-                        .finally(() => {
-                            this.actionLoading = null;
-                            this.modalLoading = null;
-                        });
+                    this.generateUpdateForm(resourceType, itemIndex, item);
                 },
                 
-                confirmDelete(resourceType, resourceId) {
+                confirmDelete(resourceType, itemIndex) {
+                    const item = this.data[itemIndex];
+                    if (!item) {
+                        this.showNotification('Resource data not found. Please refresh the page and try again.', 'error');
+                        return;
+                    }
+                    
                     document.getElementById('deleteResourceType').textContent = resourceType;
                     
                     const confirmBtn = document.getElementById('confirmDeleteBtn');
-                    confirmBtn.onclick = () => this.handleDelete(resourceType, resourceId);
+                    confirmBtn.onclick = () => this.showNotification('Delete functionality requires backend integration. Please contact an administrator.', 'warning');
                     
                     new bootstrap.Modal(document.getElementById('deleteModal')).show();
                 },
                 
-                handleDelete(resourceType, resourceId) {
-                    this.modalLoading = 'delete';
-                    
-                    // Add timeout to prevent indefinite loading
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-                    
-                    fetch(`/data-exchange/delete-${resourceType}/${resourceId}`, {
-                        method: 'DELETE',
-                        signal: controller.signal,
-                        headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(response => {
-                        clearTimeout(timeoutId);
-                        
-                        if (!response.ok) {
-                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                        }
-                        
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            this.showNotification(`${resourceType} deleted successfully`, 'success');
-                            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
-                            setTimeout(() => window.location.reload(), 1000);
-                        } else {
-                            this.showNotification(data.message || 'Delete failed', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        clearTimeout(timeoutId);
-                        
-                        let errorMessage = 'Unknown error occurred';
-                        
-                        if (error.name === 'AbortError') {
-                            errorMessage = 'Delete operation timed out. Please try again.';
-                        } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                            errorMessage = 'Network error. Please check your connection and try again.';
-                        } else if (error.message.includes('Server error')) {
-                            errorMessage = error.message;
-                        } else {
-                            errorMessage = 'Error deleting resource: ' + error.message;
-                        }
-                        
-                        this.showNotification(errorMessage, 'error');
-                    })
-                    .finally(() => {
-                        this.modalLoading = null;
-                    });
-                },
                 
                 showNotification(message, type = 'info', duration = 5000) {
                     const existingNotification = document.getElementById('notification-toast');
@@ -432,7 +258,7 @@
                     }, duration);
                 },
                 
-                generateViewContent(resourceType, resourceId, resourceData) {
+                generateViewContent(resourceType, resourceData) {
                     const modalContent = document.getElementById('viewModalContent');
                     
                     let content = '<div class="row">';
@@ -444,17 +270,17 @@
                         content += this.generateCaseViewContent(resourceData);
                     } else if (resourceType === 'session') {
                         content += this.generateSessionViewContent(resourceData);
+                    } else {
+                        content += '<div class="col-12 text-center"><p class="text-muted">Resource details not available</p></div>';
                     }
                     
                     content += '</div>';
                     content += `
                         <div class="mt-3 d-flex justify-content-end">
-                            <button type="button" class="btn btn-warning me-2" onclick="bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide(); resourceTable().showUpdateForm('${resourceType}', '${resourceId}')">
-                                <i class="fas fa-edit"></i> Update
-                            </button>
-                            <button type="button" class="btn btn-danger" onclick="bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide(); resourceTable().confirmDelete('${resourceType}', '${resourceId}')">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
+                            <div class="alert alert-info w-100">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Update and delete functionality requires backend integration. Please contact an administrator for modifications.
+                            </div>
                         </div>
                     `;
                     
@@ -556,10 +382,15 @@
                     `;
                 },
                 
-                generateUpdateForm(resourceType, resourceId, resourceData) {
+                generateUpdateForm(resourceType, itemIndex, resourceData) {
                     const modalContent = document.getElementById('updateModalContent');
                     
-                    let formHtml = `<form id="updateForm" onsubmit="resourceTable().handleUpdate(event, '${resourceType}', '${resourceId}')">`;
+                    let formHtml = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Update functionality requires backend integration. The form below shows current data but cannot be submitted.
+                        </div>
+                        <form id="updateForm">`;
                     
                     if (resourceType === 'client') {
                         formHtml += this.generateClientUpdateFields(resourceData);
@@ -567,13 +398,15 @@
                         formHtml += this.generateCaseUpdateFields(resourceData);
                     } else if (resourceType === 'session') {
                         formHtml += this.generateSessionUpdateFields(resourceData);
+                    } else {
+                        formHtml += '<div class="text-center"><p class="text-muted">Update form not available for this resource type</p></div>';
                     }
                     
                     formHtml += `
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
-                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-warning">
-                                <i class="fas fa-save me-1"></i>Update ${resourceType}
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-warning" disabled>
+                                <i class="fas fa-save me-1"></i>Update ${resourceType} (Disabled)
                             </button>
                         </div>
                     </form>`;
@@ -662,77 +495,12 @@
                     `;
                 },
                 
-                handleUpdate(event, resourceType, resourceId) {
-                    event.preventDefault();
-                    
-                    const formData = new FormData(event.target);
-                    const submitBtn = event.target.querySelector('button[type="submit"]');
-                    const originalHtml = submitBtn.innerHTML;
-                    
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
-                    
-                    // Add timeout to prevent indefinite loading
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-                    
-                    fetch(`/data-exchange/update-${resourceType}/${resourceId}`, {
-                        method: 'POST',
-                        signal: controller.signal,
-                        headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'Accept': 'application/json'
-                        },
-                        body: formData
-                    })
-                    .then(response => {
-                        clearTimeout(timeoutId);
-                        
-                        if (!response.ok) {
-                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                        }
-                        
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            this.showNotification(`${resourceType} updated successfully`, 'success');
-                            bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
-                            setTimeout(() => window.location.reload(), 1000);
-                        } else {
-                            this.showNotification(data.message || 'Update failed', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        clearTimeout(timeoutId);
-                        
-                        let errorMessage = 'Unknown error occurred';
-                        
-                        if (error.name === 'AbortError') {
-                            errorMessage = 'Update operation timed out. Please try again.';
-                        } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                            errorMessage = 'Network error. Please check your connection and try again.';
-                        } else if (error.message.includes('Server error')) {
-                            errorMessage = error.message;
-                        } else {
-                            errorMessage = 'Error updating resource: ' + error.message;
-                        }
-                        
-                        this.showNotification(errorMessage, 'error');
-                    })
-                    .finally(() => {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalHtml;
-                    });
-                }
             };
         }
 
-        // Initialize Alpine.js data store for each table instance
-        window.resourceTableInstance = null;
-        
+        // Initialize Alpine.js component
         document.addEventListener('alpine:init', () => {
-            window.resourceTableInstance = resourceTable();
+            Alpine.data('resourceTableComponent', () => resourceTable(@json($data)));
         });
     </script>
     @endpush

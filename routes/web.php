@@ -36,18 +36,18 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     Route::get('/cases', [DataExchangeController::class, 'casesIndex'])->name('cases.index');
     Route::get('/sessions', [DataExchangeController::class, 'sessionsIndex'])->name('sessions.index');
 
-    // Resource Update and Delete Routes
-    Route::get('/get-client/{id}', [DataExchangeController::class, 'getClient'])->name('get-client');
-    Route::post('/update-client/{id}', [DataExchangeController::class, 'updateClient'])->name('update-client');
-    Route::delete('/delete-client/{id}', [DataExchangeController::class, 'deleteClient'])->name('delete-client');
+    // Resource Update and Delete Routes - Disabled for performance (use pre-loaded data in frontend)
+    // Route::get('/get-client/{id}', [DataExchangeController::class, 'getClient'])->name('get-client');
+    // Route::post('/update-client/{id}', [DataExchangeController::class, 'updateClient'])->name('update-client');
+    // Route::delete('/delete-client/{id}', [DataExchangeController::class, 'deleteClient'])->name('delete-client');
     
-    Route::get('/get-case/{id}', [DataExchangeController::class, 'getCase'])->name('get-case');
-    Route::post('/update-case/{id}', [DataExchangeController::class, 'updateCase'])->name('update-case');
-    Route::delete('/delete-case/{id}', [DataExchangeController::class, 'deleteCase'])->name('delete-case');
+    // Route::get('/get-case/{id}', [DataExchangeController::class, 'getCase'])->name('get-case');
+    // Route::post('/update-case/{id}', [DataExchangeController::class, 'updateCase'])->name('update-case');
+    // Route::delete('/delete-case/{id}', [DataExchangeController::class, 'deleteCase'])->name('delete-case');
     
-    Route::get('/get-session/{id}', [DataExchangeController::class, 'getSession'])->name('get-session');
-    Route::post('/update-session/{id}', [DataExchangeController::class, 'updateSession'])->name('update-session');
-    Route::delete('/delete-session/{id}', [DataExchangeController::class, 'deleteSession'])->name('delete-session');
+    // Route::get('/get-session/{id}', [DataExchangeController::class, 'getSession'])->name('get-session');
+    // Route::post('/update-session/{id}', [DataExchangeController::class, 'updateSession'])->name('update-session');
+    // Route::delete('/delete-session/{id}', [DataExchangeController::class, 'deleteSession'])->name('delete-session');
 
     // Status and Utility Routes
     Route::post('/submission-status', [DataExchangeController::class, 'getSubmissionStatus'])->name('submission-status');
