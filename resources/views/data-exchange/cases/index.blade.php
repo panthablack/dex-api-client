@@ -121,7 +121,7 @@
         empty-message="No cases found. Try adjusting your filters or add a new case."
     />
 
-    @if(isset($debugInfo['view_debug']) && $debugInfo['view_debug'])
+    @if(isset($debugInfo['view_debug']) && $debugInfo['view_debug'] && config('features.debugging.show_debug_information'))
         <div class="card mt-4">
             <div class="card-header">
                 <h5 class="mb-0">Debug Information</h5>

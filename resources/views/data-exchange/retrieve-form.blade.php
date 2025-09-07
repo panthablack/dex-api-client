@@ -316,7 +316,7 @@
         </div>
     </div>
 
-    @if (session('data') || session('request') || session('response'))
+    @if ((session('data') || session('request') || session('response')) && config('features.debugging.show_debug_information'))
         <div class="row mt-4">
             <div class="col-12">
                 <div class="card">
