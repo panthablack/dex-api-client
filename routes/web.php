@@ -36,18 +36,20 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     Route::get('/cases', [DataExchangeController::class, 'casesIndex'])->name('cases.index');
     Route::get('/sessions', [DataExchangeController::class, 'sessionsIndex'])->name('sessions.index');
 
-    // Resource Update and Delete Routes - Disabled for performance (use pre-loaded data in frontend)
-    // Route::get('/get-client/{id}', [DataExchangeController::class, 'getClient'])->name('get-client');
-    // Route::post('/update-client/{id}', [DataExchangeController::class, 'updateClient'])->name('update-client');
-    // Route::delete('/delete-client/{id}', [DataExchangeController::class, 'deleteClient'])->name('delete-client');
-    
-    // Route::get('/get-case/{id}', [DataExchangeController::class, 'getCase'])->name('get-case');
-    // Route::post('/update-case/{id}', [DataExchangeController::class, 'updateCase'])->name('update-case');
-    // Route::delete('/delete-case/{id}', [DataExchangeController::class, 'deleteCase'])->name('delete-case');
-    
-    // Route::get('/get-session/{id}', [DataExchangeController::class, 'getSession'])->name('get-session');
-    // Route::post('/update-session/{id}', [DataExchangeController::class, 'updateSession'])->name('update-session');
-    // Route::delete('/delete-session/{id}', [DataExchangeController::class, 'deleteSession'])->name('delete-session');
+    // API endpoints for resource updates and deletes
+    Route::prefix('api')->group(function () {
+        // Client API endpoints
+        Route::put('/clients/{id}', [DataExchangeController::class, 'apiUpdateClient'])->name('api.clients.update');
+        Route::delete('/clients/{id}', [DataExchangeController::class, 'apiDeleteClient'])->name('api.clients.delete');
+        
+        // Case API endpoints  
+        Route::put('/cases/{id}', [DataExchangeController::class, 'apiUpdateCase'])->name('api.cases.update');
+        Route::delete('/cases/{id}', [DataExchangeController::class, 'apiDeleteCase'])->name('api.cases.delete');
+        
+        // Session API endpoints
+        Route::put('/sessions/{id}', [DataExchangeController::class, 'apiUpdateSession'])->name('api.sessions.update');
+        Route::delete('/sessions/{id}', [DataExchangeController::class, 'apiDeleteSession'])->name('api.sessions.delete');
+    });
 
     // Status and Utility Routes
     Route::post('/submission-status', [DataExchangeController::class, 'getSubmissionStatus'])->name('submission-status');

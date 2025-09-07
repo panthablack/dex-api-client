@@ -200,7 +200,7 @@
                     const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
                     viewModal.show();
                     
-                    this.generateViewContent(resourceType, item);
+                    this.generateViewContent(resourceType, item, itemIndex);
                 },
                 
                 showUpdateForm(resourceType, itemIndex) {
@@ -225,12 +225,51 @@
                         return;
                     }
                     
+                    const resourceId = this.getResourceId(resourceType, item);
+                    
                     document.getElementById('deleteResourceType').textContent = resourceType;
                     
                     const confirmBtn = document.getElementById('confirmDeleteBtn');
-                    confirmBtn.onclick = () => this.showNotification('Delete functionality requires backend integration. Please contact an administrator.', 'warning');
+                    confirmBtn.onclick = () => this.handleDelete(resourceType, resourceId, itemIndex);
                     
                     new bootstrap.Modal(document.getElementById('deleteModal')).show();
+                },
+                
+                handleDelete(resourceType, resourceId, itemIndex) {
+                    const confirmBtn = document.getElementById('confirmDeleteBtn');
+                    const originalHtml = confirmBtn.innerHTML;
+                    
+                    // Show loading state
+                    confirmBtn.disabled = true;
+                    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...';
+                    
+                    // Make API call
+                    fetch(`/data-exchange/api/${resourceType}s/${resourceId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.showNotification(data.message, 'success');
+                            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                            // Refresh page after successful deletion
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            this.showNotification(data.message || 'Delete failed', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Delete error:', error);
+                        this.showNotification('Network error occurred while deleting. Please try again.', 'error');
+                    })
+                    .finally(() => {
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = originalHtml;
+                    });
                 },
                 
                 
@@ -258,7 +297,7 @@
                     }, duration);
                 },
                 
-                generateViewContent(resourceType, resourceData) {
+                generateViewContent(resourceType, resourceData, itemIndex) {
                     const modalContent = document.getElementById('viewModalContent');
                     
                     let content = '<div class="row">';
@@ -277,10 +316,12 @@
                     content += '</div>';
                     content += `
                         <div class="mt-3 d-flex justify-content-end">
-                            <div class="alert alert-info w-100">
-                                <i class="fas fa-info-circle me-2"></i>
-                                Update and delete functionality requires backend integration. Please contact an administrator for modifications.
-                            </div>
+                            <button type="button" class="btn btn-warning me-2" onclick="bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide(); resourceTableComponent.showUpdateForm('${resourceType}', ${itemIndex})">
+                                <i class="fas fa-edit"></i> Update
+                            </button>
+                            <button type="button" class="btn btn-danger" onclick="bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide(); resourceTableComponent.confirmDelete('${resourceType}', ${itemIndex})">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
                         </div>
                     `;
                     
@@ -385,12 +426,10 @@
                 generateUpdateForm(resourceType, itemIndex, resourceData) {
                     const modalContent = document.getElementById('updateModalContent');
                     
-                    let formHtml = `
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Update functionality requires backend integration. The form below shows current data but cannot be submitted.
-                        </div>
-                        <form id="updateForm">`;
+                    // Get the resource ID for API calls
+                    const resourceId = this.getResourceId(resourceType, resourceData);
+                    
+                    let formHtml = `<form id="updateForm" onsubmit="window.resourceTableComponent.handleUpdate(event, '${resourceType}', '${resourceId}', ${itemIndex})">`;
                     
                     if (resourceType === 'client') {
                         formHtml += this.generateClientUpdateFields(resourceData);
@@ -404,14 +443,84 @@
                     
                     formHtml += `
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="button" class="btn btn-warning" disabled>
-                                <i class="fas fa-save me-1"></i>Update ${resourceType} (Disabled)
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-warning" id="updateSubmitBtn">
+                                <i class="fas fa-save me-1"></i>Update ${resourceType}
                             </button>
                         </div>
                     </form>`;
                     
                     modalContent.innerHTML = formHtml;
+                },
+                
+                getResourceId(resourceType, resourceData) {
+                    // Extract the appropriate ID based on resource type
+                    if (resourceType === 'client') {
+                        return resourceData.ClientId;
+                    } else if (resourceType === 'case') {
+                        return resourceData.CaseDetail?.CaseId || resourceData.CaseId;
+                    } else if (resourceType === 'session') {
+                        return resourceData.SessionDetails?.SessionId || resourceData.SessionId;
+                    }
+                    return null;
+                },
+                
+                handleUpdate(event, resourceType, resourceId, itemIndex) {
+                    event.preventDefault();
+                    
+                    const formData = new FormData(event.target);
+                    const submitBtn = document.getElementById('updateSubmitBtn');
+                    const originalHtml = submitBtn.innerHTML;
+                    
+                    // Show loading state
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
+                    
+                    // Convert FormData to JSON
+                    const data = {};
+                    for (let [key, value] of formData.entries()) {
+                        data[key] = value;
+                    }
+                    
+                    // Add case_id for session updates
+                    if (resourceType === 'session' && this.data[itemIndex]) {
+                        data.case_id = this.data[itemIndex].CaseId;
+                    }
+                    
+                    // Make API call
+                    fetch(`/data-exchange/api/${resourceType}s/${resourceId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.showNotification(data.message, 'success');
+                            bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
+                            // Refresh page after successful update
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            this.showNotification(data.message || 'Update failed', 'error');
+                            if (data.errors) {
+                                // Display validation errors
+                                const errorMessages = Object.values(data.errors).flat().join(', ');
+                                this.showNotification('Validation errors: ' + errorMessages, 'error');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Update error:', error);
+                        this.showNotification('Network error occurred while updating. Please try again.', 'error');
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalHtml;
+                    });
                 },
                 
                 generateClientUpdateFields(data) {
@@ -500,7 +609,12 @@
 
         // Initialize Alpine.js component
         document.addEventListener('alpine:init', () => {
-            Alpine.data('resourceTableComponent', () => resourceTable(@json($data)));
+            Alpine.data('resourceTableComponent', () => {
+                const component = resourceTable(@json($data));
+                // Make component globally accessible for onclick handlers
+                window.resourceTableComponent = component;
+                return component;
+            });
         });
     </script>
     @endpush

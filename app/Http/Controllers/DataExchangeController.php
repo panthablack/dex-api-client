@@ -1810,4 +1810,197 @@ class DataExchangeController extends Controller
             ]
         ];
     }
+
+    // API Methods for AJAX frontend operations
+    
+    /**
+     * Update a client via API
+     */
+    public function apiUpdateClient(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'given_name' => 'required|string|max:255',
+            'family_name' => 'required|string|max:255',
+            'birth_date' => 'required|date',
+            'gender_code' => 'required|in:MALE,FEMALE,OTHER,NOTSTATED'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        try {
+            // Transform form data to API format
+            $apiData = [
+                'GivenName' => $request->given_name,
+                'FamilyName' => $request->family_name,
+                'BirthDate' => $request->birth_date,
+                'GenderCode' => $request->gender_code,
+            ];
+            
+            $result = $this->dataExchangeService->updateClient($id, $apiData);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Client updated successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update client: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Delete a client via API
+     */
+    public function apiDeleteClient($id)
+    {
+        try {
+            $result = $this->dataExchangeService->deleteClient($id);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Client deleted successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete client: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Update a case via API
+     */
+    public function apiUpdateCase(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'referral_source_code' => 'required|string|max:50',
+            'client_attendance_profile_code' => 'sometimes|string|max:50'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        try {
+            // Transform form data to API format
+            $apiData = [
+                'ReferralSourceCode' => $request->referral_source_code,
+                'ClientAttendanceProfileCode' => $request->client_attendance_profile_code,
+            ];
+            
+            $result = $this->dataExchangeService->updateCase($id, $apiData);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Case updated successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update case: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Delete a case via API
+     */
+    public function apiDeleteCase($id)
+    {
+        try {
+            $result = $this->dataExchangeService->deleteCase($id);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Case deleted successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete case: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Update a session via API
+     */
+    public function apiUpdateSession(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'session_date' => 'required|date',
+            'topic_code' => 'sometimes|string|max:50',
+            'time' => 'sometimes|string|max:100',
+            'case_id' => 'required|string|max:50' // Required for session updates
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        try {
+            // Transform form data to API format
+            $apiData = [
+                'SessionDate' => $request->session_date,
+                'TopicCode' => $request->topic_code,
+                'Time' => $request->time,
+                'CaseId' => $request->case_id,
+            ];
+            
+            $result = $this->dataExchangeService->updateSession($id, $apiData);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Session updated successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update session: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Delete a session via API
+     */
+    public function apiDeleteSession($id)
+    {
+        try {
+            $result = $this->dataExchangeService->deleteSession($id);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Session deleted successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete session: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
