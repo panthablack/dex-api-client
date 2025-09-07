@@ -425,59 +425,141 @@
                 },
                 
                 generateCaseViewContent(data) {
+                    // Extract data from the correct API response structure
+                    const caseId = data.CaseDetail?.CaseId || data.CaseId || 'N/A';
+                    const clientId = data.Clients?.CaseClient?.ClientId || data.ClientId || 'N/A';
+                    const outletActivityId = data.CaseDetail?.OutletActivityId || data.OutletActivityId || 'N/A';
+                    const referralSourceCode = data.Clients?.CaseClient?.ReferralSourceCode || data.ReferralSourceCode || 'N/A';
+                    const attendanceProfileCode = data.CaseDetail?.ClientAttendanceProfileCode || data.ClientAttendanceProfileCode || 'N/A';
+                    const createdDateTime = data.CreatedDateTime || 'N/A';
+                    const outletName = data.OutletName || 'N/A';
+                    const programActivityName = data.ProgramActivityName || 'N/A';
+                    const totalClients = data.CaseDetail?.TotalNumberOfUnidentifiedClients || data.TotalNumberOfUnidentifiedClients || 'N/A';
+                    const exitReasonCode = data.Clients?.CaseClient?.ExitReasonCode || data.ExitReasonCode || 'N/A';
+                    const sessionIds = data.Sessions?.SessionId || [];
+                    const sessionCount = Array.isArray(sessionIds) ? sessionIds.length : (sessionIds ? 1 : 0);
+                    
                     return `
                         <div class="col-md-6 mb-3">
                             <strong>Case ID:</strong><br>
-                            <span class="text-muted">${data.CaseDetail?.CaseId || 'N/A'}</span>
+                            <span class="text-muted">${caseId}</span>
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong>Client ID:</strong><br>
-                            <span class="text-muted">${data.Clients?.CaseClient?.ClientId || 'N/A'}</span>
+                            <span class="text-muted">${clientId}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Outlet Name:</strong><br>
+                            <span class="text-muted">${outletName}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Program Activity:</strong><br>
+                            <span class="text-muted">${programActivityName}</span>
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong>Outlet Activity ID:</strong><br>
-                            <span class="text-muted">${data.CaseDetail?.OutletActivityId || 'N/A'}</span>
+                            <span class="text-muted">${outletActivityId}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Total Clients:</strong><br>
+                            <span class="text-muted">${totalClients}</span>
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong>Referral Source:</strong><br>
-                            <span class="text-muted">${data.Clients?.CaseClient?.ReferralSourceCode || 'N/A'}</span>
+                            <span class="text-muted">${referralSourceCode}</span>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <strong>Created Date:</strong><br>
-                            <span class="text-muted">${data.CreatedDateTime ? new Date(data.CreatedDateTime).toLocaleDateString() : 'N/A'}</span>
+                            <strong>Attendance Profile:</strong><br>
+                            <span class="text-muted">${attendanceProfileCode}</span>
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong>Exit Reason:</strong><br>
-                            <span class="text-muted">${data.Clients?.CaseClient?.ExitReasonCode || 'N/A'}</span>
+                            <span class="text-muted">${exitReasonCode}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Sessions Count:</strong><br>
+                            <span class="text-muted">${sessionCount}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Created Date:</strong><br>
+                            <span class="text-muted">${createdDateTime ? new Date(createdDateTime).toLocaleDateString() : 'N/A'}</span>
                         </div>
                     `;
                 },
                 
                 generateSessionViewContent(data) {
+                    // Extract data from the correct API response structure
+                    const sessionId = data.SessionDetails?.SessionId || data.SessionId || 'N/A';
+                    const caseId = data.CaseId || 'N/A';
+                    const serviceTypeId = data.SessionDetails?.ServiceTypeId || data.ServiceTypeId || 'N/A';
+                    const sessionDate = data.SessionDetails?.SessionDate || data.SessionDate || 'N/A';
+                    const time = data.SessionDetails?.Time || data.Time || 'N/A';
+                    const topicCode = data.SessionDetails?.TopicCode || data.TopicCode || 'N/A';
+                    const totalClients = data.SessionDetails?.TotalNumberOfUnidentifiedClients || data.TotalNumberOfUnidentifiedClients || 'N/A';
+                    const interpreterPresent = data.SessionDetails?.InterpreterPresent || data.InterpreterPresent || false;
+                    const serviceSettingCode = data.SessionDetails?.ServiceSettingCode || data.ServiceSettingCode || 'N/A';
+                    const createdDateTime = data.CreatedDateTime || 'N/A';
+                    const clientId = data.Clients?.SessionClient?.ClientId || data.ClientId || 'N/A';
+                    const participationCode = data.Clients?.SessionClient?.ParticipationCode || data.ParticipationCode || 'N/A';
+                    const quantity = data.SessionDetails?.Quantity || data.Quantity || 'N/A';
+                    const totalCost = data.SessionDetails?.TotalCost || data.TotalCost || 'N/A';
+                    
                     return `
                         <div class="col-md-6 mb-3">
                             <strong>Session ID:</strong><br>
-                            <span class="text-muted">${data.SessionDetails?.SessionId || 'N/A'}</span>
+                            <span class="text-muted">${sessionId}</span>
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong>Case ID:</strong><br>
-                            <span class="text-muted">${data.CaseId || 'N/A'}</span>
+                            <span class="text-muted">${caseId}</span>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <strong>Service Type ID:</strong><br>
-                            <span class="text-muted">${data.SessionDetails?.ServiceTypeId || 'N/A'}</span>
+                            <strong>Client ID:</strong><br>
+                            <span class="text-muted">${clientId}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Participation Code:</strong><br>
+                            <span class="text-muted">${participationCode}</span>
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong>Session Date:</strong><br>
-                            <span class="text-muted">${data.SessionDetails?.SessionDate ? new Date(data.SessionDetails.SessionDate).toLocaleDateString() : 'N/A'}</span>
+                            <span class="text-muted">${sessionDate ? new Date(sessionDate).toLocaleDateString() : 'N/A'}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Service Type ID:</strong><br>
+                            <span class="text-muted">${serviceTypeId}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Service Setting:</strong><br>
+                            <span class="text-muted">${serviceSettingCode}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Total Clients:</strong><br>
+                            <span class="text-muted">${totalClients}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Topic Code:</strong><br>
+                            <span class="text-muted">${topicCode}</span>
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong>Duration/Time:</strong><br>
-                            <span class="text-muted">${data.SessionDetails?.Time || 'N/A'}</span>
+                            <span class="text-muted">${time}</span>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <strong>Topic:</strong><br>
-                            <span class="text-muted">${data.SessionDetails?.TopicCode || 'N/A'}</span>
+                            <strong>Quantity:</strong><br>
+                            <span class="text-muted">${quantity}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Total Cost:</strong><br>
+                            <span class="text-muted">${totalCost}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Interpreter Present:</strong><br>
+                            <span class="text-muted">${interpreterPresent ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Created Date:</strong><br>
+                            <span class="text-muted">${createdDateTime ? new Date(createdDateTime).toLocaleDateString() : 'N/A'}</span>
                         </div>
                     `;
                 },
@@ -549,11 +631,11 @@
                                 if (resourceType === 'client') {
                                     resourceData = data.data.Client || data.data;
                                 } else if (resourceType === 'case') {
-                                    // Cases can have nested CaseDetail structure
-                                    resourceData = data.data.Case?.CaseDetail || data.data.Case || data.data;
+                                    // Pass the full Case structure to preserve all nested data
+                                    resourceData = data.data.Case || data.data;
                                 } else if (resourceType === 'session') {
-                                    // Sessions can be SessionDetail or Session
-                                    resourceData = data.data.SessionDetail || data.data.Session || data.data;
+                                    // Pass the full Session structure to preserve all nested data
+                                    resourceData = data.data.Session || data.data;
                                 } else {
                                     // Fallback to the raw data structure
                                     resourceData = data.data;
@@ -673,25 +755,28 @@
                 },
                 
                 generateCaseUpdateFields(data) {
+                    const referralSourceCode = data.ReferralSourceCode || data.Clients?.CaseClient?.ReferralSourceCode || '';
+                    const attendanceProfileCode = data.ClientAttendanceProfileCode || data.CaseDetail?.ClientAttendanceProfileCode || '';
+                    
                     return `
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="update_referral_source_code" class="form-label">Referral Source</label>
                                 <select class="form-select" id="update_referral_source_code" name="referral_source_code" required>
                                     <option value="">Select Referral Source</option>
-                                    <option value="COMMUNITY" ${data.Clients?.CaseClient?.ReferralSourceCode === 'COMMUNITY' ? 'selected' : ''}>Community services agency</option>
-                                    <option value="SELF" ${data.Clients?.CaseClient?.ReferralSourceCode === 'SELF' ? 'selected' : ''}>Self</option>
-                                    <option value="FAMILY" ${data.Clients?.CaseClient?.ReferralSourceCode === 'FAMILY' ? 'selected' : ''}>Family</option>
-                                    <option value="GP" ${data.Clients?.CaseClient?.ReferralSourceCode === 'GP' ? 'selected' : ''}>General Medical Practitioner</option>
+                                    <option value="COMMUNITY" ${referralSourceCode === 'COMMUNITY' ? 'selected' : ''}>Community services agency</option>
+                                    <option value="SELF" ${referralSourceCode === 'SELF' ? 'selected' : ''}>Self</option>
+                                    <option value="FAMILY" ${referralSourceCode === 'FAMILY' ? 'selected' : ''}>Family</option>
+                                    <option value="GP" ${referralSourceCode === 'GP' ? 'selected' : ''}>General Medical Practitioner</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="update_client_attendance_profile_code" class="form-label">Attendance Profile</label>
                                 <select class="form-select" id="update_client_attendance_profile_code" name="client_attendance_profile_code">
                                     <option value="">Select Profile</option>
-                                    <option value="REGULAR" ${data.CaseDetail?.ClientAttendanceProfileCode === 'REGULAR' ? 'selected' : ''}>Regular</option>
-                                    <option value="IRREGULAR" ${data.CaseDetail?.ClientAttendanceProfileCode === 'IRREGULAR' ? 'selected' : ''}>Irregular</option>
-                                    <option value="ONEOFF" ${data.CaseDetail?.ClientAttendanceProfileCode === 'ONEOFF' ? 'selected' : ''}>One-off</option>
+                                    <option value="REGULAR" ${attendanceProfileCode === 'REGULAR' ? 'selected' : ''}>Regular</option>
+                                    <option value="IRREGULAR" ${attendanceProfileCode === 'IRREGULAR' ? 'selected' : ''}>Irregular</option>
+                                    <option value="ONEOFF" ${attendanceProfileCode === 'ONEOFF' ? 'selected' : ''}>One-off</option>
                                 </select>
                             </div>
                         </div>
@@ -699,22 +784,38 @@
                 },
                 
                 generateSessionUpdateFields(data) {
+                    // Handle both direct field access and nested SOAP response structures
+                    const sessionDate = data.SessionDate || data.SessionDetails?.SessionDate || data.SessionDetail?.SessionDate || '';
+                    const topicCode = data.TopicCode || data.SessionDetails?.TopicCode || data.SessionDetail?.TopicCode || '';
+                    const time = data.Time || data.SessionDetails?.Time || data.SessionDetail?.Time || '';
+                    const sessionTypeCode = data.SessionTypeCode || data.SessionDetails?.SessionTypeCode || data.SessionDetail?.SessionTypeCode || '';
+                    
                     return `
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="update_session_date" class="form-label">Session Date</label>
                                 <input type="date" class="form-control" id="update_session_date" name="session_date" 
-                                       value="${data.SessionDetails?.SessionDate ? data.SessionDetails.SessionDate.split('T')[0] : ''}" required>
+                                       value="${sessionDate ? sessionDate.split('T')[0] : ''}" required>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="update_topic_code" class="form-label">Topic</label>
-                                <input type="text" class="form-control" id="update_topic_code" name="topic_code" value="${data.SessionDetails?.TopicCode || ''}">
+                                <label for="update_session_type_code" class="form-label">Session Type</label>
+                                <select class="form-select" id="update_session_type_code" name="session_type_code" required>
+                                    <option value="">Select Session Type</option>
+                                    <option value="COUNSELLING" ${sessionTypeCode === 'COUNSELLING' ? 'selected' : ''}>Counselling</option>
+                                    <option value="GROUP" ${sessionTypeCode === 'GROUP' ? 'selected' : ''}>Group session</option>
+                                    <option value="ASSESSMENT" ${sessionTypeCode === 'ASSESSMENT' ? 'selected' : ''}>Assessment</option>
+                                    <option value="SUPPORT" ${sessionTypeCode === 'SUPPORT' ? 'selected' : ''}>Support</option>
+                                </select>
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-12 mb-3">
+                            <div class="col-md-6 mb-3">
+                                <label for="update_topic_code" class="form-label">Topic</label>
+                                <input type="text" class="form-control" id="update_topic_code" name="topic_code" value="${topicCode}">
+                            </div>
+                            <div class="col-md-6 mb-3">
                                 <label for="update_time" class="form-label">Duration/Time</label>
-                                <input type="text" class="form-control" id="update_time" name="time" value="${data.SessionDetails?.Time || ''}" 
+                                <input type="text" class="form-control" id="update_time" name="time" value="${time}" 
                                        placeholder="e.g., 60 minutes">
                             </div>
                         </div>
