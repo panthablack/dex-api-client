@@ -1676,6 +1676,21 @@ class DataExchangeController extends Controller
                 if (config('app.debug', false)) {
                     $sessions = $this->getSampleSessions();
                     $debugInfo['using_sample_data'] = true;
+                    
+                    // Provide mock pagination for sample data
+                    $pagination = [
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => count($sessions),
+                        'total' => count($sessions),
+                        'from' => 1,
+                        'to' => count($sessions),
+                        'has_more_pages' => false,
+                        'prev_page_url' => null,
+                        'next_page_url' => null,
+                    ];
+                    $debugInfo['pagination_info'] = $pagination;
+                    $debugInfo['final_sessions_count'] = count($sessions);
                 }
             }
 
@@ -1836,37 +1851,49 @@ class DataExchangeController extends Controller
     {
         return [
             [
-                'session_id' => 'SESSION_001',
-                'case_id' => 'CASE_001',
-                'service_type_id' => '5',
-                'session_date' => '2024-01-10',
-                'duration_minutes' => 60,
-                'session_status' => 'Completed',
-                'location' => 'Office Room 1',
-                'outcome' => 'Positive',
-                'notes' => 'Initial counselling session went well. Client is engaged.'
+                'CaseId' => 'CASE_001',
+                'CreatedDateTime' => '2024-01-10T10:00:00',
+                'SessionDetails' => [
+                    'SessionId' => 'SESSION_001',
+                    'ServiceTypeId' => '5',
+                    'SessionDate' => '2024-01-10T10:00:00',
+                    'Time' => '60 minutes',
+                    'TopicCode' => 'COUNSELLING',
+                    'TotalNumberOfUnidentifiedClients' => 0,
+                    'ServiceSettingCode' => 'OFFICE',
+                    'Quantity' => 1,
+                    'TotalCost' => 150.00
+                ]
             ],
             [
-                'session_id' => 'SESSION_002',
-                'case_id' => 'CASE_002',
-                'service_type_id' => '1',
-                'session_date' => '2024-01-12',
-                'duration_minutes' => 45,
-                'session_status' => 'Scheduled',
-                'location' => 'Community Center',
-                'outcome' => 'Ongoing',
-                'notes' => 'Assessment session scheduled for next week.'
+                'CaseId' => 'CASE_002',
+                'CreatedDateTime' => '2024-01-12T14:30:00',
+                'SessionDetails' => [
+                    'SessionId' => 'SESSION_002',
+                    'ServiceTypeId' => '1',
+                    'SessionDate' => '2024-01-12T14:30:00',
+                    'Time' => '45 minutes',
+                    'TopicCode' => 'ASSESSMENT',
+                    'TotalNumberOfUnidentifiedClients' => 0,
+                    'ServiceSettingCode' => 'COMMUNITY',
+                    'Quantity' => 1,
+                    'TotalCost' => 100.00
+                ]
             ],
             [
-                'session_id' => 'SESSION_003',
-                'case_id' => 'CASE_001',
-                'service_type_id' => '5',
-                'session_date' => '2024-01-08',
-                'duration_minutes' => 90,
-                'session_status' => 'No Show',
-                'location' => 'Office Room 2',
-                'outcome' => 'Challenging',
-                'notes' => 'Client did not attend scheduled session.'
+                'CaseId' => 'CASE_001',
+                'CreatedDateTime' => '2024-01-08T09:00:00',
+                'SessionDetails' => [
+                    'SessionId' => 'SESSION_003',
+                    'ServiceTypeId' => '5',
+                    'SessionDate' => '2024-01-08T09:00:00',
+                    'Time' => '90 minutes',
+                    'TopicCode' => 'FOLLOWUP',
+                    'TotalNumberOfUnidentifiedClients' => 0,
+                    'ServiceSettingCode' => 'OFFICE',
+                    'Quantity' => 1,
+                    'TotalCost' => 200.00
+                ]
             ]
         ];
     }

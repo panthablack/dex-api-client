@@ -1,4 +1,4 @@
-@if($pagination && $pagination['total'] > $pagination['per_page'])
+@if($pagination && $pagination['total'] > 0)
 <div class="d-flex justify-content-between align-items-center mt-4">
     <div class="text-muted">
         @if($pagination['total'] > 0)
