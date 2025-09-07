@@ -1844,6 +1844,17 @@ class DataExchangeController extends Controller
             
             $result = $this->dataExchangeService->updateClient($id, $apiData);
             
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Client updated successfully',
@@ -1864,6 +1875,17 @@ class DataExchangeController extends Controller
     {
         try {
             $result = $this->dataExchangeService->deleteClient($id);
+            
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
             
             return response()->json([
                 'success' => true,
@@ -1905,6 +1927,17 @@ class DataExchangeController extends Controller
             
             $result = $this->dataExchangeService->updateCase($id, $apiData);
             
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Case updated successfully',
@@ -1925,6 +1958,17 @@ class DataExchangeController extends Controller
     {
         try {
             $result = $this->dataExchangeService->deleteCase($id);
+            
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
             
             return response()->json([
                 'success' => true,
@@ -1970,6 +2014,17 @@ class DataExchangeController extends Controller
             
             $result = $this->dataExchangeService->updateSession($id, $apiData);
             
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Session updated successfully',
@@ -1991,6 +2046,17 @@ class DataExchangeController extends Controller
         try {
             $result = $this->dataExchangeService->deleteSession($id);
             
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Session deleted successfully',
@@ -2002,5 +2068,36 @@ class DataExchangeController extends Controller
                 'message' => 'Failed to delete session: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Extract error message from SOAP delete/update response
+     * Handles the response format: { "TransactionStatusCode": "Failed", "Messages": { "Message": {...} } }
+     */
+    protected function extractDeleteErrorMessage($result)
+    {
+        // Convert objects to arrays for consistent handling
+        if (is_object($result)) {
+            $result = json_decode(json_encode($result), true);
+        }
+
+        if (!is_array($result)) {
+            return null;
+        }
+
+        // Check for the direct TransactionStatusCode format (as shown in the user's example)
+        if (isset($result['TransactionStatusCode']) && $result['TransactionStatusCode'] === 'Failed') {
+            return $result['Messages']['Message']['MessageDescription'] ?? 'Operation failed';
+        }
+
+        // Check for nested TransactionStatus format (used by other operations)
+        if (isset($result['TransactionStatus'])) {
+            $transactionStatus = $result['TransactionStatus'];
+            if ($transactionStatus['TransactionStatusCode'] === 'Failed') {
+                return $transactionStatus['Messages']['Message']['MessageDescription'] ?? 'Operation failed';
+            }
+        }
+
+        return null;
     }
 }

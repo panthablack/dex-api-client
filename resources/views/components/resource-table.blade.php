@@ -126,6 +126,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="updateModalBody">
+                    <div id="updateErrorAlert" class="alert alert-danger d-none" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Update Failed:</strong>
+                        <div id="updateErrorMessage"></div>
+                    </div>
                     <div id="updateModalContent">
                         <!-- Update form will be loaded here -->
                     </div>
@@ -160,8 +165,15 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to delete this <span id="deleteResourceType"></span>?</p>
-                    <p class="text-danger"><strong>This action cannot be undone.</strong></p>
+                    <div id="deleteErrorAlert" class="alert alert-danger d-none" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Delete Failed:</strong>
+                        <div id="deleteErrorMessage"></div>
+                    </div>
+                    <div id="deleteConfirmationText">
+                        <p>Are you sure you want to delete this <span id="deleteResourceType"></span>?</p>
+                        <p class="text-danger"><strong>This action cannot be undone.</strong></p>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -212,6 +224,9 @@
                     
                     document.getElementById('updateResourceType').textContent = resourceType;
                     
+                    // Reset error state
+                    document.getElementById('updateErrorAlert').classList.add('d-none');
+                    
                     const updateModal = new bootstrap.Modal(document.getElementById('updateModal'));
                     updateModal.show();
                     
@@ -227,7 +242,10 @@
                     
                     const resourceId = this.getResourceId(resourceType, item);
                     
+                    // Reset modal state
                     document.getElementById('deleteResourceType').textContent = resourceType;
+                    document.getElementById('deleteErrorAlert').classList.add('d-none');
+                    document.getElementById('deleteConfirmationText').classList.remove('d-none');
                     
                     const confirmBtn = document.getElementById('confirmDeleteBtn');
                     confirmBtn.onclick = () => this.handleDelete(resourceType, resourceId, itemIndex);
@@ -259,7 +277,22 @@
                             // Refresh page after successful deletion
                             setTimeout(() => window.location.reload(), 1500);
                         } else {
-                            this.showNotification(data.message || 'Delete failed', 'error');
+                            let errorMessage = data.message || 'Delete failed';
+                            
+                            if (data.soap_response) {
+                                // SOAP error - message already contains the formatted error
+                                console.log('SOAP Error Response:', data.soap_response);
+                            }
+                            
+                            // Display error in the modal
+                            document.getElementById('deleteErrorMessage').textContent = errorMessage;
+                            document.getElementById('deleteErrorAlert').classList.remove('d-none');
+                            document.getElementById('deleteConfirmationText').classList.add('d-none');
+                            
+                            // Change delete button to "Try Again" 
+                            confirmBtn.innerHTML = '<i class="fas fa-redo me-1"></i>Try Again';
+                            confirmBtn.classList.remove('btn-danger');
+                            confirmBtn.classList.add('btn-warning');
                         }
                     })
                     .catch(error => {
@@ -505,12 +538,23 @@
                             // Refresh page after successful update
                             setTimeout(() => window.location.reload(), 1500);
                         } else {
-                            this.showNotification(data.message || 'Update failed', 'error');
+                            let errorMessage = data.message || 'Update failed';
+                            
                             if (data.errors) {
                                 // Display validation errors
                                 const errorMessages = Object.values(data.errors).flat().join(', ');
-                                this.showNotification('Validation errors: ' + errorMessages, 'error');
+                                errorMessage = 'Validation errors: ' + errorMessages;
+                            } else if (data.soap_response) {
+                                // SOAP error - message already contains the formatted error
+                                console.log('SOAP Error Response:', data.soap_response);
                             }
+                            
+                            // Display error in the modal
+                            document.getElementById('updateErrorMessage').textContent = errorMessage;
+                            document.getElementById('updateErrorAlert').classList.remove('d-none');
+                            
+                            // Scroll to top of modal to show error
+                            document.getElementById('updateModalBody').scrollTop = 0;
                         }
                     })
                     .catch(error => {
