@@ -116,6 +116,9 @@
         empty-message="No clients found. Try adjusting your filters or add a new client."
     />
 
+    <!-- Pagination -->
+    <x-pagination :pagination="$pagination ?? null" />
+
     @if(isset($debugInfo['view_debug']) && $debugInfo['view_debug'] && config('features.debugging.show_debug_information'))
         <div class="card mt-4">
             <div class="card-header">

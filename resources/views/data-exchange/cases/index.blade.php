@@ -121,6 +121,9 @@
         empty-message="No cases found. Try adjusting your filters or add a new case."
     />
 
+    <!-- Pagination -->
+    <x-pagination :pagination="$pagination ?? null" />
+
     @if(isset($debugInfo['view_debug']) && $debugInfo['view_debug'] && config('features.debugging.show_debug_information'))
         <div class="card mt-4">
             <div class="card-header">

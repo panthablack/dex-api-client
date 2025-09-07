@@ -1100,6 +1100,59 @@ class DataExchangeService
         return $this->soapClient->call('SearchClient', $parameters);
     }
 
+    /**
+     * Get client data with pagination metadata - for controllers
+     */
+    public function getClientDataWithPagination($filters = [])
+    {
+        $result = $this->getClientData($filters);
+        return $this->addPaginationMetadata($result, $filters);
+    }
+
+    /**
+     * Add pagination metadata to DSS API response
+     */
+    protected function addPaginationMetadata($result, $filters)
+    {
+        // Convert result to array for consistent handling
+        if (is_object($result)) {
+            $resultArray = json_decode(json_encode($result), true);
+        } else {
+            $resultArray = $result;
+        }
+
+        // Extract pagination info from DSS response
+        $totalCount = $resultArray['TotalCount'] ?? null;
+        $currentPage = $filters['page_index'] ?? 1;
+        $perPage = $filters['page_size'] ?? config('features.pagination.default_page_size', 10);
+
+        // Calculate pagination details
+        $lastPage = $totalCount ? max(1, intval(ceil($totalCount / $perPage))) : 1;
+        $from = $totalCount > 0 ? (($currentPage - 1) * $perPage) + 1 : 0;
+        $to = min($currentPage * $perPage, $totalCount ?? 0);
+
+        // Create pagination metadata
+        $pagination = [
+            'current_page' => $currentPage,
+            'last_page' => $lastPage,
+            'per_page' => $perPage,
+            'total' => $totalCount,
+            'from' => $from,
+            'to' => $to,
+            'has_more_pages' => $currentPage < $lastPage,
+            'prev_page_url' => $currentPage > 1 ? '?page=' . ($currentPage - 1) : null,
+            'next_page_url' => $currentPage < $lastPage ? '?page=' . ($currentPage + 1) : null,
+        ];
+
+        // Add pagination to the result
+        if (is_array($result)) {
+            $result['pagination'] = $pagination;
+        } else {
+            $result->pagination = (object) $pagination;
+        }
+
+        return $result;
+    }
 
     /**
      * Retrieve client by ID
@@ -1143,6 +1196,15 @@ class DataExchangeService
     }
 
     /**
+     * Get case data with pagination metadata - for controllers
+     */
+    public function getCaseDataWithPagination($filters = [])
+    {
+        $result = $this->getCaseData($filters);
+        return $this->addPaginationMetadata($result, $filters);
+    }
+
+    /**
      * Get case by ID
      * Note: CaseId must be passed outside the Criteria array as per DSS requirements
      */
@@ -1175,7 +1237,7 @@ class DataExchangeService
                 'filters' => $filters
             ]);
 
-            $searchResult = $this->getCaseData($filters);
+            $searchResult = $this->getCaseDataWithPagination($filters);
 
             // Convert objects to arrays for consistent handling
             if (is_object($searchResult)) {
@@ -1274,8 +1336,18 @@ class DataExchangeService
                 'errors' => count($errors)
             ]);
 
-            // Return only successful cases with clean structure
-            return $fullCaseData;
+            // Preserve pagination metadata from the original search result
+            $result = $fullCaseData;
+            if (isset($searchResult['pagination'])) {
+                if (is_array($result)) {
+                    $result = ['data' => $fullCaseData, 'pagination' => $searchResult['pagination']];
+                } else {
+                    $result = (object) ['data' => $fullCaseData, 'pagination' => $searchResult['pagination']];
+                }
+            }
+
+            // Return successful cases with pagination metadata
+            return $result;
         } catch (\Exception $e) {
             Log::error('Failed to fetch full case data', [
                 'error' => $e->getMessage(),
@@ -1339,11 +1411,20 @@ class DataExchangeService
                 'filters' => $filters
             ]);
 
-            $fullCaseData = $this->fetchFullCaseData($filters);
+            $caseDataResult = $this->fetchFullCaseData($filters);
+
+            // Handle new fetchFullCaseData structure with pagination
+            $pagination = null;
+            if (is_array($caseDataResult) && isset($caseDataResult['pagination']) && isset($caseDataResult['data'])) {
+                $pagination = $caseDataResult['pagination'];
+                $fullCaseData = $caseDataResult['data'];
+            } else {
+                $fullCaseData = $caseDataResult;
+            }
 
             if (empty($fullCaseData)) {
                 Log::info('No cases found, returning empty session array');
-                return [];
+                return $pagination ? ['data' => [], 'pagination' => $pagination] : [];
             }
 
             Log::info('Found cases, now extracting sessions', [
@@ -1427,8 +1508,18 @@ class DataExchangeService
                 'errors' => count($errors)
             ]);
 
-            // Return only successful sessions with clean structure
-            return $fullSessionData;
+            // Preserve pagination metadata from the case search result
+            $result = $fullSessionData;
+            if ($pagination) {
+                if (is_array($result)) {
+                    $result = ['data' => $fullSessionData, 'pagination' => $pagination];
+                } else {
+                    $result = (object) ['data' => $fullSessionData, 'pagination' => $pagination];
+                }
+            }
+
+            // Return successful sessions with pagination metadata
+            return $result;
         } catch (\Exception $e) {
             Log::error('Failed to fetch full session data', [
                 'error' => $e->getMessage(),
@@ -1541,7 +1632,14 @@ class DataExchangeService
             Log::info('Getting sessions for specific case: ' . $filters['case_id']);
             // Use SearchCase to get the case data, which may include session information
             $caseFilters = ['case_id' => $filters['case_id']];
-            $caseResult = $this->fetchFullCaseData($caseFilters);
+            $caseDataResult = $this->fetchFullCaseData($caseFilters);
+
+            // Handle new fetchFullCaseData structure with pagination
+            if (is_array($caseDataResult) && isset($caseDataResult['pagination']) && isset($caseDataResult['data'])) {
+                $caseResult = $caseDataResult['data'];
+            } else {
+                $caseResult = $caseDataResult;
+            }
 
             // Check if the case result contains session data
             // Convert to array if it's an object for consistent handling
@@ -1575,8 +1673,15 @@ class DataExchangeService
      */
     public function getSessionsFromCase($case): array
     {
-        if (!($case['Sessions']['SessionId'] ?? null))
+        if (!($case['Sessions']['SessionId'] ?? null)) {
+            \Log::debug('getSessionsFromCase failing - case structure:', [
+                'case_keys' => is_array($case) ? array_keys($case) : 'not_array',
+                'has_sessions' => isset($case['Sessions']),
+                'sessions_structure' => $case['Sessions'] ?? 'null',
+                'case_sample' => $case
+            ]);
             throw new \Exception('Cannot get Sessions from a Case without a Case.');
+        }
         $sessionIds = [];
         foreach (explode(',', $case['Sessions']['SessionId']) as $sessionId) {
             array_push($sessionIds, $sessionId);

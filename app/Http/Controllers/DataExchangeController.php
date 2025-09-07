@@ -694,7 +694,39 @@ class DataExchangeController extends Controller
             $filters['case_id'] = $filters['case_id_filter'];
         }
 
+        // Add pagination parameters
+        $filters['page_index'] = max(1, intval($request->get('page', 1))); // 1-based page index
+        $filters['page_size'] = intval($request->get('per_page', config('features.pagination.default_page_size', 10)));
+        
+        // Add sorting parameters
+        $filters['sort_column'] = $request->get('sort_by', $this->getDefaultSortColumn($request));
+        $filters['is_ascending'] = $request->get('sort_direction', 'asc') === 'asc';
+
         return $filters;
+    }
+
+    /**
+     * Get the default sort column based on context
+     */
+    protected function getDefaultSortColumn(Request $request)
+    {
+        // Determine default sort column based on current route or context
+        $route = $request->route();
+        
+        if ($route) {
+            $routeName = $route->getName();
+            
+            if ($routeName && str_contains($routeName, 'clients')) {
+                return 'ClientId';
+            } elseif ($routeName && str_contains($routeName, 'cases')) {
+                return 'CaseId';
+            } elseif ($routeName && str_contains($routeName, 'sessions')) {
+                return 'SessionId';
+            }
+        }
+        
+        // Default fallback
+        return 'CreatedDateTime';
     }
 
     /**
@@ -1342,10 +1374,11 @@ class DataExchangeController extends Controller
             $loading = false;
             $clients = [];
             $debugInfo = [];
+            $pagination = null;
 
             // Load data with default filters
             try {
-                $rawData = $this->dataExchangeService->getClientData($filters);
+                $rawData = $this->dataExchangeService->getClientDataWithPagination($filters);
                 
                 $debugInfo['raw_data_type'] = gettype($rawData);
                 $debugInfo['filters_applied'] = $filters;
@@ -1357,11 +1390,15 @@ class DataExchangeController extends Controller
                 
                 $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
                 
+                // Extract pagination information
+                $pagination = $rawData['pagination'] ?? null;
+                
                 // Handle different response structures - be more flexible
                 $clients = $this->extractClientsFromResponse($rawData);
                 
                 $debugInfo['final_clients_count'] = count($clients);
                 $debugInfo['sample_client'] = !empty($clients) ? array_slice($clients, 0, 1) : null;
+                $debugInfo['pagination_info'] = $pagination;
                 
             } catch (\Exception $e) {
                 $debugInfo = [
@@ -1381,12 +1418,13 @@ class DataExchangeController extends Controller
             // Enable debug info only when needed (set to false for production)
             $debugInfo['view_debug'] = config('app.debug', false);
 
-            return view('data-exchange.clients.index', compact('clients', 'loading', 'debugInfo'));
+            return view('data-exchange.clients.index', compact('clients', 'loading', 'debugInfo', 'pagination'));
         } catch (\Exception $e) {
             return view('data-exchange.clients.index', [
                 'clients' => [],
                 'loading' => false,
-                'debugInfo' => ['controller_error' => $e->getMessage()]
+                'debugInfo' => ['controller_error' => $e->getMessage()],
+                'pagination' => null
             ])->with('error', 'Failed to load clients: ' . $e->getMessage());
         }
     }
@@ -1446,6 +1484,7 @@ class DataExchangeController extends Controller
             $loading = false;
             $cases = [];
             $debugInfo = [];
+            $pagination = null;
             $outletActivities = [];
 
             // Get outlet activities for filter dropdown
@@ -1475,11 +1514,20 @@ class DataExchangeController extends Controller
                 
                 $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
                 
-                // Handle different response structures - be more flexible
-                $cases = $this->extractCasesFromResponse($rawData);
+                // Extract pagination information - handle new fetchFullCaseData structure
+                if (isset($rawData['pagination']) && isset($rawData['data'])) {
+                    // New structure with separate data and pagination
+                    $pagination = $rawData['pagination'];
+                    $cases = $rawData['data'];
+                } else {
+                    // Legacy structure - try to extract pagination from rawData
+                    $pagination = $rawData['pagination'] ?? null;
+                    $cases = $this->extractCasesFromResponse($rawData);
+                }
                 
                 $debugInfo['final_cases_count'] = count($cases);
                 $debugInfo['sample_case'] = !empty($cases) ? array_slice($cases, 0, 1) : null;
+                $debugInfo['pagination_info'] = $pagination;
 
             } catch (\Exception $e) {
                 $debugInfo = [
@@ -1499,12 +1547,13 @@ class DataExchangeController extends Controller
             // Enable debug info only when needed (set to false for production)
             $debugInfo['view_debug'] = config('app.debug', false);
 
-            return view('data-exchange.cases.index', compact('cases', 'loading', 'debugInfo', 'outletActivities'));
+            return view('data-exchange.cases.index', compact('cases', 'loading', 'debugInfo', 'pagination', 'outletActivities'));
         } catch (\Exception $e) {
             return view('data-exchange.cases.index', [
                 'cases' => [],
                 'loading' => false,
                 'debugInfo' => ['controller_error' => $e->getMessage()],
+                'pagination' => null,
                 'outletActivities' => []
             ])->with('error', 'Failed to load cases: ' . $e->getMessage());
         }
@@ -1571,6 +1620,7 @@ class DataExchangeController extends Controller
             $loading = false;
             $sessions = [];
             $debugInfo = [];
+            $pagination = null;
             $serviceTypes = [];
 
             // Get service types for filter dropdown (if available)
@@ -1599,11 +1649,20 @@ class DataExchangeController extends Controller
                 
                 $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
                 
-                // Handle different response structures - be more flexible
-                $sessions = $this->extractSessionsFromResponse($rawData);
+                // Extract pagination information - handle new fetchFullSessionData structure
+                if (isset($rawData['pagination']) && isset($rawData['data'])) {
+                    // New structure with separate data and pagination
+                    $pagination = $rawData['pagination'];
+                    $sessions = $rawData['data'];
+                } else {
+                    // Legacy structure - try to extract pagination from rawData
+                    $pagination = $rawData['pagination'] ?? null;
+                    $sessions = $this->extractSessionsFromResponse($rawData);
+                }
                 
                 $debugInfo['final_sessions_count'] = count($sessions);
                 $debugInfo['sample_session'] = !empty($sessions) ? array_slice($sessions, 0, 1) : null;
+                $debugInfo['pagination_info'] = $pagination;
 
             } catch (\Exception $e) {
                 $debugInfo = [
@@ -1623,12 +1682,13 @@ class DataExchangeController extends Controller
             // Enable debug info only when needed (set to false for production)
             $debugInfo['view_debug'] = config('app.debug', false);
 
-            return view('data-exchange.sessions.index', compact('sessions', 'loading', 'debugInfo', 'serviceTypes'));
+            return view('data-exchange.sessions.index', compact('sessions', 'loading', 'debugInfo', 'pagination', 'serviceTypes'));
         } catch (\Exception $e) {
             return view('data-exchange.sessions.index', [
                 'sessions' => [],
                 'loading' => false,
                 'debugInfo' => ['controller_error' => $e->getMessage()],
+                'pagination' => null,
                 'serviceTypes' => []
             ])->with('error', 'Failed to load sessions: ' . $e->getMessage());
         }
