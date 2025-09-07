@@ -1814,6 +1814,111 @@ class DataExchangeController extends Controller
     // API Methods for AJAX frontend operations
     
     /**
+     * Get a client by ID via API
+     */
+    public function apiGetClient($id)
+    {
+        try {
+            $result = $this->dataExchangeService->getClientById($id);
+            
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Client retrieved successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve client: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get a case by ID via API
+     */
+    public function apiGetCase($id)
+    {
+        try {
+            $result = $this->dataExchangeService->getCaseById($id);
+            
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Case retrieved successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve case: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get a session by ID via API
+     */
+    public function apiGetSession(Request $request, $id)
+    {
+        try {
+            $caseId = $request->get('case_id');
+            
+            if (!$caseId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Case ID is required to retrieve session details'
+                ], 400);
+            }
+            
+            $result = $this->dataExchangeService->getSessionById($id, $caseId);
+            
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+            
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Session retrieved successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve session: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
      * Update a client via API
      */
     public function apiUpdateClient(Request $request, $id)

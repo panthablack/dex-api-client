@@ -207,12 +207,25 @@
                         return;
                     }
                     
+                    const resourceId = this.getResourceId(resourceType, item);
+                    
                     document.getElementById('viewResourceType').textContent = resourceType;
+                    document.getElementById('viewModalContent').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading resource details...</p></div>';
                     
                     const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
                     viewModal.show();
                     
-                    this.generateViewContent(resourceType, item, itemIndex);
+                    this.fetchResourceData(resourceType, resourceId, item).then(freshData => {
+                        console.log(`Fresh ${resourceType} data:`, freshData);
+                        this.generateViewContent(resourceType, freshData, itemIndex);
+                    }).catch(error => {
+                        document.getElementById('viewModalContent').innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Error loading resource:</strong> ${error}
+                            </div>
+                        `;
+                    });
                 },
                 
                 showUpdateForm(resourceType, itemIndex) {
@@ -222,15 +235,28 @@
                         return;
                     }
                     
+                    const resourceId = this.getResourceId(resourceType, item);
+                    
                     document.getElementById('updateResourceType').textContent = resourceType;
                     
                     // Reset error state
                     document.getElementById('updateErrorAlert').classList.add('d-none');
+                    document.getElementById('updateModalContent').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading update form...</p></div>';
                     
                     const updateModal = new bootstrap.Modal(document.getElementById('updateModal'));
                     updateModal.show();
                     
-                    this.generateUpdateForm(resourceType, itemIndex, item);
+                    this.fetchResourceData(resourceType, resourceId, item).then(freshData => {
+                        console.log(`Fresh ${resourceType} data for update:`, freshData);
+                        this.generateUpdateForm(resourceType, itemIndex, freshData);
+                    }).catch(error => {
+                        document.getElementById('updateModalContent').innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Error loading resource:</strong> ${error}
+                            </div>
+                        `;
+                    });
                 },
                 
                 confirmDelete(resourceType, itemIndex) {
@@ -493,9 +519,56 @@
                     } else if (resourceType === 'case') {
                         return resourceData.CaseDetail?.CaseId || resourceData.CaseId;
                     } else if (resourceType === 'session') {
-                        return resourceData.SessionDetails?.SessionId || resourceData.SessionId;
+                        return resourceData.SessionDetails?.SessionId || resourceData.SessionDetail?.SessionId || resourceData.SessionId;
                     }
                     return null;
+                },
+                
+                fetchResourceData(resourceType, resourceId, originalItem) {
+                    return new Promise((resolve, reject) => {
+                        let url = `/data-exchange/api/${resourceType}s/${resourceId}`;
+                        
+                        // Add case_id parameter for sessions
+                        if (resourceType === 'session' && originalItem.CaseId) {
+                            url += `?case_id=${originalItem.CaseId}`;
+                        }
+                        
+                        fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Extract the actual resource data from the SOAP response structure
+                                let resourceData;
+                                
+                                if (resourceType === 'client') {
+                                    resourceData = data.data.Client || data.data;
+                                } else if (resourceType === 'case') {
+                                    // Cases can have nested CaseDetail structure
+                                    resourceData = data.data.Case?.CaseDetail || data.data.Case || data.data;
+                                } else if (resourceType === 'session') {
+                                    // Sessions can be SessionDetail or Session
+                                    resourceData = data.data.SessionDetail || data.data.Session || data.data;
+                                } else {
+                                    // Fallback to the raw data structure
+                                    resourceData = data.data;
+                                }
+                                
+                                resolve(resourceData);
+                            } else {
+                                reject(data.message || 'Failed to load resource data');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Fetch resource error:', error);
+                            reject('Network error occurred while loading resource');
+                        });
+                    });
                 },
                 
                 handleUpdate(event, resourceType, resourceId, itemIndex) {
