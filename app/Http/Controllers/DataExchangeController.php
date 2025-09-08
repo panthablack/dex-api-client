@@ -1622,6 +1622,7 @@ class DataExchangeController extends Controller
             $debugInfo = [];
             $pagination = null;
             $serviceTypes = [];
+            $errorToast = null;
 
             // Get service types for filter dropdown (if available)
             try {
@@ -1672,40 +1673,37 @@ class DataExchangeController extends Controller
                 ];
                 Log::error('Failed to load sessions: ' . $e->getMessage());
                 
-                // Add sample data for testing when API fails (only in debug mode)
-                if (config('app.debug', false)) {
-                    $sessions = $this->getSampleSessions();
-                    $debugInfo['using_sample_data'] = true;
-                    
-                    // Provide mock pagination for sample data
-                    $pagination = [
-                        'current_page' => 1,
-                        'last_page' => 1,
-                        'per_page' => count($sessions),
-                        'total' => count($sessions),
-                        'from' => 1,
-                        'to' => count($sessions),
-                        'has_more_pages' => false,
-                        'prev_page_url' => null,
-                        'next_page_url' => null,
-                    ];
-                    $debugInfo['pagination_info'] = $pagination;
-                    $debugInfo['final_sessions_count'] = count($sessions);
-                }
+                // Set empty sessions array when API fails
+                $sessions = [];
+                $pagination = null;
+                
+                // Prepare error toast data
+                $errorToast = [
+                    'title' => 'Sessions Loading Failed',
+                    'message' => 'Unable to load sessions data. The data service may be temporarily unavailable.',
+                    'details' => $e->getMessage()
+                ];
             }
 
             // Enable debug info only when needed (set to false for production)
             $debugInfo['view_debug'] = config('app.debug', false);
 
-            return view('data-exchange.sessions.index', compact('sessions', 'loading', 'debugInfo', 'pagination', 'serviceTypes'));
+            return view('data-exchange.sessions.index', compact('sessions', 'loading', 'debugInfo', 'pagination', 'serviceTypes', 'errorToast'));
         } catch (\Exception $e) {
+            $errorToast = [
+                'title' => 'Application Error',
+                'message' => 'A critical error occurred while loading the sessions page.',
+                'details' => $e->getMessage()
+            ];
+            
             return view('data-exchange.sessions.index', [
                 'sessions' => [],
                 'loading' => false,
                 'debugInfo' => ['controller_error' => $e->getMessage()],
                 'pagination' => null,
-                'serviceTypes' => []
-            ])->with('error', 'Failed to load sessions: ' . $e->getMessage());
+                'serviceTypes' => [],
+                'errorToast' => $errorToast
+            ]);
         }
     }
 
@@ -1844,59 +1842,6 @@ class DataExchangeController extends Controller
         ];
     }
 
-    /**
-     * Get sample sessions for testing table component
-     */
-    private function getSampleSessions()
-    {
-        return [
-            [
-                'CaseId' => 'CASE_001',
-                'CreatedDateTime' => '2024-01-10T10:00:00',
-                'SessionDetails' => [
-                    'SessionId' => 'SESSION_001',
-                    'ServiceTypeId' => '5',
-                    'SessionDate' => '2024-01-10T10:00:00',
-                    'Time' => '60 minutes',
-                    'TopicCode' => 'COUNSELLING',
-                    'TotalNumberOfUnidentifiedClients' => 0,
-                    'ServiceSettingCode' => 'OFFICE',
-                    'Quantity' => 1,
-                    'TotalCost' => 150.00
-                ]
-            ],
-            [
-                'CaseId' => 'CASE_002',
-                'CreatedDateTime' => '2024-01-12T14:30:00',
-                'SessionDetails' => [
-                    'SessionId' => 'SESSION_002',
-                    'ServiceTypeId' => '1',
-                    'SessionDate' => '2024-01-12T14:30:00',
-                    'Time' => '45 minutes',
-                    'TopicCode' => 'ASSESSMENT',
-                    'TotalNumberOfUnidentifiedClients' => 0,
-                    'ServiceSettingCode' => 'COMMUNITY',
-                    'Quantity' => 1,
-                    'TotalCost' => 100.00
-                ]
-            ],
-            [
-                'CaseId' => 'CASE_001',
-                'CreatedDateTime' => '2024-01-08T09:00:00',
-                'SessionDetails' => [
-                    'SessionId' => 'SESSION_003',
-                    'ServiceTypeId' => '5',
-                    'SessionDate' => '2024-01-08T09:00:00',
-                    'Time' => '90 minutes',
-                    'TopicCode' => 'FOLLOWUP',
-                    'TotalNumberOfUnidentifiedClients' => 0,
-                    'ServiceSettingCode' => 'OFFICE',
-                    'Quantity' => 1,
-                    'TotalCost' => 200.00
-                ]
-            ]
-        ];
-    }
 
     // API Methods for AJAX frontend operations
     

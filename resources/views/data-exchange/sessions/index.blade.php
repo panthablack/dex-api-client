@@ -138,6 +138,16 @@
         </div>
     @endif
 
+    @if(isset($errorToast))
+        <x-toast-container>
+            <x-error-toast 
+                :title="$errorToast['title']"
+                :message="$errorToast['message']"
+                :details="$errorToast['details'] ?? null"
+            />
+        </x-toast-container>
+    @endif
+
 @endsection
 
 @push('scripts')
