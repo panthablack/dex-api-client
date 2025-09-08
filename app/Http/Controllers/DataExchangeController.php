@@ -721,7 +721,7 @@ class DataExchangeController extends Controller
             } elseif ($routeName && str_contains($routeName, 'cases')) {
                 return 'CaseId';
             } elseif ($routeName && str_contains($routeName, 'sessions')) {
-                return 'SessionId';
+                return 'CaseId';
             }
         }
         

@@ -1674,7 +1674,7 @@ class DataExchangeService
     public function getSessionsFromCase($case): array
     {
         if (!($case['Sessions']['SessionId'] ?? null)) {
-            \Log::debug('getSessionsFromCase failing - case structure:', [
+            Log::debug('getSessionsFromCase failing - case structure:', [
                 'case_keys' => is_array($case) ? array_keys($case) : 'not_array',
                 'has_sessions' => isset($case['Sessions']),
                 'sessions_structure' => $case['Sessions'] ?? 'null',
