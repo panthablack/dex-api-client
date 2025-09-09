@@ -1673,7 +1673,8 @@ class DataExchangeService
      */
     public function getSessionsFromCase($case): array
     {
-        if (!($case['Sessions']['SessionId'] ?? null)) {
+        $caseSessionId = $case['Sessions']['SessionId'];
+        if (!($caseSessionId ?? null)) {
             Log::debug('getSessionsFromCase failing - case structure:', [
                 'case_keys' => is_array($case) ? array_keys($case) : 'not_array',
                 'has_sessions' => isset($case['Sessions']),
@@ -1682,10 +1683,13 @@ class DataExchangeService
             ]);
             throw new \Exception('Cannot get Sessions from a Case without a Case.');
         }
+
         $sessionIds = [];
-        foreach (explode(',', $case['Sessions']['SessionId']) as $sessionId) {
-            array_push($sessionIds, $sessionId);
+        if (is_string($caseSessionId)) array_push($sessionIds, $caseSessionId);
+        if (is_array($caseSessionId)) {
+            foreach ($caseSessionId as $sessionId) array_push($sessionIds, $sessionId);
         }
+
         $sessions = [];
         foreach ($sessionIds as $sessionId) {
             array_push($sessions, $this->getSessionById($sessionId, $case['CaseDetail']['CaseId']));

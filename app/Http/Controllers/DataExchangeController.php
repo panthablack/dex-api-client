@@ -725,8 +725,8 @@ class DataExchangeController extends Controller
             }
         }
         
-        // Default fallback
-        return 'CreatedDateTime';
+        // Default fallback - use CreatedDate which is valid for all resource types
+        return 'CreatedDate';
     }
 
     /**
