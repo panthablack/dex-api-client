@@ -590,9 +590,13 @@ class DataMigrationService
                     'batch_number' => $batch->batch_number,
                     'resource_type' => $batch->resource_type,
                     'status' => $batch->status,
-                    'items_stored' => $batch->items_stored,
+                    'items_requested' => $batch->items_requested,
+                    'items_received' => $batch->items_received ?? 0,
+                    'items_stored' => $batch->items_stored ?? 0,
                     'success_rate' => $batch->success_rate,
-                    'error_message' => $batch->error_message
+                    'error_message' => $batch->error_message,
+                    'started_at' => $batch->started_at?->toISOString(),
+                    'completed_at' => $batch->completed_at?->toISOString()
                 ];
             })
         ];
