@@ -286,7 +286,7 @@
 
         function exportResults(format) {
             if (!currentReferenceData) {
-                alert('No data to export');
+                showAlert('No data to export', 'warning');
                 return;
             }
 

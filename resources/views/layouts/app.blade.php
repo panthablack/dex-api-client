@@ -131,6 +131,9 @@
         <!-- Toasts will be dynamically added here -->
     </x-toast-container>
 
+    <!-- Alert Component -->
+    <x-alert></x-alert>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-xml.min.js"></script>

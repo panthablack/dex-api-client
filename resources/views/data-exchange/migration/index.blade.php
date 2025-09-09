@@ -311,12 +311,12 @@ function cancelMigration(migrationId) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.error);
+            showAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to cancel migration');
+        showAlert('Failed to cancel migration', 'error');
     });
 }
 
@@ -333,15 +333,15 @@ function retryMigration(migrationId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
+            showAlert(data.message, 'success');
             location.reload();
         } else {
-            alert('Error: ' + data.error);
+            showAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to retry migration');
+        showAlert('Failed to retry migration', 'error');
     });
 }
 

@@ -149,14 +149,14 @@ function startFullVerification() {
         } else {
             button.textContent = 'Start Full Verification';
             button.disabled = false;
-            alert('Error starting verification: ' + data.error);
+            showAlert('Error starting verification: ' + data.error, 'error');
         }
     })
     .catch(error => {
         button.textContent = 'Start Full Verification';
         button.disabled = false;
         console.error('Error:', error);
-        alert('Failed to start verification');
+        showAlert('Failed to start verification', 'error');
     });
 }
 

@@ -632,12 +632,12 @@ function cancelMigration() {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.error);
+            showAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to cancel migration');
+        showAlert('Failed to cancel migration', 'error');
     });
 }
 
@@ -654,15 +654,15 @@ function retryMigration() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
+            showAlert(data.message, 'success');
             location.reload();
         } else {
-            alert('Error: ' + data.error);
+            showAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to retry migration');
+        showAlert('Failed to retry migration', 'error');
     });
 }
 
@@ -687,14 +687,14 @@ function quickVerifyData() {
         if (data.success) {
             showVerificationResults(data.data);
         } else {
-            alert('Error: ' + data.error);
+            showAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         button.textContent = originalText;
         button.disabled = false;
         console.error('Error:', error);
-        alert('Failed to verify data');
+        showAlert('Failed to verify data', 'error');
     });
 }
 
@@ -908,11 +908,11 @@ function migrationApp() {
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert('Error: ' + data.error);
+                    showAlert('Error: ' + data.error, 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to cancel migration');
+                showAlert('Failed to cancel migration', 'error');
             }
         },
 
@@ -932,11 +932,11 @@ function migrationApp() {
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert('Error: ' + data.error);
+                    showAlert('Error: ' + data.error, 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to retry migration');
+                showAlert('Failed to retry migration', 'error');
             }
         },
 
@@ -954,11 +954,11 @@ function migrationApp() {
                 if (data.success) {
                     this.showVerificationResults(data.data);
                 } else {
-                    alert('Error: ' + data.error);
+                    showAlert('Error: ' + data.error, 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to verify data');
+                showAlert('Failed to verify data', 'error');
             }
         },
 

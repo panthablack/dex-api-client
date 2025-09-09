@@ -568,7 +568,7 @@
                 console.log('Client ID field:', clientId);
                 console.log('Client ID value:', clientId ? clientId.value : 'field not found');
                 if (!clientId || !clientId.value.trim()) {
-                    alert('Client ID is required for client lookup');
+                    showAlert('Client ID is required for client lookup', 'warning');
                     event.preventDefault();
                     return false;
                 }
@@ -580,7 +580,7 @@
                     .display : 'N/A');
                 console.log('Case ID field disabled:', caseId ? caseId.disabled : 'N/A');
                 if (!caseId || !caseId.value.trim()) {
-                    alert('Case ID is required for case lookup');
+                    showAlert('Case ID is required for case lookup', 'warning');
                     event.preventDefault();
                     return false;
                 }
@@ -592,12 +592,12 @@
                 console.log('Session Case ID field:', sessionCaseId);
                 console.log('Session Case ID value:', sessionCaseId ? sessionCaseId.value : 'field not found');
                 if (!sessionId || !sessionId.value.trim()) {
-                    alert('Session ID is required for session lookup');
+                    showAlert('Session ID is required for session lookup', 'warning');
                     event.preventDefault();
                     return false;
                 }
                 if (!sessionCaseId || !sessionCaseId.value.trim()) {
-                    alert('Case ID is required for session lookup');
+                    showAlert('Case ID is required for session lookup', 'warning');
                     event.preventDefault();
                     return false;
                 }
