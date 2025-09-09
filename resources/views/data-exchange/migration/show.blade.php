@@ -669,8 +669,9 @@ function retryMigration() {
 function quickVerifyData() {
     const button = event.target;
     const originalText = button.textContent;
-    button.textContent = 'Verifying...';
-    button.disabled = true;
+    
+    // Show loading modal immediately
+    showLoadingModal();
     
     fetch(`{{ route('data-migration.api.quick-verify', $migration) }}`, {
         method: 'POST',
@@ -681,20 +682,15 @@ function quickVerifyData() {
     })
     .then(response => response.json())
     .then(data => {
-        button.textContent = originalText;
-        button.disabled = false;
-        
         if (data.success) {
             showVerificationResults(data.data);
         } else {
-            showAlert('Error: ' + data.error, 'error');
+            showErrorInModal('Error: ' + data.error);
         }
     })
     .catch(error => {
-        button.textContent = originalText;
-        button.disabled = false;
         console.error('Error:', error);
-        showAlert('Failed to verify data', 'error');
+        showErrorInModal('Failed to verify data');
     });
 }
 
@@ -757,6 +753,37 @@ function showVerificationResults(results) {
 function fullVerifyData() {
     // Redirect to full verification view
     window.location.href = `{{ route('data-migration.verification', $migration) }}`;
+}
+
+function showLoadingModal() {
+    const loadingContent = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5 class="text-muted">Verifying Data...</h5>
+            <p class="text-muted">Please wait while we verify your migrated data.</p>
+        </div>
+    `;
+    
+    document.getElementById('verify-results-content').innerHTML = loadingContent;
+    const modal = new bootstrap.Modal(document.getElementById('quick-verify-modal'));
+    modal.show();
+}
+
+function showErrorInModal(errorMessage) {
+    const errorContent = `
+        <div class="text-center py-5">
+            <div class="text-danger mb-3">
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
+            </div>
+            <h5 class="text-danger">Verification Failed</h5>
+            <p class="text-muted">${errorMessage}</p>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    `;
+    
+    document.getElementById('verify-results-content').innerHTML = errorContent;
 }
 
 // Auto-refresh for active migrations
@@ -941,6 +968,9 @@ function migrationApp() {
         },
 
         async quickVerifyData() {
+            // Show modal immediately with loading state
+            this.showLoadingModal();
+            
             try {
                 const response = await fetch(`{{ route('data-migration.api.quick-verify', $migration) }}`, {
                     method: 'POST',
@@ -954,12 +984,43 @@ function migrationApp() {
                 if (data.success) {
                     this.showVerificationResults(data.data);
                 } else {
-                    showAlert('Error: ' + data.error, 'error');
+                    this.showErrorInModal('Error: ' + data.error);
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showAlert('Failed to verify data', 'error');
+                this.showErrorInModal('Failed to verify data');
             }
+        },
+
+        showLoadingModal() {
+            const loadingContent = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="text-muted">Verifying Data...</h5>
+                    <p class="text-muted">Please wait while we verify your migrated data.</p>
+                </div>
+            `;
+            
+            document.getElementById('verify-results-content').innerHTML = loadingContent;
+            const modal = new bootstrap.Modal(document.getElementById('quick-verify-modal'));
+            modal.show();
+        },
+
+        showErrorInModal(errorMessage) {
+            const errorContent = `
+                <div class="text-center py-5">
+                    <div class="text-danger mb-3">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="text-danger">Verification Failed</h5>
+                    <p class="text-muted">${errorMessage}</p>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            `;
+            
+            document.getElementById('verify-results-content').innerHTML = errorContent;
         },
 
         showVerificationResults(results) {
