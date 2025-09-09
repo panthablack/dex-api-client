@@ -2,27 +2,26 @@ services:
     app:
         build:
             context: .
-            target: development
+            target: production
         ports:
             - "8000:80"
-        volumes:
-            - .:/var/www/html
         environment:
-            - APP_ENV=${APP_ENV:-local}
-            - APP_DEBUG=${APP_DEBUG:-true}
+            - APP_ENV=production
+            - APP_DEBUG=false
+            - APP_KEY=${APP_KEY}
         depends_on:
             db:
                 condition: service_healthy
+        restart: unless-stopped
 
     queue:
         build:
             context: .
             target: queue-worker
-        volumes:
-            - .:/var/www/html
         environment:
-            - APP_ENV=${APP_ENV:-local}
-            - APP_DEBUG=${APP_DEBUG:-true}
+            - APP_ENV=production
+            - APP_DEBUG=false
+            - APP_KEY=${APP_KEY}
         depends_on:
             db:
                 condition: service_healthy
@@ -38,7 +37,7 @@ services:
         ports:
             - "${DB_HOST_PORT:-3306}:${DB_PORT:-3306}"
         volumes:
-            - db:/var/lib/mysql
+            - db_prod:/var/lib/mysql
         restart: unless-stopped
         healthcheck:
             test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-secret}" ]
@@ -48,4 +47,4 @@ services:
             start_period: 40s
 
 volumes:
-    db:
+    db_prod:

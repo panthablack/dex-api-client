@@ -1,0 +1,69 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+CHANGELOG.md
+docs/
+
+# Development files
+.env.example
+.env.local
+.env.*.local
+docker-compose.yml
+docker-compose.yaml
+docker-compose.*.yml
+docker-compose.*.yaml
+Dockerfile*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node.js (if you have frontend assets)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+tests/
+phpunit.xml
+.phpunit.cache
+coverage/
+
+# Cache and temporary files
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/public/*
+!storage/app/.gitkeep
+!storage/framework/.gitkeep
+!storage/logs/.gitkeep
+
+# Build artifacts
+vendor/
+bootstrap/cache/*
+!bootstrap/cache/.gitkeep
+
+# Development tools
+.php_cs
+.php_cs.cache
+.phpcs.xml
+.phpmd.xml
+.psalm.xml

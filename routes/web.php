@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DataExchangeController;
+use App\Http\Controllers\DataMigrationController;
 
 Route::get('/', [DataExchangeController::class, 'index'])->name('home');
 
@@ -79,4 +80,29 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
             'all_data' => $request->all()
         ]);
     })->name('debug-session');
+});
+
+// Data Migration routes
+Route::prefix('data-migration')->name('data-migration.')->group(function () {
+    // Main migration management routes
+    Route::get('/', [DataMigrationController::class, 'index'])->name('index');
+    Route::get('/create', [DataMigrationController::class, 'create'])->name('create');
+    Route::post('/', [DataMigrationController::class, 'store'])->name('store');
+    Route::get('/{migration}', [DataMigrationController::class, 'show'])->name('show');
+    Route::delete('/{migration}', [DataMigrationController::class, 'destroy'])->name('destroy');
+
+    // Verification routes
+    Route::get('/{migration}/verification', [DataMigrationController::class, 'showVerification'])->name('verification');
+
+    // API endpoints for AJAX operations
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::get('/dashboard', [DataMigrationController::class, 'dashboard'])->name('dashboard');
+        Route::get('/stats', [DataMigrationController::class, 'stats'])->name('stats');
+        Route::get('/{migration}/status', [DataMigrationController::class, 'status'])->name('status');
+        Route::post('/{migration}/cancel', [DataMigrationController::class, 'cancel'])->name('cancel');
+        Route::post('/{migration}/retry', [DataMigrationController::class, 'retry'])->name('retry');
+        Route::get('/{migration}/export', [DataMigrationController::class, 'export'])->name('export');
+        Route::post('/{migration}/quick-verify', [DataMigrationController::class, 'quickVerify'])->name('quick-verify');
+        Route::post('/{migration}/full-verify', [DataMigrationController::class, 'fullVerify'])->name('full-verify');
+    });
 });

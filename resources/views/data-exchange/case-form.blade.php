@@ -183,16 +183,6 @@
                                                 {{ $profile->Description }}
                                             </option>
                                         @endforeach
-                                    @else
-                                        <option value="PSGROUP"
-                                            {{ old('client_attendance_profile_code') == 'PSGROUP' ? 'selected' : '' }}>Peer
-                                            support group</option>
-                                        <option value="INDIVIDUAL"
-                                            {{ old('client_attendance_profile_code') == 'INDIVIDUAL' ? 'selected' : '' }}>
-                                            Individual</option>
-                                        <option value="FAMILY"
-                                            {{ old('client_attendance_profile_code') == 'FAMILY' ? 'selected' : '' }}>
-                                            Family</option>
                                     @endif
                                 </select>
                                 @error('client_attendance_profile_code')

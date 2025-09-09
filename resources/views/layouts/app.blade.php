@@ -108,6 +108,12 @@
                         </ul>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('data-migration.*') ? 'active' : '' }}"
+                            href="{{ route('data-migration.index') }}">
+                            <i class="fas fa-database"></i> Data Migration
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('data-exchange.reference-data') ? 'active' : '' }}"
                             href="{{ route('data-exchange.reference-data') }}">Reference Data</a>
                     </li>

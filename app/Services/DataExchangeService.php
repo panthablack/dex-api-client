@@ -2518,23 +2518,10 @@ class DataExchangeService
     {
         try {
             $attendanceProfiles = \App\Helpers\ReferenceData::attendanceProfile();
-
             if (!empty($attendanceProfiles)) {
-                // Use weighted selection for realistic distribution
-                $commonProfiles = ['INDIVIDUAL', 'FAMILY', 'PSGROUP'];
-                $randomValue = fake()->numberBetween(1, 100);
-
-                if ($randomValue <= 80) {
-                    // 80% chance of common attendance profiles
-                    foreach ($attendanceProfiles as $profile) {
-                        if (in_array($profile->Code, $commonProfiles)) {
-                            return $profile->Code;
-                        }
-                    }
-                }
-
                 // Otherwise random attendance profile
-                return $attendanceProfiles[array_rand($attendanceProfiles)]->Code;
+                // return $attendanceProfiles[array_rand($attendanceProfiles)]->Code;
+                return "FAMILY";
             }
         } catch (\Exception $e) {
             // Log error but continue with fallback
