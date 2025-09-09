@@ -379,6 +379,27 @@
     </div>
 </div>
 
+<!-- Quick Verify Results Modal -->
+<div class="modal fade" id="quick-verify-modal" tabindex="-1" aria-labelledby="quickVerifyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quickVerifyModalLabel">Quick Verification Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="verify-results-content">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="fullVerifyData()" data-bs-dismiss="modal">Run Full Verification</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let refreshInterval;
 const migrationId = {{ $migration->id }};
@@ -564,20 +585,64 @@ function quickVerifyData() {
 }
 
 function showVerificationResults(results) {
-    let message = `Quick Verification Results (${results.sample_size} samples per resource):\n\n`;
+    // Build HTML content for the modal
+    let content = `
+        <div class="mb-3">
+            <h6 class="text-muted">Sample Size: ${results.sample_size} records per resource type</h6>
+        </div>
+        <div class="row">
+    `;
     
     for (const [resourceType, result] of Object.entries(results.results)) {
+        let statusClass, statusIcon, statusText;
+        
         if (result.status === 'completed') {
             const rate = result.success_rate || 0;
-            message += `${resourceType.toUpperCase()}: ${result.verified}/${result.total_checked} verified (${rate}%)\n`;
+            if (rate >= 95) {
+                statusClass = 'text-success';
+                statusIcon = '✓';
+            } else if (rate >= 80) {
+                statusClass = 'text-warning';
+                statusIcon = '⚠';
+            } else {
+                statusClass = 'text-danger';
+                statusIcon = '✗';
+            }
+            statusText = `${result.verified}/${result.total_checked} verified (${rate}%)`;
         } else if (result.status === 'no_data') {
-            message += `${resourceType.toUpperCase()}: No data to verify\n`;
+            statusClass = 'text-muted';
+            statusIcon = '—';
+            statusText = 'No data to verify';
         } else {
-            message += `${resourceType.toUpperCase()}: Error - ${result.error}\n`;
+            statusClass = 'text-danger';
+            statusIcon = '✗';
+            statusText = `Error: ${result.error}`;
         }
+        
+        content += `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-capitalize">${resourceType}</h5>
+                        <div class="${statusClass} mb-2" style="font-size: 2rem;">${statusIcon}</div>
+                        <p class="card-text ${statusClass}">${statusText}</p>
+                    </div>
+                </div>
+            </div>
+        `;
     }
     
-    alert(message);
+    content += '</div>';
+    
+    // Populate modal and show it
+    document.getElementById('verify-results-content').innerHTML = content;
+    const modal = new bootstrap.Modal(document.getElementById('quick-verify-modal'));
+    modal.show();
+}
+
+function fullVerifyData() {
+    // Redirect to full verification view
+    window.location.href = `{{ route('data-migration.verification', $migration) }}`;
 }
 
 // Auto-refresh for active migrations

@@ -27,11 +27,24 @@ class DataMigrationService
      */
     public function createMigration(array $data): DataMigration
     {
+        // Calculate total items upfront using the fixed getTotalItemsForResource method
+        $totalItems = 0;
+        $filters = $data['filters'] ?? [];
+        
+        foreach ($data['resource_types'] as $resourceType) {
+            $resourceTotal = $this->getTotalItemsForResource($resourceType, $filters);
+            $totalItems += $resourceTotal;
+            Log::info("Found {$resourceTotal} items for {$resourceType}");
+        }
+        
+        Log::info("Total items to migrate: {$totalItems}");
+
         return DataMigration::create([
             'name' => $data['name'],
             'resource_types' => $data['resource_types'],
             'filters' => $data['filters'] ?? [],
             'batch_size' => $data['batch_size'] ?? 100,
+            'total_items' => $totalItems,  // Set total items immediately
             'status' => 'pending'
         ]);
     }
@@ -91,39 +104,46 @@ class DataMigrationService
             ]);
         }
 
-        // Update migration total items
-        $migration->increment('total_items', $totalItems);
+        Log::info("Created {$totalBatches} batches for {$resourceType} (total items already set during migration creation)");
     }
 
     /**
-     * Get total items for a resource type (estimates from API)
+     * Calculate total items to be processed for a resource type using Search APIs
      */
     protected function getTotalItemsForResource(string $resourceType, array $filters): int
     {
         try {
-            // For the initial estimate, we'll try to get a small sample first
-            $sampleFilters = array_merge($filters, [
+            // Use Search APIs with PageSize=1 to get accurate TotalCount metadata
+            $searchFilters = array_merge($filters, [
                 'page_index' => 1,
-                'page_size' => 1 // Just get one item to check pagination
+                'page_size' => 1 // Just get one item to extract TotalCount from metadata
             ]);
+
+            Log::info("Getting total items count for {$resourceType}", ['filters' => $searchFilters]);
 
             switch ($resourceType) {
                 case 'clients':
-                    $response = $this->dataExchangeService->getClientDataWithPagination($sampleFilters);
+                    // Use SearchClient API directly for accurate count
+                    $response = $this->dataExchangeService->getClientData($searchFilters);
                     break;
                 case 'cases':
-                    $response = $this->dataExchangeService->fetchFullCaseData($sampleFilters);
+                    // Use SearchCase API directly for accurate count
+                    $response = $this->dataExchangeService->getCaseData($searchFilters);
                     break;
                 case 'sessions':
-                    $response = $this->dataExchangeService->fetchFullSessionData($sampleFilters);
+                    // Sessions require case_id filtering via SearchCase
+                    $response = $this->dataExchangeService->getSessionData($searchFilters);
                     break;
                 default:
                     throw new \InvalidArgumentException("Unknown resource type: {$resourceType}");
             }
 
-            // Extract total count from pagination info
-            if (is_array($response) && isset($response['pagination']['total_items'])) {
-                return (int) $response['pagination']['total_items'];
+            // Extract TotalCount from SOAP response metadata
+            $totalCount = $this->extractTotalCountFromResponse($response);
+            
+            if ($totalCount > 0) {
+                Log::info("Found {$totalCount} total items for {$resourceType}");
+                return $totalCount;
             }
 
             // Fallback: estimate based on reasonable assumptions
@@ -134,6 +154,60 @@ class DataMigrationService
             Log::error("Failed to get total items for {$resourceType}: " . $e->getMessage());
             return 0;
         }
+    }
+
+    /**
+     * Extract TotalCount from SOAP API response metadata
+     */
+    protected function extractTotalCountFromResponse($response): int
+    {
+        // Handle different response structures from SOAP APIs
+        if (is_object($response)) {
+            $response = json_decode(json_encode($response), true);
+        }
+
+        if (!is_array($response)) {
+            return 0;
+        }
+
+        // Check for TotalCount in various possible locations
+        $possiblePaths = [
+            'TotalCount',
+            'totalCount', 
+            'total_count',
+            'pagination.total_items',
+            'pagination.TotalCount',
+            'Pagination.TotalCount',
+            'SearchResult.TotalCount',
+            'Result.TotalCount'
+        ];
+
+        foreach ($possiblePaths as $path) {
+            $value = $this->getNestedValue($response, $path);
+            if (is_numeric($value) && $value > 0) {
+                return (int) $value;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get nested array value using dot notation
+     */
+    protected function getNestedValue(array $array, string $path)
+    {
+        $keys = explode('.', $path);
+        $current = $array;
+
+        foreach ($keys as $key) {
+            if (!is_array($current) || !isset($current[$key])) {
+                return null;
+            }
+            $current = $current[$key];
+        }
+
+        return $current;
     }
 
     /**

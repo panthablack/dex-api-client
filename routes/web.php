@@ -104,5 +104,6 @@ Route::prefix('data-migration')->name('data-migration.')->group(function () {
         Route::get('/{migration}/export', [DataMigrationController::class, 'export'])->name('export');
         Route::post('/{migration}/quick-verify', [DataMigrationController::class, 'quickVerify'])->name('quick-verify');
         Route::post('/{migration}/full-verify', [DataMigrationController::class, 'fullVerify'])->name('full-verify');
+        Route::get('/{migration}/verification-status', [DataMigrationController::class, 'verificationStatus'])->name('verification-status');
     });
 });
