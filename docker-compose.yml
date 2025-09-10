@@ -10,7 +10,7 @@ services:
         environment:
             - APP_ENV=${APP_ENV:-local}
             - APP_DEBUG=${APP_DEBUG:-true}
-            - APP_URL=http://app:80
+            - APP_URL=http://172.22.0.4:80
         depends_on:
             db:
                 condition: service_healthy
@@ -58,7 +58,7 @@ services:
         environment:
             - CI=true
             - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-            - PLAYWRIGHT_BASE_URL=http://app:80
+            - PLAYWRIGHT_BASE_URL=http://172.22.0.4:80
         depends_on:
             app:
                 condition: service_started
