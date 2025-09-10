@@ -20,13 +20,18 @@ class MigratedSession extends Model
         'notes',
         'api_response',
         'migration_batch_id',
-        'migrated_at'
+        'migrated_at',
+        'verified',
+        'verified_at',
+        'verification_error'
     ];
 
     protected $casts = [
         'session_date' => 'date',
         'api_response' => 'array',
-        'migrated_at' => 'datetime'
+        'migrated_at' => 'datetime',
+        'verified' => 'boolean',
+        'verified_at' => 'datetime'
     ];
 
     public function case(): BelongsTo

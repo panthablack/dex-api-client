@@ -28,7 +28,10 @@ class MigratedClient extends Model
         'client_type',
         'api_response',
         'migration_batch_id',
-        'migrated_at'
+        'migrated_at',
+        'verified',
+        'verified_at',
+        'verification_error'
     ];
 
     protected $casts = [
@@ -40,7 +43,9 @@ class MigratedClient extends Model
         'consent_to_provide_details' => 'boolean',
         'consent_to_be_contacted' => 'boolean',
         'api_response' => 'array',
-        'migrated_at' => 'datetime'
+        'migrated_at' => 'datetime',
+        'verified' => 'boolean',
+        'verified_at' => 'datetime'
     ];
 
     public function cases(): HasMany

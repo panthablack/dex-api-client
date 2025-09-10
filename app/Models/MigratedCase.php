@@ -21,14 +21,19 @@ class MigratedCase extends Model
         'ag_business_type_code',
         'api_response',
         'migration_batch_id',
-        'migrated_at'
+        'migrated_at',
+        'verified',
+        'verified_at',
+        'verification_error'
     ];
 
     protected $casts = [
         'reasons_for_assistance' => 'array',
         'end_date' => 'date',
         'api_response' => 'array',
-        'migrated_at' => 'datetime'
+        'migrated_at' => 'datetime',
+        'verified' => 'boolean',
+        'verified_at' => 'datetime'
     ];
 
     public function client(): BelongsTo

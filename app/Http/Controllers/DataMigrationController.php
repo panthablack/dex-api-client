@@ -5,21 +5,28 @@ namespace App\Http\Controllers;
 use App\Models\DataMigration;
 use App\Services\DataMigrationService;
 use App\Services\DataVerificationService;
+use App\Services\VerificationService;
 use App\Jobs\InitiateDataMigration;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class DataMigrationController extends Controller
 {
     protected DataMigrationService $migrationService;
     protected DataVerificationService $verificationService;
+    protected VerificationService $newVerificationService;
 
-    public function __construct(DataMigrationService $migrationService, DataVerificationService $verificationService)
-    {
+    public function __construct(
+        DataMigrationService $migrationService, 
+        DataVerificationService $verificationService,
+        VerificationService $newVerificationService
+    ) {
         $this->migrationService = $migrationService;
         $this->verificationService = $verificationService;
+        $this->newVerificationService = $newVerificationService;
     }
 
     /**
@@ -405,14 +412,14 @@ class DataMigrationController extends Controller
     public function quickVerify(DataMigration $migration): JsonResponse
     {
         try {
-            if (!in_array($migration->status, ['completed', 'failed'])) {
+            if (!in_array($migration->status, ['completed', 'failed']) && $migration->batches->where('status', 'completed')->count() === 0) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Can only verify completed or failed migrations'
+                    'error' => 'Can only verify migrations with completed batches'
                 ], 400);
             }
 
-            $results = $this->verificationService->quickVerify($migration, 5);
+            $results = $this->newVerificationService->quickVerifyMigration($migration, 10);
 
             return response()->json([
                 'success' => true,
@@ -442,32 +449,19 @@ class DataMigrationController extends Controller
 
             Log::info("Starting full verification for migration {$migration->id}");
 
-            // Start verification (this could be made async with a job in the future)
-            $results = $this->verificationService->verifyMigration($migration);
+            // Generate unique verification ID
+            $verificationId = $migration->id . '_' . time();
 
-            // Format results for frontend
-            $formattedResults = [
-                'verification_id' => $migration->id . '_' . time(),
-                'status' => 'completed',
-                'total' => $migration->total_items,
-                'processed' => $migration->total_items,
-                'verified' => array_sum(array_column($results['resource_results'], 'verified_count')),
-                'results' => []
-            ];
-
-            // Transform resource results to match frontend expectations
-            foreach ($results['resource_results'] as $resourceType => $resourceResult) {
-                $formattedResults['results'][$resourceType] = [
-                    'total' => $resourceResult['verified_count'] + $resourceResult['discrepancy_count'] + $resourceResult['missing_count'],
-                    'verified' => $resourceResult['verified_count'],
-                    'status' => $resourceResult['status'],
-                    'errors' => $resourceResult['discrepancies'] ?? []
-                ];
-            }
+            // Dispatch async verification job
+            \App\Jobs\VerifyMigrationJob::dispatch($migration, $verificationId);
 
             return response()->json([
                 'success' => true,
-                'data' => $formattedResults
+                'data' => [
+                    'verification_id' => $verificationId,
+                    'status' => 'starting',
+                    'message' => 'Full verification started. Check status for progress.'
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Full verification failed: ' . $e->getMessage());
@@ -489,38 +483,35 @@ class DataMigrationController extends Controller
     /**
      * Get verification status for a migration
      */
-    public function verificationStatus(DataMigration $migration): JsonResponse
+    public function verificationStatus(DataMigration $migration, Request $request): JsonResponse
     {
         try {
-            // For now, return mock data since we need to implement the verification service
-            // In a real implementation, this would check the status of ongoing verification jobs
-            $stats = [
-                'status' => 'completed', // mock status
-                'total' => $migration->total_items,
-                'processed' => $migration->total_items,
-                'verified' => $migration->items_processed,
-                'results' => [
-                    'clients' => [
-                        'total' => $migration->batches()->where('resource_type', 'clients')->sum('items_stored'),
-                        'verified' => $migration->batches()->where('resource_type', 'clients')->sum('items_stored'),
-                        'errors' => []
-                    ],
-                    'cases' => [
-                        'total' => $migration->batches()->where('resource_type', 'cases')->sum('items_stored'),
-                        'verified' => $migration->batches()->where('resource_type', 'cases')->sum('items_stored'),
-                        'errors' => []
-                    ],
-                    'sessions' => [
-                        'total' => $migration->batches()->where('resource_type', 'sessions')->sum('items_stored'),
-                        'verified' => $migration->batches()->where('resource_type', 'sessions')->sum('items_stored'),
-                        'errors' => []
-                    ]
-                ]
-            ];
-
+            $verificationId = $request->get('verification_id');
+            
+            if ($verificationId) {
+                // Check cache for ongoing verification status
+                $status = Cache::get("verification_status_{$verificationId}");
+                
+                if ($status) {
+                    return response()->json([
+                        'success' => true,
+                        'data' => $status
+                    ]);
+                }
+            }
+            
+            // Fallback: return current verification stats from database
+            $stats = $this->newVerificationService->getMigrationVerificationStats($migration);
+            
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => [
+                    'status' => 'completed',
+                    'total' => $stats['total'],
+                    'processed' => $stats['total'],
+                    'verified' => $stats['verified'],
+                    'results' => $stats['results']
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Verification status check failed: ' . $e->getMessage());

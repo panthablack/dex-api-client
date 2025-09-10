@@ -381,7 +381,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="fullVerifyData()" data-bs-dismiss="modal">Run Full Verification</button>
+                <a href="{{ route('data-migration.verification', $migration) }}" class="btn btn-primary" data-bs-dismiss="modal">Run Full Verification</a>
             </div>
         </div>
     </div>
@@ -666,125 +666,6 @@ function retryMigration() {
     });
 }
 
-function quickVerifyData() {
-    const button = event.target;
-    const originalText = button.textContent;
-    
-    // Show loading modal immediately
-    showLoadingModal();
-    
-    fetch(`{{ route('data-migration.api.quick-verify', $migration) }}`, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showVerificationResults(data.data);
-        } else {
-            showErrorInModal('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showErrorInModal('Failed to verify data');
-    });
-}
-
-function showVerificationResults(results) {
-    // Build HTML content for the modal
-    let content = `
-        <div class="mb-3">
-            <h6 class="text-muted">Sample Size: ${results.sample_size} records per resource type</h6>
-        </div>
-        <div class="row">
-    `;
-    
-    for (const [resourceType, result] of Object.entries(results.results)) {
-        let statusClass, statusIcon, statusText;
-        
-        if (result.status === 'completed') {
-            const rate = result.success_rate || 0;
-            if (rate >= 95) {
-                statusClass = 'text-success';
-                statusIcon = '✓';
-            } else if (rate >= 80) {
-                statusClass = 'text-warning';
-                statusIcon = '⚠';
-            } else {
-                statusClass = 'text-danger';
-                statusIcon = '✗';
-            }
-            statusText = `${result.verified}/${result.total_checked} verified (${rate}%)`;
-        } else if (result.status === 'no_data') {
-            statusClass = 'text-muted';
-            statusIcon = '—';
-            statusText = 'No data to verify';
-        } else {
-            statusClass = 'text-danger';
-            statusIcon = '✗';
-            statusText = `Error: ${result.error}`;
-        }
-        
-        content += `
-            <div class="col-md-4 mb-3">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title text-capitalize">${resourceType}</h5>
-                        <div class="${statusClass} mb-2" style="font-size: 2rem;">${statusIcon}</div>
-                        <p class="card-text ${statusClass}">${statusText}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    content += '</div>';
-    
-    // Populate modal and show it
-    document.getElementById('verify-results-content').innerHTML = content;
-    const modal = new bootstrap.Modal(document.getElementById('quick-verify-modal'));
-    modal.show();
-}
-
-function fullVerifyData() {
-    // Redirect to full verification view
-    window.location.href = `{{ route('data-migration.verification', $migration) }}`;
-}
-
-function showLoadingModal() {
-    const loadingContent = `
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <h5 class="text-muted">Verifying Data...</h5>
-            <p class="text-muted">Please wait while we verify your migrated data.</p>
-        </div>
-    `;
-    
-    document.getElementById('verify-results-content').innerHTML = loadingContent;
-    const modal = new bootstrap.Modal(document.getElementById('quick-verify-modal'));
-    modal.show();
-}
-
-function showErrorInModal(errorMessage) {
-    const errorContent = `
-        <div class="text-center py-5">
-            <div class="text-danger mb-3">
-                <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
-            </div>
-            <h5 class="text-danger">Verification Failed</h5>
-            <p class="text-muted">${errorMessage}</p>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        </div>
-    `;
-    
-    document.getElementById('verify-results-content').innerHTML = errorContent;
-}
 
 // Auto-refresh for active migrations
 document.addEventListener('DOMContentLoaded', function() {
@@ -1003,8 +884,20 @@ function migrationApp() {
                 </div>
             `;
             
+            const modalElement = document.getElementById('quick-verify-modal');
             document.getElementById('verify-results-content').innerHTML = loadingContent;
-            const modal = new bootstrap.Modal(document.getElementById('quick-verify-modal'));
+            
+            // Ensure any existing modal instance is properly cleaned up
+            const existingModal = bootstrap.Modal.getInstance(modalElement);
+            if (existingModal) {
+                existingModal.dispose();
+            }
+            
+            // Create new modal instance
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static',
+                keyboard: false
+            });
             modal.show();
         },
 
@@ -1024,57 +917,87 @@ function migrationApp() {
         },
 
         showVerificationResults(results) {
-            let content = `
-                <div class="mb-3">
-                    <h6 class="text-muted">Sample Size: ${results.sample_size} records per resource type</h6>
-                </div>
-                <div class="row">
-            `;
-            
-            for (const [resourceType, result] of Object.entries(results.results)) {
-                let statusClass, statusIcon, statusText;
-                
-                if (result.status === 'completed') {
-                    const rate = result.success_rate || 0;
-                    if (rate >= 95) {
-                        statusClass = 'text-success';
-                        statusIcon = '✓';
-                    } else if (rate >= 80) {
-                        statusClass = 'text-warning';
-                        statusIcon = '⚠';
-                    } else {
-                        statusClass = 'text-danger';
-                        statusIcon = '✗';
-                    }
-                    statusText = `${result.verified}/${result.total_checked} verified (${rate}%)`;
-                } else if (result.status === 'no_data') {
-                    statusClass = 'text-muted';
-                    statusIcon = '—';
-                    statusText = 'No data to verify';
-                } else {
-                    statusClass = 'text-danger';
-                    statusIcon = '✗';
-                    statusText = `Error: ${result.error}`;
+            try {
+                // Validate results structure
+                if (!results || !results.results || typeof results.results !== 'object') {
+                    throw new Error('Invalid verification results format');
                 }
+
+                let content = `
+                    <div class="mb-3">
+                        <h6 class="text-muted">Sample Size: ${results.sample_size || 10} records per resource type</h6>
+                    </div>
+                    <div class="row">
+                `;
                 
-                content += `
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <h5 class="card-title text-capitalize">${resourceType}</h5>
-                                <div class="${statusClass} mb-2" style="font-size: 2rem;">${statusIcon}</div>
-                                <p class="card-text ${statusClass}">${statusText}</p>
+                const resultsEntries = Object.entries(results.results);
+                if (resultsEntries.length === 0) {
+                    content += `
+                        <div class="col-12">
+                            <div class="text-center py-5">
+                                <i class="fas fa-info-circle text-muted fa-3x mb-3"></i>
+                                <h5 class="text-muted">No verification results available</h5>
+                                <p class="text-muted">No data was found to verify for this migration.</p>
                             </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    for (const [resourceType, result] of resultsEntries) {
+                        let statusClass, statusIcon, statusText;
+                        
+                        if (result.status === 'completed') {
+                            const rate = result.success_rate || 0;
+                            if (rate >= 95) {
+                                statusClass = 'text-success';
+                                statusIcon = '✓';
+                            } else if (rate >= 80) {
+                                statusClass = 'text-warning';
+                                statusIcon = '⚠';
+                            } else {
+                                statusClass = 'text-danger';
+                                statusIcon = '✗';
+                            }
+                            statusText = `${result.verified || 0}/${result.total_checked || 0} verified (${rate}%)`;
+                        } else if (result.status === 'no_data') {
+                            statusClass = 'text-muted';
+                            statusIcon = '—';
+                            statusText = 'No data to verify';
+                        } else {
+                            statusClass = 'text-danger';
+                            statusIcon = '✗';
+                            statusText = `Error: ${result.error || 'Unknown error'}`;
+                        }
+                        
+                        content += `
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title text-capitalize">${resourceType}</h5>
+                                        <div class="${statusClass} mb-2" style="font-size: 2rem;">${statusIcon}</div>
+                                        <p class="card-text ${statusClass}">${statusText}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                content += '</div>';
+                
+                // Update modal content
+                document.getElementById('verify-results-content').innerHTML = content;
+                
+                // Ensure modal is properly shown (it should already be visible from loading state)
+                const modalElement = document.getElementById('quick-verify-modal');
+                const existingModal = bootstrap.Modal.getInstance(modalElement);
+                if (!existingModal) {
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                }
+            } catch (error) {
+                console.error('Error displaying verification results:', error);
+                this.showErrorInModal('Failed to display verification results: ' + error.message);
             }
-            
-            content += '</div>';
-            
-            document.getElementById('verify-results-content').innerHTML = content;
-            const modal = new bootstrap.Modal(document.getElementById('quick-verify-modal'));
-            modal.show();
         }
     };
 }

@@ -205,6 +205,7 @@
 
 <script>
 let verificationInterval;
+let currentVerificationId = null;
 const migrationId = {{ $migration->id }};
 
 function startFullVerification() {
@@ -238,8 +239,9 @@ function startFullVerification() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Start polling for verification status
-            verificationInterval = setInterval(checkVerificationStatus, 1500); // Slightly faster polling
+            // Store verification ID and start polling
+            currentVerificationId = data.data.verification_id;
+            verificationInterval = setInterval(checkVerificationStatus, 1500);
             statusBadge.textContent = 'Starting...';
             statusBadge.className = 'badge bg-warning';
             
@@ -263,25 +265,6 @@ function startFullVerification() {
     });
 }
 
-function checkVerificationStatus() {
-    fetch(`{{ route('data-migration.api.verification-status', $migration) }}`)
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateVerificationProgress(data.data);
-            
-            // Check if verification is complete
-            if (data.data.status === 'completed' || data.data.status === 'failed') {
-                clearInterval(verificationInterval);
-                showVerificationResults(data.data);
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error checking verification status:', error);
-        clearInterval(verificationInterval);
-    });
-}
 
 function updateVerificationProgress(data) {
     const progressBar = document.getElementById('verification-progress-bar');
@@ -513,7 +496,12 @@ function updateResourceProgress(resourceProgress) {
 }
 
 function checkVerificationStatus() {
-    fetch(`{{ route('data-migration.api.verification-status', $migration) }}`)
+    const url = new URL(`{{ route('data-migration.api.verification-status', $migration) }}`);
+    if (currentVerificationId) {
+        url.searchParams.append('verification_id', currentVerificationId);
+    }
+    
+    fetch(url)
     .then(response => {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

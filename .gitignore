@@ -25,3 +25,4 @@ Thumbs.db
 /.claude
 /temp
 /playwright-report
+/test-results
