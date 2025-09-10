@@ -1,0 +1,18 @@
+FROM mcr.microsoft.com/playwright:v1.55.0-jammy
+
+# Set the working directory
+WORKDIR /app
+
+# Install Node.js dependencies (including devDependencies for testing)
+COPY package*.json ./
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Set environment variables for headless operation
+ENV CI=true
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Default command to run tests
+CMD ["npm", "test"]

@@ -10,6 +10,7 @@ services:
         environment:
             - APP_ENV=${APP_ENV:-local}
             - APP_DEBUG=${APP_DEBUG:-true}
+            - APP_URL=http://app:80
         depends_on:
             db:
                 condition: service_healthy
@@ -46,6 +47,26 @@ services:
             retries: 10
             interval: 10s
             start_period: 40s
+
+    playwright:
+        build:
+            context: .
+            dockerfile: Dockerfile.playwright
+        volumes:
+            - .:/app
+            - /app/node_modules
+        environment:
+            - CI=true
+            - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+            - PLAYWRIGHT_BASE_URL=http://app:80
+        depends_on:
+            app:
+                condition: service_started
+        profiles:
+            - testing
+        working_dir: /app
+        ports:
+            - "9323:9323"
 
 volumes:
     db:
