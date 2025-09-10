@@ -198,7 +198,7 @@ test.describe('Verification Integration Tests', () => {
     
     // Check modal has proper ARIA attributes
     await expect(page.locator('#quick-verify-modal')).toHaveAttribute('aria-labelledby', 'quickVerifyModalLabel');
-    await expect(page.locator('#quick-verify-modal')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.locator('#quick-verify-modal')).not.toHaveAttribute('aria-hidden'); // Bootstrap removes this when modal is shown
     
     // Check modal title exists and is properly linked
     await expect(page.locator('#quickVerifyModalLabel')).toBeVisible();

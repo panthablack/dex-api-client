@@ -88,16 +88,16 @@ test.describe('Data Migration Verification', () => {
       await expect(page.locator('h6:has-text("Sample Size: 10")')).toBeVisible();
       
       // Verify clients card shows correct information
-      const clientsCard = page.locator('.card:has(.card-title:has-text("Clients"))');
+      const clientsCard = page.locator('#quick-verify-modal .card:has(.card-title:has-text("Clients"))');
       await expect(clientsCard).toBeVisible();
       await expect(clientsCard.locator(':has-text("8/10 verified (80%)")')).toBeVisible();
-      await expect(clientsCard.locator('.text-warning')).toBeVisible(); // 80% should show warning
+      await expect(clientsCard.locator('p.card-text.text-warning:has-text("8/10 verified (80%)")')).toBeVisible(); // 80% should show warning
       
       // Verify cases card shows correct information
-      const casesCard = page.locator('.card:has(.card-title:has-text("Cases"))');
+      const casesCard = page.locator('#quick-verify-modal .card:has(.card-title:has-text("Cases"))');
       await expect(casesCard).toBeVisible();
       await expect(casesCard.locator(':has-text("5/5 verified (100%)")')).toBeVisible();
-      await expect(casesCard.locator('.text-success')).toBeVisible(); // 100% should show success
+      await expect(casesCard.locator('p.card-text.text-success:has-text("5/5 verified (100%)")')).toBeVisible(); // 100% should show success
     });
 
     test('should handle verification errors gracefully', async ({ page }) => {

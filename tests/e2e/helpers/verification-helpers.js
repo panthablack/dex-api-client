@@ -138,13 +138,13 @@ export async function assertVerificationResults(page, expectedResults) {
     const expectedText = `${result.verified}/${result.total_checked} verified (${result.success_rate}%)`;
     await expect(card.locator(`p.card-text:has-text("${expectedText}")`)).toBeVisible();
     
-    // Check status color based on success rate
+    // Check status color based on success rate by targeting the percentage text specifically
     if (result.success_rate >= 95) {
-      await expect(card.locator('.text-success')).toBeVisible();
+      await expect(card.locator(`p.card-text.text-success:has-text("${expectedText}")`)).toBeVisible();
     } else if (result.success_rate >= 80) {
-      await expect(card.locator('.text-warning')).toBeVisible();
+      await expect(card.locator(`p.card-text.text-warning:has-text("${expectedText}")`)).toBeVisible();
     } else {
-      await expect(card.locator('.text-danger')).toBeVisible();
+      await expect(card.locator(`p.card-text.text-danger:has-text("${expectedText}")`)).toBeVisible();
     }
   }
 }
