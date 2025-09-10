@@ -10,10 +10,12 @@ services:
         environment:
             - APP_ENV=${APP_ENV:-local}
             - APP_DEBUG=${APP_DEBUG:-true}
-            - APP_URL=http://172.22.0.4:80
+            - APP_URL=http://app:80
         depends_on:
             db:
                 condition: service_healthy
+        networks:
+            - app-network
 
     queue:
         build:
@@ -28,6 +30,8 @@ services:
             db:
                 condition: service_healthy
         restart: unless-stopped
+        networks:
+            - app-network
 
     db:
         image: mysql:8.0
@@ -47,6 +51,8 @@ services:
             retries: 10
             interval: 10s
             start_period: 40s
+        networks:
+            - app-network
 
     playwright:
         build:
@@ -58,7 +64,6 @@ services:
         environment:
             - CI=true
             - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-            - PLAYWRIGHT_BASE_URL=http://172.22.0.4:80
         depends_on:
             app:
                 condition: service_started
@@ -67,6 +72,13 @@ services:
         working_dir: /app
         ports:
             - "9323:9323"
+        networks:
+            - app-network
+
+networks:
+    app-network:
+        driver: bridge
+        name: dex-testing-network
 
 volumes:
     db:

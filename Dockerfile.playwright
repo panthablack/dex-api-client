@@ -7,12 +7,17 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copy source code
+# Copy source code and entrypoint script
 COPY . .
+COPY playwright-entrypoint.sh /usr/local/bin/playwright-entrypoint.sh
+RUN chmod +x /usr/local/bin/playwright-entrypoint.sh
 
 # Set environment variables for headless operation
 ENV CI=true
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Use the entrypoint script
+ENTRYPOINT ["/usr/local/bin/playwright-entrypoint.sh"]
 
 # Default command to run tests
 CMD ["npm", "test"]
