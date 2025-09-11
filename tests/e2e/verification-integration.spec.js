@@ -124,12 +124,15 @@ test.describe('Verification Integration Tests', () => {
     // Wait for modal to appear
     await expect(page.locator('#quick-verify-modal')).toBeVisible();
     
-    // Wait for loading to complete (max 30 seconds)
+    // Wait for loading to complete with reasonable timeout
     try {
-      await page.waitForSelector('.spinner-border', { state: 'hidden', timeout: 30000 });
+      await page.waitForSelector('.spinner-border', { state: 'hidden', timeout: 10000 });
     } catch (e) {
       console.log('No spinner found or timeout waiting for spinner to hide');
     }
+    
+    // Also wait for content to appear instead of relying only on spinner
+    await expect(page.locator('#verify-results-content')).not.toBeEmpty();
     
     // Check what we got - either results or error
     const hasResults = await page.locator('.card .card-title').count() > 0;

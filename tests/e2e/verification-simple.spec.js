@@ -19,8 +19,8 @@ test.describe('Verification Simple Tests', () => {
       console.log('No spinner found or timeout - checking content anyway');
     }
     
-    // Additional wait for content to be ready
-    await page.waitForTimeout(1000);
+    // Wait for actual content to appear instead of arbitrary timeout
+    await expect(page.locator('#verify-results-content')).not.toBeEmpty();
     
     // Check that we get some kind of meaningful content
     const modalContent = await page.locator('#verify-results-content').textContent();
@@ -46,8 +46,8 @@ test.describe('Verification Simple Tests', () => {
     await page.click('button:has-text("Quick Verify")');
     await expect(page.locator('#quick-verify-modal')).toBeVisible();
     
-    // Wait for content to load
-    await page.waitForTimeout(2000);
+    // Wait for modal content to be fully loaded
+    await expect(page.locator('#verify-results-content')).not.toBeEmpty();
     
     // Close modal with X button
     await page.click('#quick-verify-modal .btn-close');

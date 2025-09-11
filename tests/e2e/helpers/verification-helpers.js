@@ -125,6 +125,21 @@ export async function waitForModalReady(page, modalId = '#quick-verify-modal') {
   } catch (e) {
     // Spinner might not be present, continue
   }
+  
+  // Wait for actual content to be loaded instead of relying only on spinner
+  const contentSelector = `${modalId} #verify-results-content`;
+  try {
+    await page.waitForFunction(
+      (selector) => {
+        const element = document.querySelector(selector);
+        return element && element.textContent && element.textContent.trim().length > 0;
+      },
+      contentSelector,
+      { timeout: 10000 }
+    );
+  } catch (e) {
+    // Content might not load, but continue - let the test handle this
+  }
 }
 
 /**

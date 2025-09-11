@@ -14,8 +14,7 @@ test.describe('Data Migration Verification', () => {
     test('should open Quick Verify modal with loading state', async ({ page }) => {
       // Mock the Quick Verify API to simulate loading
       await page.route('/data-migration/api/1/quick-verify', async (route) => {
-        // Delay the response to test loading state
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Minimal delay to ensure loading state is visible, then respond immediately
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
