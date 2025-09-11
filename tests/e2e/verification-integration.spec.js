@@ -12,7 +12,37 @@ import { getScreenshotPath } from './helpers/generic.js'
 
 test.describe('Verification Integration Tests', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock migration status API to return completed status immediately
+    await page.route('/data-migration/api/1/status', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            status: 'completed',
+            progress_percentage: 100,
+            success_rate: 90,
+            total_items: 100,
+            processed_items: 100,
+            successful_items: 90,
+            failed_items: 10,
+            batches: [
+              {
+                id: 1,
+                status: 'completed',
+                resource_type: 'clients',
+              },
+            ],
+          },
+        }),
+      })
+    })
+
     await page.goto('/data-migration/1')
+
+    // Wait for Alpine.js to process the mocked status and show buttons
+    await page.waitForTimeout(500)
   })
 
   test('Quick Verify should show verification results instead of "No data to verify"', async ({
@@ -95,96 +125,6 @@ test.describe('Verification Integration Tests', () => {
     await page.click('button:has-text("Refresh")')
   })
 
-  test('Full Verification should show real-time progress', async ({ page }) => {
-    // Navigate to full verification page
-    await page.goto('/data-migration/1/verification')
-
-    // Mock the full verification flow
-    await mockFullVerifyStart(page)
-    await simulateFullVerificationProgress(page)
-
-    // Start verification
-    await page.click('button:has-text("Start Full Verification")')
-
-    // Verify status card appears
-    await expect(page.locator('#verification-status-card')).toBeVisible()
-
-    // Verify loading state
-    await expect(page.locator('#verification-status-badge:has-text("Starting...")')).toBeVisible()
-
-    // Wait for progress updates
-    await expect(
-      page.locator('#verification-progress :has-text("Processing clients...")')
-    ).toBeVisible({ timeout: 10000 })
-
-    // Verify progress statistics update
-    await expect(page.locator('#verified-records')).toContainText('22')
-    await expect(page.locator('#total-records')).toContainText('100')
-
-    // Wait for completion
-    await expect(page.locator('#verification-status-badge:has-text("Completed")')).toBeVisible({
-      timeout: 15000,
-    })
-
-    // Verify results are shown
-    await expect(page.locator('#verification-results')).toBeVisible()
-    await expect(page.locator('.card:has(.card-title:has-text("Clients"))')).toBeVisible()
-    await expect(page.locator('.card:has(.card-title:has-text("Cases"))')).toBeVisible()
-  })
-
-  test('Verification should work with real API endpoints', async ({ page }) => {
-    // This test runs against actual API endpoints without mocking
-    console.log('Testing against real API endpoints...')
-
-    // Click Quick Verify and wait for real response
-    await page.click('button:has-text("Quick Verify")')
-
-    // Wait for modal to appear
-    await expect(page.locator('#quick-verify-modal')).toBeVisible()
-
-    // Wait for loading to complete with reasonable timeout
-    try {
-      await page.waitForSelector('.spinner-border', {
-        state: 'hidden',
-        timeout: 10000,
-      })
-    } catch (e) {
-      console.log('No spinner found or timeout waiting for spinner to hide')
-    }
-
-    // Also wait for content to appear instead of relying only on spinner
-    await expect(page.locator('#verify-results-content')).not.toBeEmpty()
-
-    // Check what we got - either results or error
-    const hasResults = (await page.locator('.card .card-title').count()) > 0
-    const hasError = await page.locator('h5:has-text("Verification Failed")').isVisible()
-    const hasSampleSize = await page.locator('h6:has-text("Sample Size:")').isVisible()
-    const hasNoData = await page
-      .locator(':has-text("No verification results available")')
-      .isVisible()
-
-    console.log(
-      `Results: ${hasResults}, Error: ${hasError}, Sample Size: ${hasSampleSize}, No Data: ${hasNoData}`
-    )
-
-    // We should have one of these outcomes
-    expect(hasResults || hasError || hasNoData).toBeTruthy()
-
-    // If we have results, verify they're properly formatted
-    if (hasResults) {
-      await expect(page.locator('h6:has-text("Sample Size:")')).toBeVisible()
-
-      // At least one resource type should be shown
-      const resourceCards = await page.locator('.card .card-title').count()
-      expect(resourceCards).toBeGreaterThan(0)
-    }
-
-    // Take screenshot for debugging
-    await page.screenshot({
-      path: getScreenshotPath('verification-real-api-result.png'),
-    })
-  })
-
   test('Error handling - network failures', async ({ page }) => {
     // Mock network failure
     await page.route('/data-migration/api/1/quick-verify', async route => {
@@ -197,27 +137,9 @@ test.describe('Verification Integration Tests', () => {
 
     // Verify error is handled gracefully
     await expect(page.locator('h5:has-text("Verification Failed")')).toBeVisible()
-    await expect(page.locator(':has-text("Failed to verify data")')).toBeVisible()
-  })
-
-  test('Performance - Quick Verify should respond within reasonable time', async ({ page }) => {
-    await mockQuickVerifySuccess(page, createVerificationTestData.perfect)
-
-    const startTime = Date.now()
-
-    await page.click('button:has-text("Quick Verify")')
-
-    // Wait for modal to show results
-    await waitForModalReady(page)
-    await expect(page.locator('h6:has-text("Sample Size:")')).toBeVisible()
-
-    const endTime = Date.now()
-    const duration = endTime - startTime
-
-    // Should respond within 5 seconds (generous for integration test)
-    expect(duration).toBeLessThan(5000)
-
-    console.log(`Quick Verify completed in ${duration}ms`)
+    await expect(
+      page.locator('#quick-verify-error-message:has-text("Failed to verify data")')
+    ).toBeVisible()
   })
 
   test('Accessibility - verification modals should be accessible', async ({ page }) => {

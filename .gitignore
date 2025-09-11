@@ -23,6 +23,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /.claude
+/CLAUDE.md
 /temp
 /playwright-report
 /test-results

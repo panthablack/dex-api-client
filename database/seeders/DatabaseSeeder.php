@@ -19,5 +19,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Seed data migrations for e2e tests
+        $this->call(DataMigrationSeeder::class);
     }
 }

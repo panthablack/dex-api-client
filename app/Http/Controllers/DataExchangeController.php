@@ -1759,46 +1759,46 @@ class DataExchangeController extends Controller
     {
         return [
             [
-                'client_id' => 'CLIENT_001',
-                'first_name' => 'John',
-                'last_name' => 'Doe',
-                'date_of_birth' => '1990-05-15',
-                'gender' => 'M',
-                'state' => 'NSW',
-                'postal_code' => '2000',
-                'client_type' => 'Individual',
-                'suburb' => 'Sydney',
-                'country_of_birth' => 'AUS',
-                'primary_language' => 'ENG',
-                'indigenous_status' => 'N'
+                'ClientId' => 'CLIENT_001',
+                'GivenName' => 'John',
+                'FamilyName' => 'Doe',
+                'BirthDate' => '1990-05-15T00:00:00',
+                'GenderCode' => 'M',
+                'ResidentialAddress' => [
+                    'State' => 'NSW',
+                    'Postcode' => '2000',
+                    'Suburb' => 'Sydney'
+                ],
+                'CountryOfBirthCode' => 'AUS',
+                'CreatedDateTime' => '2024-01-01T10:00:00Z'
             ],
             [
-                'client_id' => 'CLIENT_002',
-                'first_name' => 'Jane',
-                'last_name' => 'Smith',
-                'date_of_birth' => '1985-09-22',
-                'gender' => 'F',
-                'state' => 'VIC',
-                'postal_code' => '3000',
-                'client_type' => 'Individual',
-                'suburb' => 'Melbourne',
-                'country_of_birth' => 'AUS',
-                'primary_language' => 'ENG',
-                'indigenous_status' => 'N'
+                'ClientId' => 'CLIENT_002',
+                'GivenName' => 'Jane',
+                'FamilyName' => 'Smith',
+                'BirthDate' => '1985-09-22T00:00:00',
+                'GenderCode' => 'F',
+                'ResidentialAddress' => [
+                    'State' => 'VIC',
+                    'Postcode' => '3000',
+                    'Suburb' => 'Melbourne'
+                ],
+                'CountryOfBirthCode' => 'AUS',
+                'CreatedDateTime' => '2024-01-02T10:00:00Z'
             ],
             [
-                'client_id' => 'CLIENT_003',
-                'first_name' => 'Bob',
-                'last_name' => 'Wilson',
-                'date_of_birth' => '1978-12-03',
-                'gender' => 'M',
-                'state' => 'QLD',
-                'postal_code' => '4000',
-                'client_type' => 'Family',
-                'suburb' => 'Brisbane',
-                'country_of_birth' => 'UK',
-                'primary_language' => 'ENG',
-                'indigenous_status' => 'U'
+                'ClientId' => 'CLIENT_003',
+                'GivenName' => 'Bob',
+                'FamilyName' => 'Wilson',
+                'BirthDate' => '1978-12-03T00:00:00',
+                'GenderCode' => 'M',
+                'ResidentialAddress' => [
+                    'State' => 'QLD',
+                    'Postcode' => '4000',
+                    'Suburb' => 'Brisbane'
+                ],
+                'CountryOfBirthCode' => 'UK',
+                'CreatedDateTime' => '2024-01-03T10:00:00Z'
             ]
         ];
     }

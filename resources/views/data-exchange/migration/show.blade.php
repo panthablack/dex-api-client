@@ -758,7 +758,8 @@ function migrationApp() {
         },
 
         isVerificationAvailable() {
-            return (['completed', 'failed'].includes(this.migration.status) && 
+            return (this.migration.status === 'completed' && 
+                    this.migration.batches && 
                     this.migration.batches.some(b => b.status === 'completed'));
         },
 
@@ -849,9 +850,10 @@ function migrationApp() {
         },
 
         async quickVerifyData() {
-            // Show modal immediately with loading state
+            // Show modal immediately with loading state - don't wait for API
             this.showLoadingModal();
             
+            // Start API call after modal is shown
             try {
                 const response = await fetch(`{{ route('data-migration.api.quick-verify', $migration) }}`, {
                     method: 'POST',
@@ -862,6 +864,7 @@ function migrationApp() {
                 });
                 
                 const data = await response.json();
+                
                 if (data.success) {
                     this.showVerificationResults(data.data);
                 } else {
@@ -869,7 +872,7 @@ function migrationApp() {
                 }
             } catch (error) {
                 console.error('Error:', error);
-                this.showErrorInModal('Failed to verify data');
+                this.showErrorInModal('Network error: Failed to verify data');
             }
         },
 
@@ -879,25 +882,32 @@ function migrationApp() {
                     <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                    <h5 class="text-muted">Verifying Data...</h5>
+                    <h5>Verifying Data...</h5>
                     <p class="text-muted">Please wait while we verify your migrated data.</p>
                 </div>
             `;
             
             const modalElement = document.getElementById('quick-verify-modal');
-            document.getElementById('verify-results-content').innerHTML = loadingContent;
+            const contentElement = document.getElementById('verify-results-content');
             
-            // Ensure any existing modal instance is properly cleaned up
+            // Clean up any existing modal instances first
             const existingModal = bootstrap.Modal.getInstance(modalElement);
             if (existingModal) {
                 existingModal.dispose();
             }
             
-            // Create new modal instance
+            // Update content before showing modal
+            if (contentElement) {
+                contentElement.innerHTML = loadingContent;
+            }
+            
+            // Create and show new modal instance
             const modal = new bootstrap.Modal(modalElement, {
                 backdrop: 'static',
                 keyboard: false
             });
+            
+            // Show modal immediately
             modal.show();
         },
 
@@ -908,12 +918,21 @@ function migrationApp() {
                         <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
                     </div>
                     <h5 class="text-danger">Verification Failed</h5>
-                    <p class="text-muted">${errorMessage}</p>
+                    <p class="text-muted" id="quick-verify-error-message">${errorMessage}</p>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             `;
             
             document.getElementById('verify-results-content').innerHTML = errorContent;
+            
+            // Re-enable backdrop dismiss and keyboard close for errors
+            const modalElement = document.getElementById('quick-verify-modal');
+            const existingModal = bootstrap.Modal.getInstance(modalElement);
+            if (existingModal) {
+                existingModal.dispose();
+                const modal = new bootstrap.Modal(modalElement);
+                // Modal should already be visible, so no need to show() again
+            }
         },
 
         showVerificationResults(results) {
@@ -984,16 +1003,10 @@ function migrationApp() {
                 
                 content += '</div>';
                 
-                // Update modal content
+                // Update modal content (modal should already be visible from loading state)
                 document.getElementById('verify-results-content').innerHTML = content;
                 
-                // Ensure modal is properly shown (it should already be visible from loading state)
-                const modalElement = document.getElementById('quick-verify-modal');
-                const existingModal = bootstrap.Modal.getInstance(modalElement);
-                if (!existingModal) {
-                    const modal = new bootstrap.Modal(modalElement);
-                    modal.show();
-                }
+                // Modal should already be visible, no need to show it again
             } catch (error) {
                 console.error('Error displaying verification results:', error);
                 this.showErrorInModal('Failed to display verification results: ' + error.message);

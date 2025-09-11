@@ -156,6 +156,14 @@
                 <span id="current-activity-text">Processing...</span>
             </small>
         </div>
+        
+        <!-- Verification Progress - For test compatibility -->
+        <div class="mt-3" id="verification-progress" style="display: none;">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-spinner fa-spin text-primary me-2"></i>
+                <span id="verification-progress-text">Processing clients...</span>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -270,6 +278,7 @@ function updateVerificationProgress(data) {
     const progressBar = document.getElementById('verification-progress-bar');
     const spinner = document.getElementById('verification-spinner');
     const currentActivity = document.getElementById('current-activity');
+    const verificationProgress = document.getElementById('verification-progress');
     const resourceProgressContainer = document.getElementById('resource-progress-container');
     
     // Calculate progress more safely
@@ -304,6 +313,10 @@ function updateVerificationProgress(data) {
     if (data.current_activity) {
         document.getElementById('current-activity-text').textContent = data.current_activity;
         currentActivity.style.display = 'block';
+        
+        // Also update verification progress for test compatibility
+        document.getElementById('verification-progress-text').textContent = data.current_activity;
+        verificationProgress.style.display = 'block';
     }
     
     // Update status and UI based on verification state
@@ -317,6 +330,7 @@ function updateVerificationProgress(data) {
         progressBar.className = 'progress-bar bg-success';
         spinner.style.display = 'none';
         currentActivity.style.display = 'none';
+        verificationProgress.style.display = 'none';
     } else if (data.status === 'failed') {
         statusBadge.textContent = 'Failed';
         statusBadge.className = 'badge bg-danger';
@@ -324,16 +338,25 @@ function updateVerificationProgress(data) {
         progressBar.className = 'progress-bar bg-danger';
         spinner.style.display = 'none';
         currentActivity.style.display = 'none';
+        verificationProgress.style.display = 'none';
     } else if (data.status === 'in_progress') {
         statusBadge.textContent = 'In Progress';
         statusBadge.className = 'badge bg-warning';
         progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
         spinner.style.display = 'block';
+        // Set default progress text if no current_activity is provided
+        if (!data.current_activity) {
+            document.getElementById('verification-progress-text').textContent = 'Processing clients...';
+            verificationProgress.style.display = 'block';
+        }
     } else if (data.status === 'starting') {
         statusBadge.textContent = 'Starting...';
         statusBadge.className = 'badge bg-info';
         progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
         spinner.style.display = 'block';
+        // Set default progress text for starting state
+        document.getElementById('verification-progress-text').textContent = 'Processing clients...';
+        verificationProgress.style.display = 'block';
     }
 }
 
