@@ -154,7 +154,14 @@ class VerificationService
             $modelClass = $this->getModelClass($resourceType);
             
             if ($modelClass) {
-                $query = $modelClass::where('migration_batch_id', $migration->id);
+                // Get the batch IDs for this migration and resource type
+                $batchIds = $migration->batches()
+                    ->where('resource_type', $resourceType)
+                    ->where('status', 'completed')
+                    ->pluck('batch_id')
+                    ->toArray();
+                
+                $query = $modelClass::whereIn('migration_batch_id', $batchIds);
                 
                 $total = $query->count();
                 $verified = $query->where('verified', true)->count();
@@ -189,7 +196,14 @@ class VerificationService
             $modelClass = $this->getModelClass($resourceType);
             
             if ($modelClass) {
-                $records = $modelClass::where('migration_batch_id', $migration->id)
+                // Get the batch IDs for this migration and resource type
+                $batchIds = $migration->batches()
+                    ->where('resource_type', $resourceType)
+                    ->where('status', 'completed')
+                    ->pluck('batch_id')
+                    ->toArray();
+                
+                $records = $modelClass::whereIn('migration_batch_id', $batchIds)
                     ->inRandomOrder()
                     ->limit($sampleSize)
                     ->get();
