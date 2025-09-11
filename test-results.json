@@ -1,0 +1,6 @@
+ Container dex-api-client-db-1  Running
+ Container dex-api-client-app-1  Running
+ Container dex-api-client-db-1  Waiting
+ Container dex-api-client-db-1  Healthy
+Resolved 'app' service to IP: 172.24.0.4
+Set PLAYWRIGHT_BASE_URL to: http://172.24.0.4:80
