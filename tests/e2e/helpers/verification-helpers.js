@@ -1,7 +1,7 @@
 /**
  * Helper functions for verification-related tests
  */
-import { expect } from '@playwright/test';
+import { expect } from '@playwright/test'
 
 /**
  * Mock successful quick verification API response
@@ -15,44 +15,44 @@ export function mockQuickVerifySuccess(page, results = null) {
         verified: 8,
         failed: 2,
         success_rate: 80,
-        status: 'completed'
-      }
-    }
-  };
+        status: 'completed',
+      },
+    },
+  }
 
-  return page.route('/data-migration/api/*/quick-verify', async (route) => {
+  return page.route('/data-migration/api/*/quick-verify', async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
-        data: results || defaultResults
-      })
-    });
-  });
+        data: results || defaultResults,
+      }),
+    })
+  })
 }
 
 /**
  * Mock quick verification API error response
  */
 export function mockQuickVerifyError(page, errorMessage = 'Verification service unavailable') {
-  return page.route('/data-migration/api/*/quick-verify', async (route) => {
+  return page.route('/data-migration/api/*/quick-verify', async route => {
     await route.fulfill({
       status: 500,
       contentType: 'application/json',
       body: JSON.stringify({
         success: false,
-        error: errorMessage
-      })
-    });
-  });
+        error: errorMessage,
+      }),
+    })
+  })
 }
 
 /**
  * Mock full verification start API response
  */
 export function mockFullVerifyStart(page, verificationId = '1_1234567890') {
-  return page.route('/data-migration/api/*/full-verify', async (route) => {
+  return page.route('/data-migration/api/*/full-verify', async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -61,11 +61,11 @@ export function mockFullVerifyStart(page, verificationId = '1_1234567890') {
         data: {
           verification_id: verificationId,
           status: 'starting',
-          message: 'Full verification started. Check status for progress.'
-        }
-      })
-    });
-  });
+          message: 'Full verification started. Check status for progress.',
+        },
+      }),
+    })
+  })
 }
 
 /**
@@ -77,19 +77,19 @@ export function mockVerificationStatus(page, statusData = null) {
     total: 100,
     processed: 50,
     verified: 45,
-    current_activity: 'Processing clients...'
-  };
+    current_activity: 'Processing clients...',
+  }
 
-  return page.route('/data-migration/api/*/verification-status*', async (route) => {
+  return page.route('/data-migration/api/*/verification-status*', async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
-        data: statusData || defaultStatus
-      })
-    });
-  });
+        data: statusData || defaultStatus,
+      }),
+    })
+  })
 }
 
 /**
@@ -105,38 +105,38 @@ export function mockVerificationCompleted(page, results = null) {
       clients: {
         total: 100,
         verified: 95,
-        errors: ['Client 123: Name mismatch', 'Client 456: Missing data']
-      }
-    }
-  };
+        errors: ['Client 123: Name mismatch', 'Client 456: Missing data'],
+      },
+    },
+  }
 
-  return mockVerificationStatus(page, results || defaultResults);
+  return mockVerificationStatus(page, results || defaultResults)
 }
 
 /**
  * Wait for modal to be visible and loading to complete
  */
 export async function waitForModalReady(page, modalId = '#quick-verify-modal') {
-  await page.waitForSelector(modalId, { state: 'visible' });
-  
+  await page.waitForSelector(modalId, { state: 'visible' })
+
   // Wait for loading spinner to disappear (if present)
   try {
-    await page.waitForSelector('.spinner-border', { state: 'hidden', timeout: 5000 });
+    await page.waitForSelector('.spinner-border', { state: 'hidden', timeout: 5000 })
   } catch (e) {
     // Spinner might not be present, continue
   }
-  
+
   // Wait for actual content to be loaded instead of relying only on spinner
-  const contentSelector = `${modalId} #verify-results-content`;
+  const contentSelector = `${modalId} #verify-results-content`
   try {
     await page.waitForFunction(
-      (selector) => {
-        const element = document.querySelector(selector);
-        return element && element.textContent && element.textContent.trim().length > 0;
+      selector => {
+        const element = document.querySelector(selector)
+        return element && element.textContent && element.textContent.trim().length > 0
       },
       contentSelector,
       { timeout: 10000 }
-    );
+    )
   } catch (e) {
     // Content might not load, but continue - let the test handle this
   }
@@ -147,19 +147,29 @@ export async function waitForModalReady(page, modalId = '#quick-verify-modal') {
  */
 export async function assertVerificationResults(page, expectedResults) {
   for (const [resourceType, result] of Object.entries(expectedResults)) {
-    const card = page.locator(`#quick-verify-modal .card:has(.card-title:has-text("${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)}"))`);
-    await expect(card).toBeVisible();
-    
-    const expectedText = `${result.verified}/${result.total_checked} verified (${result.success_rate}%)`;
-    await expect(card.locator(`p.card-text:has-text("${expectedText}")`)).toBeVisible();
-    
+    const card = page.locator(
+      `#quick-verify-modal .card:has(.card-title:has-text("${
+        resourceType.charAt(0).toUpperCase() + resourceType.slice(1)
+      }"))`
+    )
+    await expect(card).toBeVisible()
+
+    const expectedText = `${result.verified}/${result.total_checked} verified (${result.success_rate}%)`
+    await expect(card.locator(`p.card-text:has-text("${expectedText}")`)).toBeVisible()
+
     // Check status color based on success rate by targeting the percentage text specifically
     if (result.success_rate >= 95) {
-      await expect(card.locator(`p.card-text.text-success:has-text("${expectedText}")`)).toBeVisible();
+      await expect(
+        card.locator(`p.card-text.text-success:has-text("${expectedText}")`)
+      ).toBeVisible()
     } else if (result.success_rate >= 80) {
-      await expect(card.locator(`p.card-text.text-warning:has-text("${expectedText}")`)).toBeVisible();
+      await expect(
+        card.locator(`p.card-text.text-warning:has-text("${expectedText}")`)
+      ).toBeVisible()
     } else {
-      await expect(card.locator(`p.card-text.text-danger:has-text("${expectedText}")`)).toBeVisible();
+      await expect(
+        card.locator(`p.card-text.text-danger:has-text("${expectedText}")`)
+      ).toBeVisible()
     }
   }
 }
@@ -179,9 +189,9 @@ export const createVerificationTestData = {
         verified: 10,
         failed: 0,
         success_rate: 100,
-        status: 'completed'
-      }
-    }
+        status: 'completed',
+      },
+    },
   },
 
   /**
@@ -195,9 +205,9 @@ export const createVerificationTestData = {
         verified: 9,
         failed: 1,
         success_rate: 95,
-        status: 'completed'
-      }
-    }
+        status: 'completed',
+      },
+    },
   },
 
   /**
@@ -211,9 +221,9 @@ export const createVerificationTestData = {
         verified: 8,
         failed: 2,
         success_rate: 80,
-        status: 'completed'
-      }
-    }
+        status: 'completed',
+      },
+    },
   },
 
   /**
@@ -227,9 +237,9 @@ export const createVerificationTestData = {
         verified: 5,
         failed: 5,
         success_rate: 50,
-        status: 'completed'
-      }
-    }
+        status: 'completed',
+      },
+    },
   },
 
   /**
@@ -243,23 +253,23 @@ export const createVerificationTestData = {
         verified: 9,
         failed: 1,
         success_rate: 90,
-        status: 'completed'
+        status: 'completed',
       },
       cases: {
         total_checked: 8,
         verified: 8,
         failed: 0,
         success_rate: 100,
-        status: 'completed'
+        status: 'completed',
       },
       sessions: {
         total_checked: 5,
         verified: 3,
         failed: 2,
         success_rate: 60,
-        status: 'completed'
-      }
-    }
+        status: 'completed',
+      },
+    },
   },
 
   /**
@@ -267,7 +277,7 @@ export const createVerificationTestData = {
    */
   noData: {
     sample_size: 10,
-    results: {}
+    results: {},
   },
 
   /**
@@ -281,11 +291,11 @@ export const createVerificationTestData = {
         verified: 0,
         failed: 0,
         success_rate: 0,
-        status: 'no_data'
-      }
-    }
-  }
-};
+        status: 'no_data',
+      },
+    },
+  },
+}
 
 /**
  * Full verification progress simulation
@@ -297,21 +307,21 @@ export function simulateFullVerificationProgress(page, stages = null) {
       total: 100,
       processed: 0,
       verified: 0,
-      current_activity: 'Initializing verification...'
+      current_activity: 'Initializing verification...',
     },
     {
       status: 'in_progress',
       total: 100,
       processed: 25,
       verified: 22,
-      current_activity: 'Processing clients...'
+      current_activity: 'Processing clients...',
     },
     {
       status: 'in_progress',
       total: 100,
       processed: 75,
       verified: 70,
-      current_activity: 'Processing cases...'
+      current_activity: 'Processing cases...',
     },
     {
       status: 'completed',
@@ -323,26 +333,26 @@ export function simulateFullVerificationProgress(page, stages = null) {
         clients: {
           total: 60,
           verified: 58,
-          errors: ['Client 123: Name mismatch']
+          errors: ['Client 123: Name mismatch'],
         },
         cases: {
           total: 40,
           verified: 37,
-          errors: ['Case 456: Missing data', 'Case 789: Invalid date']
-        }
-      }
-    }
-  ];
+          errors: ['Case 456: Missing data', 'Case 789: Invalid date'],
+        },
+      },
+    },
+  ]
 
-  const stages_to_use = stages || defaultStages;
-  let currentStage = 0;
+  const stages_to_use = stages || defaultStages
+  let currentStage = 0
 
-  return page.route('/data-migration/api/*/verification-status*', async (route) => {
-    const stageData = stages_to_use[Math.min(currentStage, stages_to_use.length - 1)];
-    
+  return page.route('/data-migration/api/*/verification-status*', async route => {
+    const stageData = stages_to_use[Math.min(currentStage, stages_to_use.length - 1)]
+
     // Advance to next stage for subsequent calls
     if (currentStage < stages_to_use.length - 1) {
-      currentStage++;
+      currentStage++
     }
 
     await route.fulfill({
@@ -350,8 +360,8 @@ export function simulateFullVerificationProgress(page, stages = null) {
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
-        data: stageData
-      })
-    });
-  });
+        data: stageData,
+      }),
+    })
+  })
 }

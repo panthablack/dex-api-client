@@ -49,25 +49,25 @@ docker compose --profile testing run --rm playwright npx playwright test -g "tes
 ### 2. Modal Interaction Tests (10 tests)
 
 **File:** `tests/e2e/modals.spec.js`
-**Overall Status:** ❌ TIMEOUT (0/10) - All tests timeout after 2 minutes
+**Overall Status:** ✅ ALL PASSING (10/10)
 
 | Test Name                                                | Status     | Command                                                                                                                                  | Notes/Errors                               |
 | -------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| should have all modal elements present in DOM            | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "should have all modal elements present in DOM"`            | **Error:** Command timed out after 2m 0.0s |
-| view modal should have correct structure                 | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "view modal should have correct structure"`                 | **Error:** Command timed out after 2m 0.0s |
-| update modal should have correct structure               | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "update modal should have correct structure"`               | **Error:** Command timed out after 2m 0.0s |
-| delete modal should have correct structure               | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "delete modal should have correct structure"`               | **Error:** Command timed out after 2m 0.0s |
-| clicking view button should trigger Alpine.js function   | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "clicking view button should trigger Alpine.js function"`   | **Error:** Command timed out after 2m 0.0s |
-| clicking update button should trigger Alpine.js function | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "clicking update button should trigger Alpine.js function"` | **Error:** Command timed out after 2m 0.0s |
-| clicking delete button should trigger Alpine.js function | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "clicking delete button should trigger Alpine.js function"` | **Error:** Command timed out after 2m 0.0s |
-| modals should have Bootstrap modal attributes            | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "modals should have Bootstrap modal attributes"`            | **Error:** Command timed out after 2m 0.0s |
-| modal close buttons should have correct attributes       | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "modal close buttons should have correct attributes"`       | **Error:** Command timed out after 2m 0.0s |
-| should verify Alpine.js data attribute on main container | ❌ TIMEOUT | `docker compose --profile testing run --rm playwright npx playwright test -g "should verify Alpine.js data attribute on main container"` | **Error:** Command timed out after 2m 0.0s |
+| should have all modal elements present in DOM            | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have all modal elements present in DOM"`            | -            |
+| view modal should have correct structure                 | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "view modal should have correct structure"`                 | -            |
+| update modal should have correct structure               | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "update modal should have correct structure"`               | -            |
+| delete modal should have correct structure               | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "delete modal should have correct structure"`               | -            |
+| clicking view button should trigger Alpine.js function   | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "clicking view button should trigger Alpine.js function"`   | -            |
+| clicking update button should trigger Alpine.js function | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "clicking update button should trigger Alpine.js function"` | -            |
+| clicking delete button should trigger Alpine.js function | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "clicking delete button should trigger Alpine.js function"` | -            |
+| modals should have Bootstrap modal attributes            | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "modals should have Bootstrap modal attributes"`            | -            |
+| modal close buttons should have correct attributes       | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "modal close buttons should have correct attributes"`       | -            |
+| should verify Alpine.js data attribute on main container | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should verify Alpine.js data attribute on main container"` | -            |
 
 ### 3. Resource Table Tests (9 tests)
 
 **File:** `tests/e2e/resource-table.spec.js`
-**Overall Status:** ✅ ALL PASSING (9/9)
+**Overall Status:** ⚠️ MOSTLY PASSING (8/9) - 1 test failing
 
 | Test Name                                              | Status  | Command                                                                                                                                | Notes/Errors                                            |
 | ------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
@@ -76,7 +76,7 @@ docker compose --profile testing run --rm playwright npx playwright test -g "tes
 | should have refresh button that works                  | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have refresh button that works"`                  | -                                                       |
 | should have action buttons for each row                | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have action buttons for each row"`                | -                                                       |
 | should have Alpine.js click handlers on action buttons | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have Alpine.js click handlers on action buttons"` | Fixed: Removed non-existent disabled state expectations |
-| should display proper data in table cells              | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should display proper data in table cells"`              | Fixed: Updated invalid Playwright method                |
+| should display proper data in table cells              | ❌ FAIL | `docker compose --profile testing run --rm playwright npx playwright test -g "should display proper data in table cells"`              | **Error:** Empty cell content - clientId.trim() is "" |
 | should handle empty states gracefully                  | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should handle empty states gracefully"`                  | -                                                       |
 | should have responsive table wrapper                   | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have responsive table wrapper"`                   | -                                                       |
 | should have proper Bootstrap classes                   | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have proper Bootstrap classes"`                   | Fixed: Made selectors more specific for strict mode     |
@@ -134,23 +134,23 @@ docker compose --profile testing run --rm playwright npx playwright test -g "tes
 
 **Current Status (50 tests total):**
 
--   ✅ **28 tests PASSING** (56%)
--   ❌ **22 tests FAILING** (44%)
+-   ✅ **38 tests PASSING** (76%)
+-   ❌ **12 tests FAILING** (24%)
 
 **By File:**
 
-1. **loading-states.spec.js**: ✅ 8/8 passing (100%) - All timeout issues resolved
-2. **modals.spec.js**: ❌ 0/10 passing (0%) - All tests timeout after 2 minutes
-3. **resource-table.spec.js**: ✅ 9/9 passing (100%) - All strict mode violations fixed
-4. **verification-integration.spec.js**: ⚠️ 6/8 passing (75%) - 2 tests failing
-5. **verification-simple.spec.js**: ✅ 2/2 passing (100%) - All timeout issues resolved
-6. **verification.spec.js**: ❌ 4/13 passing (31%) - 9 tests failing
+1. **loading-states.spec.js**: ✅ 8/8 passing (100%) - All tests working correctly
+2. **modals.spec.js**: ✅ 10/10 passing (100%) - Previous timeout issues resolved
+3. **resource-table.spec.js**: ⚠️ 8/9 passing (89%) - 1 test failing with empty cell data
+4. **verification-integration.spec.js**: ⚠️ 6/8 passing (75%) - 2 tests failing with DOM element issues
+5. **verification-simple.spec.js**: ✅ 2/2 passing (100%) - All tests working correctly
+6. **verification.spec.js**: ❌ 4/13 passing (31%) - 9 tests failing with strict mode violations
 
 **Main Issues Remaining:**
 
-1. **modals.spec.js** - Complete timeout (likely infrastructure/network issue)
-2. **verification.spec.js** - Tests expecting non-existent spinner/loading elements
-3. **verification-integration.spec.js** - Strict mode violations and missing DOM elements
+1. **verification.spec.js** - Strict mode violations with multiple element matches
+2. **verification-integration.spec.js** - Missing DOM elements and progress indicators
+3. **resource-table.spec.js** - Empty table cell content issue
 4. **Button visibility logic** - Verification buttons showing when they should be hidden
 
 ## Debugging Individual Tests
