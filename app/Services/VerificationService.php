@@ -27,7 +27,7 @@ class VerificationService
         try {
             // Use the client_id to retrieve the record from DSS
             $response = $this->dataExchangeService->getClientById($client->client_id);
-            
+
             if ($response && $this->validateClientData($client, $response)) {
                 $client->update([
                     'verified' => true,
@@ -48,7 +48,7 @@ class VerificationService
                 'client_id' => $client->client_id,
                 'error' => $e->getMessage()
             ]);
-            
+
             $client->update([
                 'verified' => false,
                 'verified_at' => now(),
@@ -66,7 +66,7 @@ class VerificationService
         try {
             // Use the case_id to retrieve the record from DSS
             $response = $this->dataExchangeService->getCaseById($case->case_id);
-            
+
             if ($response && $this->validateCaseData($case, $response)) {
                 $case->update([
                     'verified' => true,
@@ -87,7 +87,7 @@ class VerificationService
                 'case_id' => $case->case_id,
                 'error' => $e->getMessage()
             ]);
-            
+
             $case->update([
                 'verified' => false,
                 'verified_at' => now(),
@@ -103,9 +103,9 @@ class VerificationService
     public function verifySession(MigratedSession $session): bool
     {
         try {
-            // Use the session_id to retrieve the record from DSS  
+            // Use the session_id to retrieve the record from DSS
             $response = $this->dataExchangeService->getSessionById($session->session_id, $session->case_id);
-            
+
             if ($response && $this->validateSessionData($session, $response)) {
                 $session->update([
                     'verified' => true,
@@ -126,7 +126,7 @@ class VerificationService
                 'session_id' => $session->session_id,
                 'error' => $e->getMessage()
             ]);
-            
+
             $session->update([
                 'verified' => false,
                 'verified_at' => now(),
@@ -152,7 +152,7 @@ class VerificationService
         // Get stats for each resource type
         foreach ($migration->resource_types as $resourceType) {
             $modelClass = $this->getModelClass($resourceType);
-            
+
             if ($modelClass) {
                 // Get the batch IDs for this migration and resource type
                 $batchIds = $migration->batches()
@@ -160,20 +160,20 @@ class VerificationService
                     ->where('status', 'completed')
                     ->pluck('batch_id')
                     ->toArray();
-                
+
                 $query = $modelClass::whereIn('migration_batch_id', $batchIds);
-                
+
                 $total = $query->count();
                 $verified = $query->where('verified', true)->count();
                 $failed = $total - $verified;
-                
+
                 $stats['results'][$resourceType] = [
                     'total' => $total,
                     'verified' => $verified,
                     'failed' => $failed,
                     'success_rate' => $total > 0 ? round(($verified / $total) * 100) : 0
                 ];
-                
+
                 $stats['total'] += $total;
                 $stats['verified'] += $verified;
                 $stats['failed'] += $failed;
@@ -194,7 +194,7 @@ class VerificationService
 
         foreach ($migration->resource_types as $resourceType) {
             $modelClass = $this->getModelClass($resourceType);
-            
+
             if ($modelClass) {
                 // Get the batch IDs for this migration and resource type
                 $batchIds = $migration->batches()
@@ -202,7 +202,7 @@ class VerificationService
                     ->where('status', 'completed')
                     ->pluck('batch_id')
                     ->toArray();
-                
+
                 $records = $modelClass::whereIn('migration_batch_id', $batchIds)
                     ->inRandomOrder()
                     ->limit($sampleSize)
@@ -270,14 +270,19 @@ class VerificationService
         if (is_object($dssData)) {
             $dssData = json_decode(json_encode($dssData), true);
         }
-        
-        // Basic validation - ensure key fields match
-        return isset($dssData['client_id']) && 
-               $dssData['client_id'] == $client->client_id &&
-               isset($dssData['first_name']) &&
-               isset($dssData['last_name']) &&
-               $dssData['first_name'] == $client->first_name &&
-               $dssData['last_name'] == $client->last_name;
+
+        // Basic validation - ensure key fields exist
+        $dssClient = $dssData['Client'] ?? null;
+        $dssId = $dssClient['ClientId'] ?? null;
+        $dssFirstName = $dssClient['GivenName'] ?? null;
+        $dssFamilyName = $dssClient['FamilyName'] ?? null;
+        if (!($dssClient && $dssFirstName && $dssFamilyName)) return false;
+
+        // ensure key fields match
+        return
+            $dssId == $client->client_id &&
+            $dssFirstName == $client->first_name &&
+            $dssFamilyName == $client->last_name;
     }
 
     /**
@@ -289,12 +294,12 @@ class VerificationService
         if (is_object($dssData)) {
             $dssData = json_decode(json_encode($dssData), true);
         }
-        
+
         // Basic validation - ensure key fields match
-        return isset($dssData['case_id']) && 
-               $dssData['case_id'] == $case->case_id &&
-               isset($dssData['client_id']) &&
-               $dssData['client_id'] == $case->client_id;
+        return isset($dssData['case_id']) &&
+            $dssData['case_id'] == $case->case_id &&
+            isset($dssData['client_id']) &&
+            $dssData['client_id'] == $case->client_id;
     }
 
     /**
@@ -306,11 +311,11 @@ class VerificationService
         if (is_object($dssData)) {
             $dssData = json_decode(json_encode($dssData), true);
         }
-        
+
         // Basic validation - ensure key fields match
-        return isset($dssData['session_id']) && 
-               $dssData['session_id'] == $session->session_id &&
-               isset($dssData['case_id']) &&
-               $dssData['case_id'] == $session->case_id;
+        return isset($dssData['session_id']) &&
+            $dssData['session_id'] == $session->session_id &&
+            isset($dssData['case_id']) &&
+            $dssData['case_id'] == $session->case_id;
     }
 }

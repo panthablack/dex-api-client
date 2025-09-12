@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('last_name')->nullable();
             $table->date('date_of_birth')->nullable();
             $table->boolean('is_birth_date_estimate')->default(false);
-            $table->enum('gender', ['M', 'F', 'X', '9'])->nullable();
+            $table->string('gender')->nullable();
             $table->string('suburb')->nullable();
             $table->string('state', 10)->nullable();
             $table->string('postal_code', 10)->nullable();

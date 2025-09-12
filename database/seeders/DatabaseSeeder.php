@@ -21,6 +21,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Seed data migrations for e2e tests
-        $this->call(DataMigrationSeeder::class);
+        if (env('APP_ENV') === 'test') $this->call(DataMigrationSeeder::class);
     }
 }

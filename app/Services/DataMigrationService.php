@@ -30,13 +30,13 @@ class DataMigrationService
         // Calculate total items upfront using the fixed getTotalItemsForResource method
         $totalItems = 0;
         $filters = $data['filters'] ?? [];
-        
+
         foreach ($data['resource_types'] as $resourceType) {
             $resourceTotal = $this->getTotalItemsForResource($resourceType, $filters);
             $totalItems += $resourceTotal;
             Log::info("Found {$resourceTotal} items for {$resourceType}");
         }
-        
+
         Log::info("Total items to migrate: {$totalItems}");
 
         return DataMigration::create([
@@ -76,19 +76,19 @@ class DataMigrationService
     {
         // Get total count to determine number of batches needed
         $totalItems = $this->getTotalItemsForResource($resourceType, $migration->filters);
-        
+
         if ($totalItems === 0) {
             Log::info("No items found for resource type: {$resourceType}");
             return;
         }
 
         $totalBatches = ceil($totalItems / $migration->batch_size);
-        
+
         Log::info("Creating {$totalBatches} batches for {$resourceType} ({$totalItems} total items)");
 
         for ($batchNumber = 1; $batchNumber <= $totalBatches; $batchNumber++) {
             $pageIndex = $batchNumber; // DSS API uses 1-based indexing
-            
+
             DataMigrationBatch::create([
                 'batch_id' => Str::uuid(),
                 'data_migration_id' => $migration->id,
@@ -140,7 +140,7 @@ class DataMigrationService
 
             // Extract TotalCount from SOAP response metadata
             $totalCount = $this->extractTotalCountFromResponse($response);
-            
+
             if ($totalCount > 0) {
                 Log::info("Found {$totalCount} total items for {$resourceType}");
                 return $totalCount;
@@ -173,7 +173,7 @@ class DataMigrationService
         // Check for TotalCount in various possible locations
         $possiblePaths = [
             'TotalCount',
-            'totalCount', 
+            'totalCount',
             'total_count',
             'pagination.total_items',
             'pagination.TotalCount',
@@ -256,10 +256,9 @@ class DataMigrationService
 
             // Dispatch next batch if available
             $this->dispatchNextBatches($batch->dataMigration, 1);
-
         } catch (\Exception $e) {
             Log::error("Batch processing failed: " . $e->getMessage());
-            
+
             $batch->update([
                 'status' => 'failed',
                 'error_message' => $e->getMessage(),
@@ -281,15 +280,15 @@ class DataMigrationService
             case 'clients':
                 $response = $this->dataExchangeService->getClientDataWithPagination($filters);
                 return $this->extractClientsFromResponse($response);
-                
+
             case 'cases':
                 $response = $this->dataExchangeService->fetchFullCaseData($filters);
                 return $this->extractCasesFromResponse($response);
-                
+
             case 'sessions':
                 $response = $this->dataExchangeService->fetchFullSessionData($filters);
                 return $this->extractSessionsFromResponse($response);
-                
+
             default:
                 throw new \InvalidArgumentException("Unknown resource type: {$batch->resource_type}");
         }
@@ -307,7 +306,7 @@ class DataMigrationService
             try {
                 // Convert stdClass to array if needed
                 $itemArray = is_object($item) ? json_decode(json_encode($item), true) : $item;
-                
+
                 switch ($batch->resource_type) {
                     case 'clients':
                         $this->storeClient($itemArray, $batchId);
@@ -331,23 +330,24 @@ class DataMigrationService
     /**
      * Store a client record
      */
-    protected function storeClient(array $clientData, string $batchId): void
+    protected function storeClient(array $clientData, string $batchId)
     {
-        MigratedClient::updateOrCreate(
+        $res = MigratedClient::updateOrCreate(
             ['client_id' => $clientData['client_id'] ?? $clientData['ClientId']],
             [
-                'first_name' => $clientData['first_name'] ?? $clientData['FirstName'] ?? null,
-                'last_name' => $clientData['last_name'] ?? $clientData['LastName'] ?? null,
-                'date_of_birth' => $clientData['date_of_birth'] ?? $clientData['DateOfBirth'] ?? null,
-                'gender' => $clientData['gender'] ?? $clientData['Gender'] ?? null,
-                'suburb' => $clientData['suburb'] ?? $clientData['Suburb'] ?? null,
-                'state' => $clientData['state'] ?? $clientData['State'] ?? null,
-                'postal_code' => $clientData['postal_code'] ?? $clientData['PostalCode'] ?? null,
+                'first_name' => $clientData['first_name'] ?? $clientData['GivenName'] ?? null,
+                'last_name' => $clientData['last_name'] ?? $clientData['FamilyName'] ?? null,
+                'date_of_birth' => $clientData['date_of_birth'] ?? $clientData['BirthDate'] ?? null,
+                'gender' => $clientData['gender'] ?? $clientData['GenderCode'] ?? null,
+                'suburb' => $clientData['suburb'] ?? $clientData['ResidentialAddress']['Suburb'] ?? null,
+                'state' => $clientData['state'] ?? $clientData['ResidentialAddress']['State'] ?? null,
+                'postal_code' => $clientData['postal_code'] ?? $clientData['ResidentialAddress']['Postcode'] ?? null,
                 'api_response' => $clientData,
                 'migration_batch_id' => $batchId,
                 'migrated_at' => now()
             ]
         );
+        return $res;
     }
 
     /**
@@ -482,7 +482,7 @@ class DataMigrationService
     {
         $completedBatches = $migration->batches()->where('status', 'completed')->get();
         $failedBatches = $migration->batches()->where('status', 'failed')->get();
-        
+
         $processedItems = $completedBatches->sum('items_stored');
         $successfulItems = $processedItems; // Items that were successfully stored
         $failedItems = $failedBatches->sum('items_received');
@@ -501,7 +501,7 @@ class DataMigrationService
 
         if ($totalBatches > 0 && $completedOrFailedBatches >= $totalBatches) {
             $status = $failedBatches->count() > 0 ? 'completed' : 'completed';
-            
+
             $migration->update([
                 'status' => $status,
                 'completed_at' => now(),
@@ -526,7 +526,7 @@ class DataMigrationService
 
         foreach ($migration->resource_types as $resourceType) {
             $batches = $migration->batches()->where('resource_type', $resourceType);
-            
+
             $summary['resources'][$resourceType] = [
                 'total_batches' => $batches->count(),
                 'completed_batches' => $batches->where('status', 'completed')->count(),
