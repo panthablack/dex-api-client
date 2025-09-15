@@ -19,14 +19,16 @@ class VerifyMigrationJob implements ShouldQueue
 
     public DataMigration $migration;
     public string $verificationId;
+    public bool $continueMode;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(DataMigration $migration, string $verificationId)
+    public function __construct(DataMigration $migration, string $verificationId, bool $continueMode = false)
     {
         $this->migration = $migration;
         $this->verificationId = $verificationId;
+        $this->continueMode = $continueMode;
         $this->onQueue('data-verification');
     }
 
@@ -40,6 +42,8 @@ class VerifyMigrationJob implements ShouldQueue
             'verification_id' => $this->verificationId,
             'migration_name' => $this->migration->name,
             'resource_types' => $this->migration->resource_types,
+            'continue_mode' => $this->continueMode,
+            'continue_mode_type' => gettype($this->continueMode),
             'job_id' => $this->job->getJobId() ?? 'unknown',
             'queue' => $this->job->getQueue() ?? 'default',
             'memory_usage' => memory_get_usage(true)
@@ -73,7 +77,23 @@ class VerifyMigrationJob implements ShouldQueue
                         ->toArray();
 
                     if (!empty($batchIds)) {
-                        $count = $modelClass::whereIn('migration_batch_id', $batchIds)->count();
+                        $query = $modelClass::whereIn('migration_batch_id', $batchIds);
+
+                        // In continue mode, only count failed and pending records
+                        if ($this->continueMode) {
+                            $query->whereIn('verification_status', [VerificationStatus::FAILED, VerificationStatus::PENDING]);
+                        }
+
+                        $count = $query->count();
+
+                        Log::info("Resource count in continue mode", [
+                            'migration_id' => $this->migration->id,
+                            'resource_type' => $resourceType,
+                            'continue_mode' => $this->continueMode,
+                            'total_records_query' => $count,
+                            'batch_ids' => $batchIds
+                        ]);
+
                         $totalRecords += $count;
                         $resourceProgress[$resourceType] = [
                             'total' => $count,
@@ -213,29 +233,22 @@ class VerifyMigrationJob implements ShouldQueue
         $this->updateStatus($totalRecords, $processedRecords, $verifiedRecords, "Processing {$resourceType}...", $resourceProgress);
 
         // Process in chunks to avoid memory issues
-        $modelClass::whereIn('migration_batch_id', $batchIds)
-            ->chunk(50, function ($records) use ($resourceType, $verificationService, $totalRecords, &$processedRecords, &$verifiedRecords, &$resourceProgress, &$allErrors) {
+        $query = $modelClass::whereIn('migration_batch_id', $batchIds);
+
+        // In continue mode, only process failed and pending records
+        if ($this->continueMode) {
+            $query->whereIn('verification_status', [VerificationStatus::FAILED, VerificationStatus::PENDING]);
+        }
+
+        $query->chunk(50, function ($records) use ($resourceType, $verificationService, $totalRecords, &$processedRecords, &$verifiedRecords, &$resourceProgress, &$allErrors) {
                 foreach ($records as $record) {
-                    // Count ALL records as processed (attempted), regardless of current status
+                    // Count ALL records as processed (attempted)
                     $processedRecords++;
                     $resourceProgress[$resourceType]['processed']++;
 
-                    // If already verified, just count it and continue
-                    if ($record->verification_status === VerificationStatus::VERIFIED) {
-                        $verifiedRecords++;
-                        continue;
-                    }
-
-                    // If already failed, just count it and continue (don't re-verify)
-                    if ($record->verification_status === VerificationStatus::FAILED) {
-                        // Collect existing error for display
-                        if ($record->verification_error) {
-                            $allErrors[$resourceType][] = $record->verification_error;
-                        }
-                        continue;
-                    }
-
-                    // Only verify records that are still PENDING
+                    // In full mode, records should only be PENDING (due to reset)
+                    // In continue mode, we only loaded FAILED and PENDING records
+                    // So we can verify all loaded records
                     try {
                         $success = $verificationService->verifyRecord($resourceType, $record);
 

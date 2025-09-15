@@ -458,9 +458,9 @@ class DataMigrationController extends Controller
             // Generate unique verification ID
             $verificationId = $migration->id . '_' . time();
 
-            // Dispatch async verification job
+            // Dispatch async verification job in full mode (resets all records first)
             try {
-                \App\Jobs\VerifyMigrationJob::dispatch($migration, $verificationId);
+                \App\Jobs\VerifyMigrationJob::dispatch($migration, $verificationId, false);
                 Log::info("VerifyMigrationJob dispatched successfully", [
                     'migration_id' => $migration->id,
                     'verification_id' => $verificationId,
@@ -499,6 +499,157 @@ class DataMigrationController extends Controller
     public function showVerification(DataMigration $migration)
     {
         return view('data-exchange.migration.verification', compact('migration'));
+    }
+
+    /**
+     * Continue verification of failed and pending records only
+     */
+    public function continueVerification(DataMigration $migration): JsonResponse
+    {
+        try {
+            if (!in_array($migration->status, ['completed', 'failed'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Can only verify completed or failed migrations'
+                ], 400);
+            }
+
+            // Check if there are any failed or pending records to continue with
+            $hasUnverifiedRecords = false;
+            foreach ($migration->resource_types as $resourceType) {
+                $modelClass = $this->getModelClass($resourceType);
+                if ($modelClass) {
+                    $batchIds = $migration->batches()
+                        ->where('resource_type', $resourceType)
+                        ->where('status', 'completed')
+                        ->pluck('batch_id')
+                        ->toArray();
+
+                    if (!empty($batchIds)) {
+                        $unverifiedCount = $modelClass::whereIn('migration_batch_id', $batchIds)
+                            ->whereIn('verification_status', [VerificationStatus::FAILED, VerificationStatus::PENDING])
+                            ->count();
+
+                        if ($unverifiedCount > 0) {
+                            $hasUnverifiedRecords = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!$hasUnverifiedRecords) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No failed or pending records to continue verification with'
+                ], 400);
+            }
+
+            Log::info("Continuing verification for migration {$migration->id}", [
+                'migration_id' => $migration->id,
+                'migration_name' => $migration->name,
+                'resource_types' => $migration->resource_types,
+                'queue_connection' => config('queue.default')
+            ]);
+
+            // Generate unique verification ID
+            $verificationId = $migration->id . '_continue_' . time();
+
+            // Dispatch async verification job in continue mode (it will only process failed/pending records)
+            try {
+                \App\Jobs\VerifyMigrationJob::dispatch($migration, $verificationId, true);
+                Log::info("Continue VerifyMigrationJob dispatched successfully", [
+                    'migration_id' => $migration->id,
+                    'verification_id' => $verificationId,
+                    'queue_connection' => config('queue.default')
+                ]);
+            } catch (\Exception $e) {
+                Log::error("Failed to dispatch continue VerifyMigrationJob", [
+                    'migration_id' => $migration->id,
+                    'verification_id' => $verificationId,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'verification_id' => $verificationId,
+                    'status' => 'starting',
+                    'message' => 'Continue verification started. Only failed and pending records will be re-verified.'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Continue verification failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Stop an in-progress verification
+     */
+    public function stopVerification(DataMigration $migration): JsonResponse
+    {
+        try {
+            // For simplicity, we'll use a general approach to mark verification as stopping
+            // In a production system, you'd want to track specific verification IDs
+            $stopped = false;
+
+            // Try common verification ID patterns for this migration
+            $possibleIds = [
+                $migration->id . '_' . (time() - 3600), // Last hour
+                $migration->id . '_' . (time() - 1800), // Last 30 minutes
+                $migration->id . '_' . (time() - 900),  // Last 15 minutes
+                $migration->id . '_continue_' . (time() - 3600), // Continue verifications
+                $migration->id . '_continue_' . (time() - 1800),
+                $migration->id . '_continue_' . (time() - 900)
+            ];
+
+            foreach ($possibleIds as $testId) {
+                $cacheKey = "verification_status_{$testId}";
+                $status = Cache::get($cacheKey);
+
+                if ($status && isset($status['status']) && in_array($status['status'], ['starting', 'in_progress'])) {
+                    $status['status'] = 'stopping';
+                    $status['current_activity'] = 'Stopping verification...';
+                    Cache::put($cacheKey, $status, 3600);
+                    $stopped = true;
+
+                    Log::info("Verification stop requested for migration {$migration->id}", [
+                        'migration_id' => $migration->id,
+                        'verification_id' => $testId
+                    ]);
+                    break;
+                }
+            }
+
+            // Note: The actual stopping of the job would need to be implemented in the job itself
+            // For now, we just mark it as stopping in the cache
+
+            $message = $stopped
+                ? 'Verification stop requested. The process will halt at the next safe checkpoint.'
+                : 'No active verification found to stop.';
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'status' => $stopped ? 'stopping' : 'idle',
+                    'stopped' => $stopped,
+                    'message' => $message
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Stop verification failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

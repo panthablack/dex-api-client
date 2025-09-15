@@ -33,11 +33,29 @@
                     <i class="fas fa-arrow-left me-1"></i> Back to Migration
                 </a>
                 @if ($migration->status === 'completed' || $migration->batches->where('status', 'completed')->count() > 0)
-                    <button @click="startVerification()" class="btn btn-primary"
-                        :disabled="verification.status === 'starting' || verification.status === 'in_progress'"
-                        x-text="getStartButtonText()">
-                        <i class="fas fa-play me-1"></i> Start Full Verification
-                    </button>
+                    <!-- Show different buttons based on verification status -->
+                    <template x-if="verification.status === 'starting' || verification.status === 'in_progress'">
+                        <button @click="stopVerification()" class="btn btn-outline-danger">
+                            <i class="fas fa-stop me-1"></i> Stop Verification
+                        </button>
+                    </template>
+
+                    <template x-if="verification.status !== 'starting' && verification.status !== 'in_progress'">
+                        <div class="btn-group">
+                            <!-- Full Verification (Reset + Start) -->
+                            <button @click="startVerification()" class="btn btn-primary"
+                                title="Reset all verification states and start fresh verification">
+                                <i class="fas fa-redo me-1"></i> Run Verification Again
+                            </button>
+
+                            <!-- Continue Verification (Only failed/pending) -->
+                            <button @click="continueVerification()" class="btn btn-outline-primary"
+                                :disabled="!hasUnverifiedRecords()"
+                                :title="hasUnverifiedRecords() ? 'Continue verification of failed and pending records only' : 'No failed or pending records to continue with'">
+                                <i class="fas fa-play me-1"></i> Continue Verification
+                            </button>
+                        </div>
+                    </template>
                 @else
                     <button class="btn btn-secondary" disabled title="Migration must be completed first">
                         <i class="fas fa-lock me-1"></i> Verification Unavailable
@@ -493,25 +511,6 @@
                     }
                 },
 
-                getStartButtonText() {
-                    switch (this.verification.status) {
-                        case 'starting':
-                            return 'Starting...';
-                        case 'in_progress':
-                            return 'In Progress...';
-                        case 'completed':
-                            return 'Run Verification Again';
-                        case 'partial':
-                            return 'Continue Verification';
-                        case 'failed':
-                            return 'Retry Verification';
-                        case 'idle':
-                            return 'Start Full Verification';
-                        default:
-                            return 'Start Full Verification';
-                    }
-                },
-
                 getStatusText() {
                     switch (this.verification.status) {
                         case 'starting':
@@ -666,6 +665,77 @@
                     if (rate >= 100) return 'bg-success';
                     if (rate >= 30) return 'bg-warning';
                     return 'bg-danger';
+                },
+
+                async continueVerification() {
+                    this.verification.status = 'starting';
+                    this.verification.progress = 0;
+                    this.verification.currentActivity = 'Continuing verification of failed and pending records...';
+
+                    try {
+                        const response = await fetch(`{{ route('data-migration.api.continue-verification', $migration) }}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            this.verification.verificationId = result.data.verification_id;
+                            this.startPolling();
+                        } else {
+                            alert('Error: ' + result.error);
+                            this.verification.status = 'idle';
+                        }
+                    } catch (error) {
+                        console.error('Continue verification failed:', error);
+                        alert('Continue verification failed: ' + error.message);
+                        this.verification.status = 'idle';
+                    }
+                },
+
+                async stopVerification() {
+                    try {
+                        const response = await fetch(`{{ route('data-migration.api.stop-verification', $migration) }}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            this.verification.status = 'stopping';
+                            this.verification.currentActivity = 'Stopping verification...';
+                            // Continue polling to see when it actually stops
+                        } else {
+                            alert('Error stopping verification: ' + result.error);
+                        }
+                    } catch (error) {
+                        console.error('Stop verification failed:', error);
+                        alert('Stop verification failed: ' + error.message);
+                    }
+                },
+
+                hasUnverifiedRecords() {
+                    if (!this.verification.results) return false;
+
+                    for (const [resourceType, result] of Object.entries(this.verification.results)) {
+                        const failed = result.failed || 0;
+                        const total = result.total || 0;
+                        const verified = result.verified || 0;
+                        const pending = total - verified - failed;
+
+                        if (failed > 0 || pending > 0) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }
             };
         }
