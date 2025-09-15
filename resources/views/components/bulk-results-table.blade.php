@@ -106,11 +106,11 @@
                     <td>
                         @if ($result['status'] === 'success' && isset($submissionId) && $submissionId)
                             <button class="btn btn-outline-info btn-sm"
-                                onclick="checkSubmissionStatus('{{ $submissionId }}')" title="Check Status">
+                                @click="checkSubmissionStatus('{{ $submissionId }}')" title="Check Status">
                                 <i class="fas fa-search"></i>
                             </button>
                         @endif
-                        <button class="btn btn-outline-secondary btn-sm" onclick="showDetails({{ $index }})"
+                        <button class="btn btn-outline-secondary btn-sm" @click="showDetails({{ $index }})"
                             title="View Details">
                             <i class="fas fa-eye"></i>
                         </button>

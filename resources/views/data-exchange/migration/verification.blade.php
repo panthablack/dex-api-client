@@ -3,6 +3,7 @@
 @section('title', 'Full Verification - ' . $migration->name)
 
 @section('content')
+    <div x-data="verificationApp()" x-init="init()" x-cloak>
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
@@ -32,7 +33,9 @@
                 <i class="fas fa-arrow-left me-1"></i> Back to Migration
             </a>
             @if ($migration->status === 'completed' || $migration->batches->where('status', 'completed')->count() > 0)
-                <button onclick="startFullVerification()" class="btn btn-primary" id="start-verification-btn">
+                <button @click="startVerification()" class="btn btn-primary"
+                    :disabled="verification.status === 'starting' || verification.status === 'in_progress'"
+                    x-text="getStartButtonText()">
                     <i class="fas fa-play me-1"></i> Start Full Verification
                 </button>
             @else
@@ -90,15 +93,15 @@
     @endif
 
     <!-- Verification Status Card -->
-    <div class="card mb-4" id="verification-status-card" style="display: none;">
+    <div x-show="verification.status !== 'idle'" class="card mb-4" x-transition>
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="fas fa-shield-alt me-2"></i>
                 Verification Progress
             </h5>
             <div class="d-flex align-items-center gap-2">
-                <div id="verification-status-badge" class="badge bg-info">Initializing...</div>
-                <div id="verification-spinner" style="display: none;">
+                <div class="badge" :class="getStatusBadgeClass()" x-text="getStatusText()"></div>
+                <div x-show="verification.status === 'starting' || verification.status === 'in_progress'">
                     <div class="spinner-border spinner-border-sm text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
@@ -110,80 +113,173 @@
             <div class="mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="text-muted">Overall Progress</span>
-                    <span class="text-muted" id="progress-text">0 of 0 records</span>
+                    <span class="text-muted" x-text="getProgressText()"></span>
                 </div>
                 <div class="progress" style="height: 25px;">
-                    <div class="progress-bar progress-bar-striped" role="progressbar" style="width: 0%"
-                        id="verification-progress-bar">
-                        0%
+                    <div class="progress-bar progress-bar-striped"
+                        role="progressbar"
+                        :style="`width: ${verification.progress}%`"
+                        :class="getProgressBarClass()"
+                        x-text="`${verification.progress}%`">
                     </div>
                 </div>
             </div>
 
             <!-- Resource Type Progress -->
-            <div id="resource-progress-container" style="display: none;">
+            <div x-show="verification.resourceProgress && Object.keys(verification.resourceProgress).length > 0" class="mb-3">
                 <h6 class="text-muted mb-3">Resource Type Progress</h6>
-                <div id="resource-progress-bars">
-                    <!-- Individual resource progress bars will be added here -->
-                </div>
+                <template x-for="[resourceType, progress] in Object.entries(verification.resourceProgress || {})" :key="resourceType">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-capitalize fw-medium" x-text="resourceType"></span>
+                            <span class="text-muted small" x-text="`${progress.processed || 0}/${progress.total || 0}`"></span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar"
+                                :class="(progress.total > 0 && progress.processed === progress.total) ? 'bg-success' : 'bg-info'"
+                                role="progressbar"
+                                :style="`width: ${progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0}%`">
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
 
             <!-- Statistics -->
             <div class="row text-center mt-3">
                 <div class="col-md-3">
-                    <div class="h5 mb-0" id="total-records">0</div>
+                    <div class="h5 mb-0" x-text="verification.total?.toLocaleString() || '0'"></div>
                     <small class="text-muted">Total Records</small>
                 </div>
                 <div class="col-md-3">
-                    <div class="h5 mb-0 text-success" id="verified-records">0</div>
+                    <div class="h5 mb-0 text-success" x-text="verification.verified?.toLocaleString() || '0'"></div>
                     <small class="text-muted">Verified</small>
                 </div>
                 <div class="col-md-3">
-                    <div class="h5 mb-0 text-danger" id="failed-records">0</div>
+                    <div class="h5 mb-0 text-danger" x-text="((verification.processed || 0) - (verification.verified || 0)).toLocaleString()"></div>
                     <small class="text-muted">Failed</small>
                 </div>
                 <div class="col-md-3">
-                    <div class="h5 mb-0" id="verification-rate">0%</div>
+                    <div class="h5 mb-0" x-text="getSuccessRate() + '%'"></div>
                     <small class="text-muted">Success Rate</small>
                 </div>
             </div>
 
             <!-- Current Activity -->
-            <div class="mt-3" id="current-activity" style="display: none;">
+            <div x-show="verification.currentActivity" class="mt-3">
                 <small class="text-muted">
                     <i class="fas fa-cog fa-spin me-1"></i>
-                    <span id="current-activity-text">Processing...</span>
+                    <span x-text="verification.currentActivity"></span>
                 </small>
             </div>
 
             <!-- Verification Progress - For test compatibility -->
-            <div class="mt-3" id="verification-progress" style="display: none;">
+            <div x-show="verification.status === 'in_progress' || verification.status === 'starting'" class="mt-3" id="verification-progress">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-spinner fa-spin text-primary me-2"></i>
-                    <span id="verification-progress-text">Processing clients...</span>
+                    <span x-text="verification.currentActivity || 'Processing clients...'" id="verification-progress-text"></span>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Resource Type Results -->
-    <div class="row" id="verification-results" style="display: none;">
-        <!-- Results will be populated here -->
+    <div x-show="verification.results && Object.keys(verification.results).length > 0" class="row">
+        <template x-for="[resourceType, result] in Object.entries(verification.results || {})" :key="resourceType">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100" :class="getResultCardClass(result)">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-capitalize" x-text="resourceType"></h5>
+                        <div class="mb-3" style="font-size: 3rem;"
+                            :class="getResultStatusClass(result)"
+                            x-text="getResultIcon(result)">
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="h6 mb-0" x-text="result.verified?.toLocaleString() || '0'"></div>
+                                <small class="text-muted">Verified</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="h6 mb-0" x-text="result.total?.toLocaleString() || '0'"></div>
+                                <small class="text-muted">Total</small>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span :class="getResultStatusClass(result)" class="fw-bold"
+                                x-text="getResultSuccessRate(result) + '% Success'">
+                            </span>
+                        </div>
+                        <button x-show="result.errors && result.errors.length > 0"
+                            @click="showErrorDetails(resourceType, result.errors)"
+                            class="btn btn-outline-danger btn-sm mt-2"
+                            x-text="`View ${result.errors?.length || 0} Errors`">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
     </div>
 
     <!-- Verification Details -->
-    <div class="row" id="verification-details" style="display: none;">
+    <div x-show="verification.results && Object.keys(verification.results).length > 0" class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">Verification Details</h5>
                 </div>
                 <div class="card-body">
-                    <ul class="nav nav-tabs" id="details-tabs" role="tablist">
-                        <!-- Tabs will be populated dynamically -->
+                    <ul class="nav nav-tabs" role="tablist">
+                        <template x-for="([resourceType], index) in Object.entries(verification.results || {})" :key="resourceType">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link"
+                                    :class="{ 'active': index === 0 }"
+                                    :id="`${resourceType}-tab`"
+                                    data-bs-toggle="tab"
+                                    :data-bs-target="`#${resourceType}-content`"
+                                    type="button"
+                                    role="tab"
+                                    x-text="resourceType.charAt(0).toUpperCase() + resourceType.slice(1)">
+                                </button>
+                            </li>
+                        </template>
                     </ul>
-                    <div class="tab-content mt-3" id="details-tab-content">
-                        <!-- Tab content will be populated dynamically -->
+                    <div class="tab-content mt-3">
+                        <template x-for="([resourceType, result], index) in Object.entries(verification.results || {})" :key="resourceType">
+                            <div class="tab-pane fade"
+                                :class="{ 'show active': index === 0 }"
+                                :id="`${resourceType}-content`"
+                                role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Verification Summary</h6>
+                                        <ul class="list-unstyled">
+                                            <li><strong>Total Records:</strong> <span x-text="result.total?.toLocaleString() || '0'"></span></li>
+                                            <li><strong>Verified:</strong> <span x-text="result.verified?.toLocaleString() || '0'"></span></li>
+                                            <li><strong>Failed:</strong> <span x-text="((result.total || 0) - (result.verified || 0)).toLocaleString()"></span></li>
+                                            <li><strong>Success Rate:</strong> <span x-text="getResultSuccessRate(result) + '%'"></span></li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Common Issues</h6>
+                                        <template x-if="result.errors && result.errors.length > 0">
+                                            <ul class="list-group list-group-flush">
+                                                <template x-for="(error, errorIndex) in result.errors.slice(0, 5)" :key="errorIndex">
+                                                    <li class="list-group-item px-0 py-1">
+                                                        <small x-text="error"></small>
+                                                    </li>
+                                                </template>
+                                                <li x-show="result.errors.length > 5" class="list-group-item px-0 py-1">
+                                                    <small class="text-muted" x-text="`...and ${result.errors.length - 5} more`"></small>
+                                                </li>
+                                            </ul>
+                                        </template>
+                                        <template x-if="!result.errors || result.errors.length === 0">
+                                            <p class="text-muted">No issues found</p>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -196,12 +292,31 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="errorDetailsModalLabel">Verification Error Details</h5>
+                    <h5 class="modal-title" id="errorDetailsModalLabel" x-text="errorModal.title">Verification Error Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="error-details-content">
-                        <!-- Error details will be populated here -->
+                    <div class="mb-3">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span x-text="`Found ${errorModal.errors?.length || 0} verification error${(errorModal.errors?.length || 0) > 1 ? 's' : ''} for ${errorModal.resourceType}`"></span>
+                        </div>
+                    </div>
+                    <div class="list-group">
+                        <template x-for="(error, index) in errorModal.errors" :key="index">
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 text-danger" x-text="`Error ${index + 1}`"></h6>
+                                    <small class="text-muted" x-text="`#${index + 1}`"></small>
+                                </div>
+                                <p class="mb-1" x-text="error"></p>
+                                <small class="text-muted">This record failed verification and may need manual review.</small>
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="errorModal.errors && errorModal.errors.length > 10" class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Showing first 10 errors. Additional errors may exist in the full verification log.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -211,390 +326,186 @@
         </div>
     </div>
 
+    </div> <!-- End Alpine.js wrapper -->
+
     <script>
-        let verificationInterval;
-        let currentVerificationId = null;
-        const migrationId = {{ $migration->id }};
+        function verificationApp() {
+            return {
+                verification: {
+                    status: 'idle', // 'idle', 'starting', 'in_progress', 'completed', 'failed'
+                    progress: 0,
+                    total: 0,
+                    processed: 0,
+                    verified: 0,
+                    currentActivity: '',
+                    resourceProgress: {},
+                    results: {},
+                    verificationId: null
+                },
+                pollInterval: null,
+                errorModal: {
+                    title: '',
+                    resourceType: '',
+                    errors: []
+                },
 
-        function startFullVerification() {
-            const button = document.getElementById('start-verification-btn');
-            const statusCard = document.getElementById('verification-status-card');
-            const statusBadge = document.getElementById('verification-status-badge');
-            const spinner = document.getElementById('verification-spinner');
+                init() {
+                    // Auto-start if needed or setup initial state
+                },
 
-            button.textContent = 'Starting...';
-            button.disabled = true;
+                async startVerification() {
+                    this.verification.status = 'starting';
+                    this.verification.progress = 0;
+                    this.verification.currentActivity = 'Initializing verification process...';
 
-            // Show status card with loading state
-            statusCard.style.display = 'block';
-            statusBadge.textContent = 'Initializing...';
-            statusBadge.className = 'badge bg-info';
-            spinner.style.display = 'block';
+                    try {
+                        const response = await fetch(`{{ route('data-migration.api.full-verify', $migration) }}`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Content-Type': 'application/json'
+                            }
+                        });
 
-            // Reset progress elements
-            document.getElementById('verification-progress-bar').style.width = '0%';
-            document.getElementById('verification-progress-bar').textContent = '0%';
-            document.getElementById('progress-text').textContent = 'Preparing verification...';
-
-            // Start verification
-            fetch(`{{ route('data-migration.api.full-verify', $migration) }}`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Store verification ID and start polling
-                        currentVerificationId = data.data.verification_id;
-                        verificationInterval = setInterval(checkVerificationStatus, 1500);
-                        statusBadge.textContent = 'Starting...';
-                        statusBadge.className = 'badge bg-warning';
-
-                        // Show immediate feedback
-                        document.getElementById('progress-text').textContent = 'Verification started...';
-                        document.getElementById('current-activity').style.display = 'block';
-                        document.getElementById('current-activity-text').textContent =
-                            'Initializing verification process...';
-                    } else {
-                        button.textContent = 'Start Full Verification';
-                        button.disabled = false;
-                        spinner.style.display = 'none';
-                        showAlert('Error starting verification: ' + data.error, 'error');
-                    }
-                })
-                .catch(error => {
-                    button.textContent = 'Start Full Verification';
-                    button.disabled = false;
-                    spinner.style.display = 'none';
-                    console.error('Error:', error);
-                    showAlert('Failed to start verification', 'error');
-                });
-        }
-
-
-        function updateVerificationProgress(data) {
-            const progressBar = document.getElementById('verification-progress-bar');
-            const spinner = document.getElementById('verification-spinner');
-            const currentActivity = document.getElementById('current-activity');
-            const verificationProgress = document.getElementById('verification-progress');
-            const resourceProgressContainer = document.getElementById('resource-progress-container');
-
-            // Calculate progress more safely
-            let progress = 0;
-            if (data.total > 0) {
-                progress = Math.min(Math.round((data.processed / data.total) * 100), 100);
-            }
-
-            // Update main progress bar
-            progressBar.style.width = progress + '%';
-            progressBar.textContent = progress + '%';
-
-            // Update progress text
-            document.getElementById('progress-text').textContent =
-                `${data.processed?.toLocaleString() || 0} of ${data.total?.toLocaleString() || 0} records`;
-
-            // Update statistics
-            document.getElementById('total-records').textContent = (data.total || 0).toLocaleString();
-            document.getElementById('verified-records').textContent = (data.verified || 0).toLocaleString();
-            document.getElementById('failed-records').textContent = ((data.processed || 0) - (data.verified || 0))
-                .toLocaleString();
-
-            const successRate = (data.processed > 0) ? Math.round((data.verified / data.processed) * 100) : 0;
-            document.getElementById('verification-rate').textContent = successRate + '%';
-
-            // Update resource-specific progress if available
-            if (data.resource_progress) {
-                updateResourceProgress(data.resource_progress);
-                resourceProgressContainer.style.display = 'block';
-            }
-
-            // Update current activity
-            if (data.current_activity) {
-                document.getElementById('current-activity-text').textContent = data.current_activity;
-                currentActivity.style.display = 'block';
-
-                // Also update verification progress for test compatibility
-                document.getElementById('verification-progress-text').textContent = data.current_activity;
-                verificationProgress.style.display = 'block';
-            }
-
-            // Update status and UI based on verification state
-            const statusBadge = document.getElementById('verification-status-badge');
-            const startBtn = document.getElementById('start-verification-btn');
-
-            if (data.status === 'completed') {
-                statusBadge.textContent = 'Completed';
-                statusBadge.className = 'badge bg-success';
-                startBtn.textContent = 'Verification Complete';
-                progressBar.className = 'progress-bar bg-success';
-                spinner.style.display = 'none';
-                currentActivity.style.display = 'none';
-                verificationProgress.style.display = 'none';
-            } else if (data.status === 'failed') {
-                statusBadge.textContent = 'Failed';
-                statusBadge.className = 'badge bg-danger';
-                startBtn.textContent = 'Verification Failed';
-                progressBar.className = 'progress-bar bg-danger';
-                spinner.style.display = 'none';
-                currentActivity.style.display = 'none';
-                verificationProgress.style.display = 'none';
-            } else if (data.status === 'in_progress') {
-                statusBadge.textContent = 'In Progress';
-                statusBadge.className = 'badge bg-warning';
-                progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
-                spinner.style.display = 'block';
-                // Set default progress text if no current_activity is provided
-                if (!data.current_activity) {
-                    document.getElementById('verification-progress-text').textContent = 'Processing clients...';
-                    verificationProgress.style.display = 'block';
-                }
-            } else if (data.status === 'starting') {
-                statusBadge.textContent = 'Starting...';
-                statusBadge.className = 'badge bg-info';
-                progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
-                spinner.style.display = 'block';
-                // Set default progress text for starting state
-                document.getElementById('verification-progress-text').textContent = 'Processing clients...';
-                verificationProgress.style.display = 'block';
-            }
-        }
-
-        function showVerificationResults(data) {
-            const resultsContainer = document.getElementById('verification-results');
-            const detailsContainer = document.getElementById('verification-details');
-
-            // Build results cards
-            let resultsHtml = '';
-            for (const [resourceType, result] of Object.entries(data.results)) {
-                const successRate = result.total > 0 ? Math.round((result.verified / result.total) * 100) : 0;
-                let cardClass = 'border-success';
-                let statusClass = 'text-success';
-                let statusIcon = '✓';
-
-                if (successRate < 95) {
-                    cardClass = 'border-warning';
-                    statusClass = 'text-warning';
-                    statusIcon = '⚠';
-                }
-                if (successRate < 80) {
-                    cardClass = 'border-danger';
-                    statusClass = 'text-danger';
-                    statusIcon = '✗';
-                }
-
-                resultsHtml += `
-            <div class="col-md-4 mb-4">
-                <div class="card h-100 ${cardClass}">
-                    <div class="card-body text-center">
-                        <h5 class="card-title text-capitalize">${resourceType}</h5>
-                        <div class="${statusClass} mb-3" style="font-size: 3rem;">${statusIcon}</div>
-                        <div class="row">
-                            <div class="col-6">
-                                <div class="h6 mb-0">${result.verified.toLocaleString()}</div>
-                                <small class="text-muted">Verified</small>
-                            </div>
-                            <div class="col-6">
-                                <div class="h6 mb-0">${result.total.toLocaleString()}</div>
-                                <small class="text-muted">Total</small>
-                            </div>
-                        </div>
-                        <div class="mt-2">
-                            <span class="${statusClass} fw-bold">${successRate}% Success</span>
-                        </div>
-                        ${result.errors && result.errors.length > 0 ?
-                            `<button class="btn btn-outline-danger btn-sm mt-2"
-                                 onclick="showErrorDetails('${resourceType}', ${JSON.stringify(result.errors).replace(/"/g, '&quot;')})">
-                                    View ${result.errors.length} Errors
-                                </button>` : ''
+                        const data = await response.json();
+                        if (data.success) {
+                            this.verification.verificationId = data.data.verification_id;
+                            this.startPolling();
+                        } else {
+                            this.verification.status = 'idle';
+                            alert('Error starting verification: ' + data.error);
                         }
-                    </div>
-                </div>
-            </div>
-        `;
-            }
-
-            resultsContainer.innerHTML = resultsHtml;
-            resultsContainer.style.display = 'flex';
-            detailsContainer.style.display = 'block';
-
-            // Build details tabs
-            buildDetailsTabs(data.results);
-        }
-
-        function buildDetailsTabs(results) {
-            const tabsList = document.getElementById('details-tabs');
-            const tabsContent = document.getElementById('details-tab-content');
-
-            let tabsHtml = '';
-            let contentHtml = '';
-            let isFirst = true;
-
-            for (const [resourceType, result] of Object.entries(results)) {
-                const tabId = resourceType + '-tab';
-                const contentId = resourceType + '-content';
-
-                tabsHtml += `
-            <li class="nav-item" role="presentation">
-                <button class="nav-link ${isFirst ? 'active' : ''}"
-                        id="${tabId}"
-                        data-bs-toggle="tab"
-                        data-bs-target="#${contentId}"
-                        type="button"
-                        role="tab">
-                    ${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)}
-                </button>
-            </li>
-        `;
-
-                contentHtml += `
-            <div class="tab-pane fade ${isFirst ? 'show active' : ''}"
-                 id="${contentId}"
-                 role="tabpanel"
-                 aria-labelledby="${tabId}">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Verification Summary</h6>
-                        <ul class="list-unstyled">
-                            <li><strong>Total Records:</strong> ${result.total.toLocaleString()}</li>
-                            <li><strong>Verified:</strong> ${result.verified.toLocaleString()}</li>
-                            <li><strong>Failed:</strong> ${(result.total - result.verified).toLocaleString()}</li>
-                            <li><strong>Success Rate:</strong> ${result.total > 0 ? Math.round((result.verified / result.total) * 100) : 0}%</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Common Issues</h6>
-                        ${result.errors && result.errors.length > 0 ?
-                            `<ul class="list-group list-group-flush">
-                                    ${result.errors.slice(0, 5).map(error =>
-                                        `<li class="list-group-item px-0 py-1"><small>${error}</small></li>`
-                                    ).join('')}
-                                    ${result.errors.length > 5 ?
-                                        `<li class="list-group-item px-0 py-1"><small class="text-muted">...and ${result.errors.length - 5} more</small></li>`
-                                        : ''
-                                    }
-                                </ul>`
-                            : '<p class="text-muted">No issues found</p>'
-                        }
-                    </div>
-                </div>
-            </div>
-        `;
-
-                isFirst = false;
-            }
-
-            tabsList.innerHTML = tabsHtml;
-            tabsContent.innerHTML = contentHtml;
-        }
-
-        function updateResourceProgress(resourceProgress) {
-            const container = document.getElementById('resource-progress-bars');
-            let progressHtml = '';
-
-            for (const [resourceType, progress] of Object.entries(resourceProgress)) {
-                const percentage = progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
-                const statusColor = percentage === 100 ? 'success' : 'info';
-
-                progressHtml += `
-            <div class="mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="text-capitalize fw-medium">${resourceType}</span>
-                    <span class="text-muted small">${progress.processed || 0}/${progress.total || 0}</span>
-                </div>
-                <div class="progress" style="height: 8px;">
-                    <div class="progress-bar bg-${statusColor}"
-                         role="progressbar"
-                         style="width: ${percentage}%"
-                         aria-valuenow="${percentage}"
-                         aria-valuemin="0"
-                         aria-valuemax="100">
-                    </div>
-                </div>
-            </div>
-        `;
-            }
-
-            container.innerHTML = progressHtml;
-        }
-
-        function checkVerificationStatus() {
-            const url = new URL(`{{ route('data-migration.api.verification-status', $migration) }}`);
-            if (currentVerificationId) {
-                url.searchParams.append('verification_id', currentVerificationId);
-            }
-
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                    } catch (error) {
+                        this.verification.status = 'idle';
+                        console.error('Error:', error);
+                        alert('Failed to start verification');
                     }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        updateVerificationProgress(data.data);
+                },
 
-                        // Check if verification is complete
-                        if (data.data.status === 'completed' || data.data.status === 'failed') {
-                            clearInterval(verificationInterval);
-                            showVerificationResults(data.data);
+                startPolling() {
+                    this.pollInterval = setInterval(() => this.checkStatus(), 1500);
+                },
+
+                async checkStatus() {
+                    try {
+                        const url = new URL(`{{ route('data-migration.api.verification-status', $migration) }}`);
+                        if (this.verification.verificationId) {
+                            url.searchParams.append('verification_id', this.verification.verificationId);
                         }
-                    } else {
-                        console.error('Verification status check failed:', data.error);
-                        // Don't stop polling on single error, but show feedback
-                        document.getElementById('current-activity-text').textContent =
-                            'Temporary connection issue, retrying...';
+
+                        const response = await fetch(url);
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.updateVerification(data.data);
+
+                            if (data.data.status === 'completed' || data.data.status === 'failed') {
+                                clearInterval(this.pollInterval);
+                            }
+                        } else {
+                            this.verification.currentActivity = 'Temporary connection issue, retrying...';
+                        }
+                    } catch (error) {
+                        console.error('Error checking verification status:', error);
+                        this.verification.currentActivity = 'Connection issue, retrying...';
                     }
-                })
-                .catch(error => {
-                    console.error('Error checking verification status:', error);
-                    document.getElementById('current-activity-text').textContent = 'Connection issue, retrying...';
-                    // Don't immediately stop polling on network errors
-                });
-        }
+                },
 
-        function showErrorDetails(resourceType, errors) {
-            const modal = document.getElementById('error-details-modal');
-            const content = document.getElementById('error-details-content');
+                updateVerification(data) {
+                    this.verification.status = data.status;
+                    this.verification.total = data.total || 0;
+                    this.verification.processed = data.processed || 0;
+                    this.verification.verified = data.verified || 0;
+                    this.verification.currentActivity = data.current_activity || '';
+                    this.verification.resourceProgress = data.resource_progress || {};
+                    this.verification.results = data.results || {};
 
-            document.getElementById('errorDetailsModalLabel').textContent =
-                `${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)} Verification Errors`;
+                    if (this.verification.total > 0) {
+                        this.verification.progress = Math.min(Math.round((this.verification.processed / this.verification.total) * 100), 100);
+                    }
+                },
 
-            let errorHtml = `
-        <div class="mb-3">
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Found ${errors.length} verification error${errors.length > 1 ? 's' : ''} for ${resourceType}
-            </div>
-        </div>
-        <div class="list-group">
-            ${errors.map((error, index) =>
-                `<div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1 text-danger">Error ${index + 1}</h6>
-                            <small class="text-muted">#${index + 1}</small>
-                        </div>
-                        <p class="mb-1">${error}</p>
-                        <small class="text-muted">This record failed verification and may need manual review.</small>
-                    </div>`
-            ).join('')}
-        </div>
-        ${errors.length > 10 ?
-            `<div class="alert alert-info mt-3 mb-0">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Showing first 10 errors. Additional errors may exist in the full verification log.
-                </div>`
-            : ''
-        }
-    `;
+                getStartButtonText() {
+                    switch (this.verification.status) {
+                        case 'starting': return 'Starting...';
+                        case 'in_progress': return 'In Progress...';
+                        case 'completed': return 'Verification Complete';
+                        case 'failed': return 'Verification Failed';
+                        default: return 'Start Full Verification';
+                    }
+                },
 
-            content.innerHTML = errorHtml;
+                getStatusText() {
+                    switch (this.verification.status) {
+                        case 'starting': return 'Starting...';
+                        case 'in_progress': return 'In Progress';
+                        case 'completed': return 'Completed';
+                        case 'failed': return 'Failed';
+                        default: return 'Initializing...';
+                    }
+                },
 
-            const modalInstance = new bootstrap.Modal(modal);
-            modalInstance.show();
+                getStatusBadgeClass() {
+                    switch (this.verification.status) {
+                        case 'starting': return 'bg-info';
+                        case 'in_progress': return 'bg-warning';
+                        case 'completed': return 'bg-success';
+                        case 'failed': return 'bg-danger';
+                        default: return 'bg-info';
+                    }
+                },
+
+                getProgressBarClass() {
+                    switch (this.verification.status) {
+                        case 'completed': return 'bg-success';
+                        case 'failed': return 'bg-danger';
+                        case 'in_progress': return 'progress-bar-striped progress-bar-animated bg-warning';
+                        default: return 'progress-bar-striped progress-bar-animated';
+                    }
+                },
+
+                getProgressText() {
+                    return `${this.verification.processed?.toLocaleString() || 0} of ${this.verification.total?.toLocaleString() || 0} records`;
+                },
+
+                getSuccessRate() {
+                    return this.verification.processed > 0 ? Math.round((this.verification.verified / this.verification.processed) * 100) : 0;
+                },
+
+                getResultSuccessRate(result) {
+                    return result.total > 0 ? Math.round((result.verified / result.total) * 100) : 0;
+                },
+
+                getResultCardClass(result) {
+                    const rate = this.getResultSuccessRate(result);
+                    if (rate >= 95) return 'border-success';
+                    if (rate >= 80) return 'border-warning';
+                    return 'border-danger';
+                },
+
+                getResultStatusClass(result) {
+                    const rate = this.getResultSuccessRate(result);
+                    if (rate >= 95) return 'text-success';
+                    if (rate >= 80) return 'text-warning';
+                    return 'text-danger';
+                },
+
+                getResultIcon(result) {
+                    const rate = this.getResultSuccessRate(result);
+                    if (rate >= 95) return '✓';
+                    if (rate >= 80) return '⚠';
+                    return '✗';
+                },
+
+                showErrorDetails(resourceType, errors) {
+                    this.errorModal.resourceType = resourceType;
+                    this.errorModal.errors = errors.slice(0, 10); // Show first 10 errors
+                    this.errorModal.title = `${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)} Verification Errors`;
+
+                    const modal = new bootstrap.Modal(document.getElementById('error-details-modal'));
+                    modal.show();
+                }
+            };
         }
     </script>
 @endsection

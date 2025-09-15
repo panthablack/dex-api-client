@@ -3,6 +3,7 @@
 @section('title', 'Bulk Upload Cases - DSS Data Exchange')
 
 @section('content')
+    <div x-data="bulkCasesApp()" x-cloak>
     <div class="row">
         <div class="col-12">
             <h1 class="mb-4">Bulk Upload Cases</h1>
@@ -104,7 +105,7 @@
                     </div>
 
                     <div class="d-grid">
-                        <button type="button" class="btn btn-success btn-sm" onclick="generateFakeCasesCSV()">
+                        <button type="button" class="btn btn-success btn-sm" @click="generateFakeCSV()">
                             <i class="fas fa-magic"></i> Generate Fake CSV
                         </button>
                     </div>
@@ -114,11 +115,15 @@
             </div>
         </div>
     </div>
+
+    </div> <!-- End Alpine.js wrapper -->
 @endsection
 
 @push('scripts')
     <script>
-        function generateFakeCasesCSV() {
+        function bulkCasesApp() {
+            return {
+                generateFakeCSV() {
             const count = parseInt(document.getElementById('fake_count').value);
             const statusDiv = document.getElementById('fake-generation-status');
 
@@ -174,6 +179,8 @@
                     statusDiv.innerHTML =
                         '<div class="alert alert-danger alert-sm"><i class="fas fa-exclamation-triangle"></i> Failed to generate fake data</div>';
                 });
+                }
+            };
         }
     </script>
 @endpush

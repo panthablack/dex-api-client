@@ -3,6 +3,7 @@
 @section('title', 'Submit Client Data - DSS Data Exchange')
 
 @section('content')
+    <div x-data="clientFormApp()" x-cloak>
     <div class="row">
         <div class="col-12">
             <h1 class="mb-4">Submit Client Data</h1>
@@ -29,7 +30,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Client Information Form</h5>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="loadSampleData()">Load Sample
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @click="loadSampleData()">Load Sample
                         Data</button>
                 </div>
                 <div class="card-body">
@@ -272,7 +273,7 @@
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <button type="button" class="btn btn-outline-secondary me-md-2" onclick="clearForm()">Clear
+                            <button type="button" class="btn btn-outline-secondary me-md-2" @click="clearForm()">Clear
                                 Form</button>
                             <button type="submit" class="btn btn-primary">Submit Client Data</button>
                         </div>
@@ -341,27 +342,33 @@
             </div>
         </div>
     @endif
+
+    </div> <!-- End Alpine.js wrapper -->
 @endsection
 
 @push('scripts')
     <script>
-        const sampleData = @json($sampleData);
+        function clientFormApp() {
+            return {
+                sampleData: @json($sampleData),
 
-        function loadSampleData() {
-            Object.keys(sampleData).forEach(key => {
-                const element = document.getElementById(key);
-                if (element) {
-                    if (element.type === 'checkbox') {
-                        element.checked = sampleData[key];
-                    } else {
-                        element.value = sampleData[key];
-                    }
+                loadSampleData() {
+                    Object.keys(this.sampleData).forEach(key => {
+                        const element = document.getElementById(key);
+                        if (element) {
+                            if (element.type === 'checkbox') {
+                                element.checked = this.sampleData[key];
+                            } else {
+                                element.value = this.sampleData[key];
+                            }
+                        }
+                    });
+                },
+
+                clearForm() {
+                    document.querySelector('form').reset();
                 }
-            });
-        }
-
-        function clearForm() {
-            document.querySelector('form').reset();
+            };
         }
     </script>
 @endpush

@@ -3,6 +3,7 @@
 @section('title', 'Data Migration Dashboard')
 
 @section('content')
+    <div x-data="migrationIndexApp()" x-init="init()" x-cloak>
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h2 text-primary">Data Migration Dashboard</h1>
         <a href="{{ route('data-migration.create') }}" class="btn btn-primary">
@@ -39,7 +40,7 @@
                     </div>
                     <div class="ms-3">
                         <h6 class="card-title text-muted mb-1">Total Migrations</h6>
-                        <h4 class="mb-0" id="total-migrations">{{ $migrations->total() }}</h4>
+                        <h4 class="mb-0" x-text="stats.total_migrations">{{ $migrations->total() }}</h4>
                     </div>
                 </div>
             </div>
@@ -55,7 +56,7 @@
                     </div>
                     <div class="ms-3">
                         <h6 class="card-title text-muted mb-1">Active Migrations</h6>
-                        <h4 class="mb-0" id="active-migrations">
+                        <h4 class="mb-0" x-text="stats.active_migrations">
                             {{ $migrations->whereIn('status', ['pending', 'in_progress'])->count() }}
                         </h4>
                     </div>
@@ -73,7 +74,7 @@
                     </div>
                     <div class="ms-3">
                         <h6 class="card-title text-muted mb-1">Completed</h6>
-                        <h4 class="mb-0" id="completed-migrations">
+                        <h4 class="mb-0" x-text="stats.completed_migrations">
                             {{ $migrations->where('status', 'completed')->count() }}
                         </h4>
                     </div>
@@ -91,7 +92,7 @@
                     </div>
                     <div class="ms-3">
                         <h6 class="card-title text-muted mb-1">Failed</h6>
-                        <h4 class="mb-0" id="failed-migrations">
+                        <h4 class="mb-0" x-text="stats.failed_migrations">
                             {{ $migrations->where('status', 'failed')->count() }}
                         </h4>
                     </div>
@@ -179,12 +180,12 @@
                                             class="btn btn-outline-primary btn-sm">View</a>
 
                                         @if (in_array($migration->status, ['pending', 'in_progress']))
-                                            <button onclick="cancelMigration({{ $migration->id }})"
+                                            <button @click="cancelMigration({{ $migration->id }})"
                                                 class="btn btn-outline-danger btn-sm">Cancel</button>
                                         @endif
 
                                         @if ($migration->status === 'failed' || $migration->batches->where('status', 'failed')->count() > 0)
-                                            <button onclick="retryMigration({{ $migration->id }})"
+                                            <button @click="retryMigration({{ $migration->id }})"
                                                 class="btn btn-outline-warning btn-sm">Retry</button>
                                         @endif
 
@@ -222,148 +223,151 @@
         @endif
     </div>
 
+    </div> <!-- End Alpine.js wrapper -->
+
     <script>
-        // Auto-refresh active migrations every 30 seconds
-        let refreshInterval;
+        function migrationIndexApp() {
+            return {
+                stats: {
+                    total_migrations: {{ $migrations->total() }},
+                    active_migrations: {{ $migrations->whereIn('status', ['pending', 'in_progress'])->count() }},
+                    completed_migrations: {{ $migrations->where('status', 'completed')->count() }},
+                    failed_migrations: {{ $migrations->where('status', 'failed')->count() }}
+                },
+                refreshInterval: null,
 
-        function startAutoRefresh() {
-            refreshInterval = setInterval(() => {
-                const activeMigrations = document.querySelectorAll('[data-migration-id]');
-                if (activeMigrations.length === 0) return;
+                init() {
+                    this.startAutoRefresh();
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.hidden) {
+                            if (this.refreshInterval) clearInterval(this.refreshInterval);
+                        } else {
+                            this.startAutoRefresh();
+                        }
+                    });
+                },
 
-                // Update statistics
-                fetch('{{ route('data-migration.api.stats') }}')
-                    .then(response => response.json())
-                    .then(data => {
+                startAutoRefresh() {
+                    this.refreshInterval = setInterval(() => {
+                        this.updateStats();
+                        this.updateMigrations();
+                    }, 30000);
+                },
+
+                async updateStats() {
+                    try {
+                        const response = await fetch('{{ route('data-migration.api.stats') }}');
+                        const data = await response.json();
                         if (data.success) {
-                            document.getElementById('total-migrations').textContent = data.data
-                            .total_migrations;
-                            document.getElementById('active-migrations').textContent = data.data
-                                .active_migrations;
-                            document.getElementById('completed-migrations').textContent = data.data
-                                .completed_migrations;
-                            document.getElementById('failed-migrations').textContent = data.data
-                                .failed_migrations;
+                            this.stats = data.data;
                         }
-                    })
-                    .catch(error => console.error('Error updating stats:', error));
-
-                // Update individual migration statuses
-                activeMigrations.forEach(row => {
-                    const migrationId = row.dataset.migrationId;
-                    updateMigrationRow(migrationId, row);
-                });
-            }, 30000);
-        }
-
-        function updateMigrationRow(migrationId, row) {
-            fetch(`{{ url('data-migration/api') }}/${migrationId}/status`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const migration = data.data;
-
-                        // Update progress bar
-                        const progressBar = row.querySelector('.progress-bar');
-                        const progressText = row.querySelector('.text-muted');
-                        if (progressBar && progressText) {
-                            progressBar.style.width = migration.progress_percentage + '%';
-                            progressBar.setAttribute('aria-valuenow', migration.progress_percentage);
-                            progressText.textContent = migration.progress_percentage + '%';
-                        }
-
-                        // Update status badge
-                        const statusBadge = row.querySelector('.badge');
-                        if (statusBadge) {
-                            // Remove old Bootstrap badge classes
-                            statusBadge.className = statusBadge.className.replace(
-                                /bg-(success|warning|danger|secondary|primary|info)/g, '');
-                            const statusClass = getStatusClass(migration.status);
-                            statusBadge.className += ' ' + statusClass;
-                            statusBadge.textContent = migration.status.charAt(0).toUpperCase() + migration.status.slice(
-                                1);
-                        }
-
-                        // Update items count
-                        const itemsText = row.querySelector('small.text-muted');
-                        if (itemsText) {
-                            itemsText.textContent = `${migration.processed_items}/${migration.total_items} items`;
-                        }
+                    } catch (error) {
+                        console.error('Error updating stats:', error);
                     }
-                })
-                .catch(error => console.error('Error updating migration status:', error));
-        }
+                },
 
-        function getStatusClass(status) {
-            const classes = {
-                'completed': 'bg-success',
-                'in_progress': 'bg-warning',
-                'failed': 'bg-danger',
-                'pending': 'bg-secondary',
-                'cancelled': 'bg-danger'
+                async updateMigrations() {
+                    const migrationRows = document.querySelectorAll('[data-migration-id]');
+                    migrationRows.forEach(row => {
+                        const migrationId = row.dataset.migrationId;
+                        this.updateMigrationRow(migrationId, row);
+                    });
+                },
+
+                async updateMigrationRow(migrationId, row) {
+                    try {
+                        const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/status`);
+                        const data = await response.json();
+                        if (data.success) {
+                            const migration = data.data;
+
+                            // Update progress bar
+                            const progressBar = row.querySelector('.progress-bar');
+                            const progressText = row.querySelector('.text-muted');
+                            if (progressBar && progressText) {
+                                progressBar.style.width = migration.progress_percentage + '%';
+                                progressBar.setAttribute('aria-valuenow', migration.progress_percentage);
+                                progressText.textContent = migration.progress_percentage + '%';
+                            }
+
+                            // Update status badge
+                            const statusBadge = row.querySelector('.badge');
+                            if (statusBadge) {
+                                statusBadge.className = statusBadge.className.replace(/bg-(success|warning|danger|secondary|primary|info)/g, '');
+                                const statusClass = this.getStatusClass(migration.status);
+                                statusBadge.className += ' ' + statusClass;
+                                statusBadge.textContent = migration.status.charAt(0).toUpperCase() + migration.status.slice(1);
+                            }
+
+                            // Update items count
+                            const itemsText = row.querySelector('small.text-muted');
+                            if (itemsText) {
+                                itemsText.textContent = `${migration.processed_items}/${migration.total_items} items`;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error updating migration status:', error);
+                    }
+                },
+
+                getStatusClass(status) {
+                    const classes = {
+                        'completed': 'bg-success',
+                        'in_progress': 'bg-warning',
+                        'failed': 'bg-danger',
+                        'pending': 'bg-secondary',
+                        'cancelled': 'bg-danger'
+                    };
+                    return classes[status] || 'bg-secondary';
+                },
+
+                async cancelMigration(migrationId) {
+                    if (!confirm('Are you sure you want to cancel this migration?')) return;
+
+                    try {
+                        const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/cancel`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('Failed to cancel migration');
+                    }
+                },
+
+                async retryMigration(migrationId) {
+                    if (!confirm('Are you sure you want to retry failed batches for this migration?')) return;
+
+                    try {
+                        const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/retry`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('Failed to retry migration');
+                    }
+                }
             };
-            return classes[status] || 'bg-secondary';
         }
-
-        function cancelMigration(migrationId) {
-            if (!confirm('Are you sure you want to cancel this migration?')) return;
-
-            fetch(`{{ url('data-migration/api') }}/${migrationId}/cancel`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        showAlert('Error: ' + data.error, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('Failed to cancel migration', 'error');
-                });
-        }
-
-        function retryMigration(migrationId) {
-            if (!confirm('Are you sure you want to retry failed batches for this migration?')) return;
-
-            fetch(`{{ url('data-migration/api') }}/${migrationId}/retry`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert(data.message, 'success');
-                        location.reload();
-                    } else {
-                        showAlert('Error: ' + data.error, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('Failed to retry migration', 'error');
-                });
-        }
-
-        // Start auto-refresh when page loads
-        document.addEventListener('DOMContentLoaded', startAutoRefresh);
-
-        // Stop auto-refresh when page is hidden
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                clearInterval(refreshInterval);
-            } else {
-                startAutoRefresh();
-            }
-        });
     </script>
 @endsection

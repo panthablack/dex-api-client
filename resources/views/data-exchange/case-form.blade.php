@@ -3,6 +3,7 @@
 @section('title', 'Submit Case Data - DSS Data Exchange')
 
 @section('content')
+    <div x-data="caseFormApp()" x-cloak>
     <div class="row">
         <div class="col-12">
             <h1 class="mb-4">Submit Case Data</h1>
@@ -29,7 +30,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Case Information Form</h5>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="loadSampleData()">Load Sample
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @click="loadSampleData()">Load Sample
                         Data</button>
                 </div>
                 <div class="card-body">
@@ -249,7 +250,7 @@
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <button type="button" class="btn btn-outline-secondary me-md-2" onclick="clearForm()">Clear
+                            <button type="button" class="btn btn-outline-secondary me-md-2" @click="clearForm()">Clear
                                 Form</button>
                             <button type="submit" class="btn btn-primary">Submit Case Data</button>
                         </div>
@@ -321,72 +322,81 @@
             </div>
         </div>
     @endif
+
+    </div> <!-- End Alpine.js wrapper -->
 @endsection
 
 @push('scripts')
     <script>
-        const sampleData = @json($sampleData ?? []);
+        function caseFormApp() {
+            return {
+                sampleData: @json($sampleData ?? []),
 
-        function loadSampleData() {
-            if (sampleData && Object.keys(sampleData).length > 0) {
-                Object.keys(sampleData).forEach(key => {
-                    const element = document.getElementById(key);
-                    if (element) {
-                        if (element.type === 'checkbox') {
-                            element.checked = sampleData[key];
-                        } else {
-                            element.value = sampleData[key];
+                loadSampleData() {
+                    if (this.sampleData && Object.keys(this.sampleData).length > 0) {
+                        Object.keys(this.sampleData).forEach(key => {
+                            const element = document.getElementById(key);
+                            if (element) {
+                                if (element.type === 'checkbox') {
+                                    element.checked = this.sampleData[key];
+                                } else {
+                                    element.value = this.sampleData[key];
+                                }
+                            }
+                        });
+
+                        // Handle reasons for assistance array - it might be nested in clients array
+                        let reasonsForAssistance = this.sampleData.reasons_for_assistance;
+                        if (!reasonsForAssistance && this.sampleData.clients && this.sampleData.clients[0]) {
+                            reasonsForAssistance = this.sampleData.clients[0].reasons_for_assistance;
+                        }
+
+                        if (reasonsForAssistance && Array.isArray(reasonsForAssistance)) {
+                            // Clear all checkboxes first
+                            document.querySelectorAll('input[name="reasons_for_assistance[]"]').forEach(cb => cb.checked = false);
+
+                            // Check the appropriate boxes
+                            reasonsForAssistance.forEach(reason => {
+                                const checkbox = document.querySelector(
+                                    `input[name="reasons_for_assistance[]"][value="${reason.assistance_needed_code}"]`);
+                                if (checkbox) {
+                                    checkbox.checked = true;
+                                }
+                            });
+                        }
+                    } else {
+                        // Load default sample data if not provided by controller
+                        const defaultSample = {
+                            case_id: 'CASE_' + Math.floor(Math.random() * 9000 + 1000),
+                            client_id: 'CLIENT_' + Math.floor(Math.random() * 9000 + 1000),
+                            outlet_activity_id: '61932',
+                            referral_source_code: 'COMMUNITY',
+                            total_unidentified_clients: '',
+                            client_attendance_profile_code: 'INDIVIDUAL',
+                            end_date: '',
+                            exit_reason_code: '',
+                            ag_business_type_code: ''
+                        };
+
+                        Object.keys(defaultSample).forEach(key => {
+                            const element = document.getElementById(key);
+                            if (element) {
+                                element.value = defaultSample[key];
+                            }
+                        });
+
+                        // Check first reason for assistance
+                        const physicalCheckbox = document.querySelector('input[name="reasons_for_assistance[]"][value="PHYSICAL"]');
+                        if (physicalCheckbox) {
+                            physicalCheckbox.checked = true;
                         }
                     }
-                });
+                },
 
-                // Handle reasons for assistance array - it might be nested in clients array
-                let reasonsForAssistance = sampleData.reasons_for_assistance;
-                if (!reasonsForAssistance && sampleData.clients && sampleData.clients[0]) {
-                    reasonsForAssistance = sampleData.clients[0].reasons_for_assistance;
+                clearForm() {
+                    document.querySelector('form').reset();
                 }
-
-                if (reasonsForAssistance && Array.isArray(reasonsForAssistance)) {
-                    // Clear all checkboxes first
-                    document.querySelectorAll('input[name="reasons_for_assistance[]"]').forEach(cb => cb.checked = false);
-
-                    // Check the appropriate boxes
-                    reasonsForAssistance.forEach(reason => {
-                        const checkbox = document.querySelector(
-                            `input[name="reasons_for_assistance[]"][value="${reason.assistance_needed_code}"]`);
-                        if (checkbox) {
-                            checkbox.checked = true;
-                        }
-                    });
-                }
-            } else {
-                // Load default sample data if not provided by controller
-                const defaultSample = {
-                    case_id: 'CASE_' + Math.floor(Math.random() * 9000 + 1000),
-                    client_id: 'CLIENT_' + Math.floor(Math.random() * 9000 + 1000),
-                    outlet_activity_id: '61932',
-                    referral_source_code: 'COMMUNITY',
-                    total_unidentified_clients: '',
-                    client_attendance_profile_code: 'INDIVIDUAL',
-                    end_date: '',
-                    exit_reason_code: '',
-                    ag_business_type_code: ''
-                };
-
-                Object.keys(defaultSample).forEach(key => {
-                    const element = document.getElementById(key);
-                    if (element) {
-                        element.value = defaultSample[key];
-                    }
-                });
-
-                // Check first reason for assistance
-                document.querySelector('input[name="reasons_for_assistance[]"][value="PHYSICAL"]').checked = true;
-            }
-        }
-
-        function clearForm() {
-            document.querySelector('form').reset();
+            };
         }
     </script>
 @endpush

@@ -3,6 +3,7 @@
 @section('title', 'Bulk Upload Results - DSS Data Exchange')
 
 @section('content')
+    <div x-data="bulkResultsApp()" x-init="init()" x-cloak>
     @php
         // Detect the data type based on the first result
         $dataType = 'clients'; // default
@@ -63,10 +64,10 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Detailed Results</h5>
                     <div>
-                        <button class="btn btn-outline-primary btn-sm" onclick="exportResults('csv')">
+                        <button @click="exportResults('csv')" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-download"></i> Export CSV
                         </button>
-                        <button class="btn btn-outline-info btn-sm ms-2" onclick="exportResults('json')">
+                        <button @click="exportResults('json')" class="btn btn-outline-info btn-sm ms-2">
                             <i class="fas fa-download"></i> Export JSON
                         </button>
                     </div>
@@ -98,7 +99,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <pre id="detailsContent"></pre>
+                    <pre x-text="detailsModal.content"></pre>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -116,13 +117,23 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="statusContent">
-                        <div class="text-center">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-2">Checking status...</p>
+                    <!-- Loading State -->
+                    <div x-show="statusModal.state === 'loading'" class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
                         </div>
+                        <p class="mt-2">Checking status...</p>
+                    </div>
+
+                    <!-- Error State -->
+                    <div x-show="statusModal.state === 'error'" class="alert alert-danger">
+                        <strong>Error:</strong> <span x-text="statusModal.errorMessage"></span>
+                    </div>
+
+                    <!-- Success State -->
+                    <div x-show="statusModal.state === 'success'" class="alert alert-info">
+                        <h6>Submission ID: <span x-text="statusModal.submissionId"></span></h6>
+                        <pre x-text="statusModal.data"></pre>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -131,137 +142,145 @@
             </div>
         </div>
     </div>
+
+    </div> <!-- End Alpine.js wrapper -->
 @endsection
 
 @push('scripts')
     <script>
-        const results = @json($results);
-        const dataType = @json($dataType);
+        function bulkResultsApp() {
+            return {
+                results: @json($results),
+                dataType: @json($dataType),
+                detailsModal: {
+                    content: ''
+                },
+                statusModal: {
+                    state: 'loading', // 'loading', 'success', 'error'
+                    submissionId: '',
+                    data: '',
+                    errorMessage: ''
+                },
 
-        function showDetails(index) {
-            const result = results[index];
-            const detailsContent = document.getElementById('detailsContent');
-            detailsContent.textContent = JSON.stringify(result, null, 2);
+                init() {
+                    // Setup any initial state if needed
+                },
 
-            const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
-            modal.show();
-        }
+                showDetails(index) {
+                    const result = this.results[index];
+                    this.detailsModal.content = JSON.stringify(result, null, 2);
 
-        function checkSubmissionStatus(submissionId) {
-            const statusModal = new bootstrap.Modal(document.getElementById('statusModal'));
-            const statusContent = document.getElementById('statusContent');
+                    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+                    modal.show();
+                },
 
-            statusModal.show();
+                async checkSubmissionStatus(submissionId) {
+                    this.statusModal.state = 'loading';
+                    this.statusModal.submissionId = submissionId;
 
-            fetch('{{ route('data-exchange.submission-status') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        submission_id: submissionId
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        statusContent.innerHTML = `
-                <div class="alert alert-danger">
-                    <strong>Error:</strong> ${data.error}
-                </div>
-            `;
-                    } else {
-                        statusContent.innerHTML = `
-                <div class="alert alert-info">
-                    <h6>Submission ID: ${submissionId}</h6>
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
-                </div>
-            `;
+                    const modal = new bootstrap.Modal(document.getElementById('statusModal'));
+                    modal.show();
+
+                    try {
+                        const response = await fetch('{{ route('data-exchange.submission-status') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                submission_id: submissionId
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.error) {
+                            this.statusModal.state = 'error';
+                            this.statusModal.errorMessage = data.error;
+                        } else {
+                            this.statusModal.state = 'success';
+                            this.statusModal.data = JSON.stringify(data, null, 2);
+                        }
+                    } catch (error) {
+                        this.statusModal.state = 'error';
+                        this.statusModal.errorMessage = 'Failed to retrieve status information.';
                     }
-                })
-                .catch(error => {
-                    statusContent.innerHTML = `
-            <div class="alert alert-danger">
-                <strong>Error:</strong> Failed to retrieve status information.
-            </div>
-        `;
-                });
-        }
+                },
 
-        function exportResults(format) {
-            const exportData = results.map((result, index) => {
-                // Safely extract SubmissionID from either array or object
-                let submissionId = 'N/A';
-                if (result.result) {
-                    if (typeof result.result === 'object' && result.result.SubmissionID) {
-                        submissionId = result.result.SubmissionID;
-                    } else if (Array.isArray(result.result) && result.result.SubmissionID) {
-                        submissionId = result.result.SubmissionID;
+                exportResults(format) {
+                    const exportData = this.results.map((result, index) => {
+                        // Safely extract SubmissionID from either array or object
+                        let submissionId = 'N/A';
+                        if (result.result) {
+                            if (typeof result.result === 'object' && result.result.SubmissionID) {
+                                submissionId = result.result.SubmissionID;
+                            } else if (Array.isArray(result.result) && result.result.SubmissionID) {
+                                submissionId = result.result.SubmissionID;
+                            }
+                        }
+
+                        let exportRow = {
+                            row: index + 1,
+                            status: result.status,
+                            submission_id: submissionId,
+                            error: result.error || 'N/A'
+                        };
+
+                        // Add type-specific fields
+                        if (this.dataType === 'clients') {
+                            exportRow.client_id = result.client_data?.client_id || 'N/A';
+                            exportRow.first_name = result.client_data?.first_name || 'N/A';
+                            exportRow.last_name = result.client_data?.last_name || 'N/A';
+                        } else if (this.dataType === 'cases') {
+                            exportRow.case_id = result.case_data?.case_id || 'N/A';
+                            exportRow.client_id = result.case_data?.client_id || 'N/A';
+                        } else if (this.dataType === 'sessions') {
+                            exportRow.session_id = result.session_data?.session_id || 'N/A';
+                            exportRow.case_id = result.session_data?.case_id || 'N/A';
+                        }
+
+                        return exportRow;
+                    });
+
+                    const filename = `bulk_upload_${this.dataType}_results`;
+                    if (format === 'csv') {
+                        const csvContent = this.convertToCSV(exportData);
+                        this.downloadFile(csvContent, `${filename}.csv`, 'text/csv');
+                    } else if (format === 'json') {
+                        const jsonContent = JSON.stringify(exportData, null, 2);
+                        this.downloadFile(jsonContent, `${filename}.json`, 'application/json');
                     }
+                },
+
+                convertToCSV(data) {
+                    if (!data.length) return '';
+
+                    const headers = Object.keys(data[0]);
+                    const csvHeaders = headers.join(',');
+
+                    const csvRows = data.map(row =>
+                        headers.map(header => {
+                            const value = row[header] || '';
+                            return `"${String(value).replace(/"/g, '""')}"`;
+                        }).join(',')
+                    );
+
+                    return csvHeaders + '\n' + csvRows.join('\n');
+                },
+
+                downloadFile(content, filename, contentType) {
+                    const blob = new Blob([content], { type: contentType });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
                 }
-
-                let exportRow = {
-                    row: index + 1,
-                    status: result.status,
-                    submission_id: submissionId,
-                    error: result.error || 'N/A'
-                };
-
-                // Add type-specific fields
-                if (dataType === 'clients') {
-                    exportRow.client_id = result.client_data?.client_id || 'N/A';
-                    exportRow.first_name = result.client_data?.first_name || 'N/A';
-                    exportRow.last_name = result.client_data?.last_name || 'N/A';
-                } else if (dataType === 'cases') {
-                    exportRow.case_id = result.case_data?.case_id || 'N/A';
-                    exportRow.client_id = result.case_data?.client_id || 'N/A';
-                } else if (dataType === 'sessions') {
-                    exportRow.session_id = result.session_data?.session_id || 'N/A';
-                    exportRow.case_id = result.session_data?.case_id || 'N/A';
-                }
-
-                return exportRow;
-            });
-
-            const filename = `bulk_upload_${dataType}_results`;
-            if (format === 'csv') {
-                const csvContent = convertToCSV(exportData);
-                downloadFile(csvContent, `${filename}.csv`, 'text/csv');
-            } else if (format === 'json') {
-                const jsonContent = JSON.stringify(exportData, null, 2);
-                downloadFile(jsonContent, `${filename}.json`, 'application/json');
-            }
-        }
-
-        function convertToCSV(data) {
-            if (!data.length) return '';
-
-            const headers = Object.keys(data[0]);
-            const csvHeaders = headers.join(',');
-
-            const csvRows = data.map(row =>
-                headers.map(header => {
-                    const value = row[header] || '';
-                    return `"${String(value).replace(/"/g, '""')}"`;
-                }).join(',')
-            );
-
-            return csvHeaders + '\n' + csvRows.join('\n');
-        }
-
-        function downloadFile(content, filename, contentType) {
-            const blob = new Blob([content], {
-                type: contentType
-            });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
+            };
         }
     </script>
 @endpush
