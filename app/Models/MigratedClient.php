@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -29,7 +30,7 @@ class MigratedClient extends Model
         'api_response',
         'migration_batch_id',
         'migrated_at',
-        'verified',
+        'verification_status',
         'verified_at',
         'verification_error'
     ];
@@ -44,7 +45,7 @@ class MigratedClient extends Model
         'consent_to_be_contacted' => 'boolean',
         'api_response' => 'array',
         'migrated_at' => 'datetime',
-        'verified' => 'boolean',
+        'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'
     ];
 

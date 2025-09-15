@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,7 +23,7 @@ class MigratedCase extends Model
         'api_response',
         'migration_batch_id',
         'migrated_at',
-        'verified',
+        'verification_status',
         'verified_at',
         'verification_error'
     ];
@@ -32,7 +33,7 @@ class MigratedCase extends Model
         'end_date' => 'date',
         'api_response' => 'array',
         'migrated_at' => 'datetime',
-        'verified' => 'boolean',
+        'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'
     ];
 

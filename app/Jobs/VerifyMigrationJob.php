@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\VerificationStatus;
 use App\Models\DataMigration;
 use App\Models\MigratedClient;
 use App\Models\MigratedCase;
@@ -215,25 +216,34 @@ class VerifyMigrationJob implements ShouldQueue
         $modelClass::whereIn('migration_batch_id', $batchIds)
             ->chunk(50, function ($records) use ($resourceType, $verificationService, $totalRecords, &$processedRecords, &$verifiedRecords, &$resourceProgress, &$allErrors) {
                 foreach ($records as $record) {
-                    // Skip already verified records
-                    if ($record->verified) {
+                    // Count ALL records as processed (attempted), regardless of current status
+                    $processedRecords++;
+                    $resourceProgress[$resourceType]['processed']++;
+
+                    // If already verified, just count it and continue
+                    if ($record->verification_status === VerificationStatus::VERIFIED) {
                         $verifiedRecords++;
-                        $processedRecords++;
-                        $resourceProgress[$resourceType]['processed']++;
                         continue;
                     }
 
-                    // Verify the record using same method as Quick Verify
+                    // If already failed, just count it and continue (don't re-verify)
+                    if ($record->verification_status === VerificationStatus::FAILED) {
+                        // Collect existing error for display
+                        if ($record->verification_error) {
+                            $allErrors[$resourceType][] = $record->verification_error;
+                        }
+                        continue;
+                    }
+
+                    // Only verify records that are still PENDING
                     try {
                         $success = $verificationService->verifyRecord($resourceType, $record);
 
                         // VerificationService handles all database updates
-                        // Just track if it was successful for progress counting
                         if ($success) {
                             $verifiedRecords++;
                         } else {
                             // Record was updated with verification_error by VerificationService
-                            // Just collect error for cache display
                             $record->refresh(); // Get updated verification_error
                             if ($record->verification_error) {
                                 $allErrors[$resourceType][] = $record->verification_error;
@@ -249,9 +259,6 @@ class VerifyMigrationJob implements ShouldQueue
                         ]);
                         $allErrors[$resourceType][] = "Error verifying record: " . $e->getMessage();
                     }
-
-                    $processedRecords++;
-                    $resourceProgress[$resourceType]['processed']++;
 
                     // Update progress every 10 records
                     if ($processedRecords % 10 === 0) {

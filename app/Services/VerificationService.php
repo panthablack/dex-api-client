@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\VerificationStatus;
 use App\Models\DataMigration;
 use App\Models\MigratedClient;
 use App\Models\MigratedCase;
@@ -30,14 +31,14 @@ class VerificationService
 
             if ($response && $this->validateClientData($client, $response)) {
                 $client->update([
-                    'verified' => true,
+                    'verification_status' => VerificationStatus::VERIFIED,
                     'verified_at' => now(),
                     'verification_error' => null
                 ]);
                 return true;
             } else {
                 $client->update([
-                    'verified' => false,
+                    'verification_status' => VerificationStatus::FAILED,
                     'verified_at' => now(),
                     'verification_error' => 'Client data validation failed or record not found in DSS'
                 ]);
@@ -50,7 +51,7 @@ class VerificationService
             ]);
 
             $client->update([
-                'verified' => false,
+                'verification_status' => VerificationStatus::FAILED,
                 'verified_at' => now(),
                 'verification_error' => 'API Error: ' . $e->getMessage()
             ]);
@@ -69,14 +70,14 @@ class VerificationService
 
             if ($response && $this->validateCaseData($case, $response)) {
                 $case->update([
-                    'verified' => true,
+                    'verification_status' => VerificationStatus::VERIFIED,
                     'verified_at' => now(),
                     'verification_error' => null
                 ]);
                 return true;
             } else {
                 $case->update([
-                    'verified' => false,
+                    'verification_status' => VerificationStatus::FAILED,
                     'verified_at' => now(),
                     'verification_error' => 'Case data validation failed or record not found in DSS'
                 ]);
@@ -89,7 +90,7 @@ class VerificationService
             ]);
 
             $case->update([
-                'verified' => false,
+                'verification_status' => VerificationStatus::FAILED,
                 'verified_at' => now(),
                 'verification_error' => 'API Error: ' . $e->getMessage()
             ]);
@@ -108,14 +109,14 @@ class VerificationService
 
             if ($response && $this->validateSessionData($session, $response)) {
                 $session->update([
-                    'verified' => true,
+                    'verification_status' => VerificationStatus::VERIFIED,
                     'verified_at' => now(),
                     'verification_error' => null
                 ]);
                 return true;
             } else {
                 $session->update([
-                    'verified' => false,
+                    'verification_status' => VerificationStatus::FAILED,
                     'verified_at' => now(),
                     'verification_error' => 'Session data validation failed or record not found in DSS'
                 ]);
@@ -128,7 +129,7 @@ class VerificationService
             ]);
 
             $session->update([
-                'verified' => false,
+                'verification_status' => VerificationStatus::FAILED,
                 'verified_at' => now(),
                 'verification_error' => 'API Error: ' . $e->getMessage()
             ]);
@@ -164,8 +165,8 @@ class VerificationService
                 $query = $modelClass::whereIn('migration_batch_id', $batchIds);
 
                 $total = $query->count();
-                $verified = $query->where('verified', true)->count();
-                $failed = $total - $verified;
+                $verified = $query->where('verification_status', VerificationStatus::VERIFIED)->count();
+                $failed = $query->where('verification_status', VerificationStatus::FAILED)->count();
 
                 $stats['results'][$resourceType] = [
                     'total' => $total,

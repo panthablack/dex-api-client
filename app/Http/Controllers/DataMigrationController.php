@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\VerificationStatus;
 use App\Models\DataMigration;
 use App\Services\DataMigrationService;
 use App\Services\DataVerificationService;
@@ -512,11 +513,12 @@ class DataMigrationController extends Controller
             $stats = $this->newVerificationService->getMigrationVerificationStats($migration);
 
             // Calculate actual verification state from database
-            $totalRecords = $stats['total'];
-            $verifiedRecords = $stats['verified'];
+            $totalRecords = 0;
+            $verifiedRecords = 0;
+            $attemptedRecords = 0;
             $resourceProgress = [];
 
-            // Build resource progress from actual database state
+            // Build resource progress from actual database state AND calculate overall totals
             foreach ($migration->resource_types as $resourceType) {
                 $modelClass = $this->getModelClass($resourceType);
                 if ($modelClass) {
@@ -530,12 +532,20 @@ class DataMigrationController extends Controller
                     if (!empty($batchIds)) {
                         $total = $modelClass::whereIn('migration_batch_id', $batchIds)->count();
                         $verified = $modelClass::whereIn('migration_batch_id', $batchIds)
-                            ->where('verified', true)
+                            ->where('verification_status', VerificationStatus::VERIFIED)
                             ->count();
+                        $attempted = $modelClass::whereIn('migration_batch_id', $batchIds)
+                            ->whereIn('verification_status', [VerificationStatus::VERIFIED, VerificationStatus::FAILED])
+                            ->count();
+
+                        // Add to overall totals using SAME calculation as resource progress
+                        $totalRecords += $total;
+                        $verifiedRecords += $verified;
+                        $attemptedRecords += $attempted;
 
                         $resourceProgress[$resourceType] = [
                             'total' => $total,
-                            'processed' => $verified  // Show actual verified count as processed
+                            'processed' => $attempted  // Show attempted (verified + failed) as processed
                         ];
                     } else {
                         $resourceProgress[$resourceType] = [
@@ -550,13 +560,13 @@ class DataMigrationController extends Controller
             $verificationStatus = 'idle';
             $currentActivity = 'No verification has been run yet';
 
-            if ($verifiedRecords > 0) {
-                if ($verifiedRecords === $totalRecords) {
+            if ($attemptedRecords > 0) {
+                if ($attemptedRecords === $totalRecords) {
                     $verificationStatus = 'completed';
-                    $currentActivity = 'All records have been verified';
+                    $currentActivity = "All records processed: {$verifiedRecords} verified, " . ($attemptedRecords - $verifiedRecords) . " failed";
                 } else {
                     $verificationStatus = 'partial';
-                    $currentActivity = "Partial verification: {$verifiedRecords} of {$totalRecords} records verified";
+                    $currentActivity = "Partial verification: {$attemptedRecords} of {$totalRecords} records processed";
                 }
             }
 
@@ -593,8 +603,8 @@ class DataMigrationController extends Controller
                 'data' => [
                     'status' => $verificationStatus,
                     'total' => $totalRecords,
-                    'processed' => $verifiedRecords,  // Show actual verified count
-                    'verified' => $verifiedRecords,
+                    'processed' => $attemptedRecords,  // Show attempted count for progress bar
+                    'verified' => $verifiedRecords,    // Keep verified separate for display
                     'current_activity' => $currentActivity,
                     'resource_progress' => $resourceProgress,
                     'results' => $stats['results']
@@ -631,7 +641,7 @@ class DataMigrationController extends Controller
                 if (!empty($batchIds)) {
                     $resetCount = $modelClass::whereIn('migration_batch_id', $batchIds)
                         ->update([
-                            'verified' => false,
+                            'verification_status' => VerificationStatus::PENDING,
                             'verified_at' => null,
                             'verification_error' => null
                         ]);
