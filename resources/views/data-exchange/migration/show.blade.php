@@ -71,7 +71,7 @@
 
         <!-- Progress Overview -->
         <div class="row mb-4">
-            <div class="col-md-3 mb-3">
+            <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="d-flex align-items-center mb-3">
@@ -96,7 +96,7 @@
                 </div>
             </div>
 
-            <div class="col-md-3 mb-3">
+            <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
                 <div class="card h-100">
                     <div class="card-body d-flex align-items-center">
                         <div class="flex-shrink-0">
@@ -115,7 +115,7 @@
                 </div>
             </div>
 
-            <div class="col-md-3 mb-3">
+            <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
                 <div class="card h-100">
                     <div class="card-body d-flex align-items-center">
                         <div class="flex-shrink-0">
@@ -131,7 +131,29 @@
                 </div>
             </div>
 
-            <div class="col-md-3 mb-3">
+            <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded">
+                                <i class="fas fa-shield-alt text-primary fa-lg"></i>
+                            </div>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="card-title text-muted mb-1">Verification</h6>
+                            <h4 class="mb-0">
+                                <span x-show="verificationStatus.total > 0"
+                                      x-text="Math.round((verificationStatus.verified / verificationStatus.total) * 100) + '%'">
+                                    {{ $migration->verification_percentage ?? 0 }}%
+                                </span>
+                                <span x-show="verificationStatus.total === 0" class="text-muted">—</span>
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="migration.failed_items > 0" class="col-xl-2 col-lg-4 col-md-6 mb-3">
                 <div class="card h-100">
                     <div class="card-body d-flex align-items-center">
                         <div class="flex-shrink-0">
@@ -484,6 +506,11 @@
                         errorMessage: '',
                         results: null
                     },
+                    verificationStatus: {
+                        total: 0,
+                        verified: 0,
+                        failed: 0
+                    },
 
                     get filteredBatches() {
                         if (this.resourceFilter === 'all') {
@@ -493,6 +520,11 @@
                     },
 
                     init() {
+                        // Load verification status if migration is completed
+                        if (this.isVerificationAvailable()) {
+                            this.loadVerificationStatus();
+                        }
+
                         if (this.migration.status === 'in_progress' || this.migration.status === 'pending') {
                             this.startAutoRefresh();
                         }
@@ -522,6 +554,11 @@
                             if (data.success) {
                                 const oldStatus = this.migration.status;
                                 this.migration = data.data;
+
+                                // Reload verification status if migration just completed
+                                if (oldStatus !== 'completed' && data.data.status === 'completed' && this.isVerificationAvailable()) {
+                                    this.loadVerificationStatus();
+                                }
 
                                 if ((oldStatus === 'in_progress' || oldStatus === 'pending') &&
                                     (data.data.status === 'completed' || data.data.status === 'failed')) {
@@ -670,6 +707,34 @@
                             keyboard: false
                         });
                         modal.show();
+                    },
+
+                    async loadVerificationStatus() {
+                        try {
+                            const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`);
+                            const data = await response.json();
+
+                            if (data.success && data.data.results) {
+                                let totalRecords = 0;
+                                let verifiedRecords = 0;
+                                let failedRecords = 0;
+
+                                // Sum up all resource types
+                                for (const [resourceType, result] of Object.entries(data.data.results)) {
+                                    totalRecords += result.total || 0;
+                                    verifiedRecords += result.verified || 0;
+                                    failedRecords += result.failed || 0;
+                                }
+
+                                this.verificationStatus = {
+                                    total: totalRecords,
+                                    verified: verifiedRecords,
+                                    failed: failedRecords
+                                };
+                            }
+                        } catch (error) {
+                            console.error('Error loading verification status:', error);
+                        }
                     }
                 };
             }
