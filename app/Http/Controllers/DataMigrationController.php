@@ -369,13 +369,22 @@ class DataMigrationController extends Controller
         $csv = \League\Csv\Writer::createFromString('');
 
         if ($data->isNotEmpty()) {
-            // Add headers
-            $headers = array_keys($data->first()->toArray());
+            // Get the resource type from the model class
+            $modelClass = get_class($data->first());
+            $resourceType = $this->getResourceTypeFromModel($modelClass);
+
+            // Get header mapping and field order
+            $headerMapping = $this->getHeaderMapping($resourceType);
+            $fieldOrder = array_keys($headerMapping);
+
+            // Add headers (human-readable)
+            $headers = array_values($headerMapping);
             $csv->insertOne($headers);
 
-            // Add data rows
+            // Add data rows with proper formatting
             foreach ($data as $row) {
-                $csv->insertOne(array_values($row->toArray()));
+                $formattedRow = $this->formatRowForExport($row, $fieldOrder);
+                $csv->insertOne($formattedRow);
             }
         }
 
@@ -390,7 +399,44 @@ class DataMigrationController extends Controller
      */
     protected function exportToJson($data, $filename)
     {
-        return response()->json($data, 200, [
+        if ($data->isNotEmpty()) {
+            // Get the resource type from the model class
+            $modelClass = get_class($data->first());
+            $resourceType = $this->getResourceTypeFromModel($modelClass);
+
+            // Get field order (same as CSV for consistency)
+            $headerMapping = $this->getHeaderMapping($resourceType);
+            $fieldOrder = array_keys($headerMapping);
+
+            // Transform data to only include relevant fields
+            $transformedData = $data->map(function ($row) use ($fieldOrder) {
+                $filteredRow = [];
+                foreach ($fieldOrder as $field) {
+                    $value = $row->$field;
+
+                    // Transform specific types for JSON
+                    $value = match (true) {
+                        // VerificationStatus enum
+                        $value instanceof \App\Enums\VerificationStatus => $value->value,
+
+                        // Keep dates as ISO strings for JSON
+                        $value instanceof \Carbon\Carbon => $value->toISOString(),
+
+                        // Keep other values as-is for JSON (booleans, arrays, etc.)
+                        default => $value
+                    };
+
+                    $filteredRow[$field] = $value;
+                }
+                return $filteredRow;
+            });
+
+            return response()->json($transformedData, 200, [
+                'Content-Disposition' => "attachment; filename=\"{$filename}.json\""
+            ]);
+        }
+
+        return response()->json([], 200, [
             'Content-Disposition' => "attachment; filename=\"{$filename}.json\""
         ]);
     }
@@ -812,6 +858,119 @@ class DataMigrationController extends Controller
             'migration_id' => $migration->id,
             'total_records_reset' => $totalReset
         ]);
+    }
+
+    /**
+     * Get header mappings for CSV export
+     */
+    private function getHeaderMapping(string $resourceType): array
+    {
+        return match ($resourceType) {
+            'clients' => [
+                'client_id' => 'Client ID',
+                'first_name' => 'First Name',
+                'last_name' => 'Last Name',
+                'date_of_birth' => 'Date of Birth',
+                'is_birth_date_estimate' => 'Birth Date Estimate',
+                'gender' => 'Gender',
+                'suburb' => 'Suburb',
+                'state' => 'State',
+                'postal_code' => 'Postal Code',
+                'country_of_birth' => 'Country of Birth',
+                'primary_language' => 'Primary Language',
+                'indigenous_status' => 'Indigenous Status',
+                'interpreter_required' => 'Interpreter Required',
+                'disability_flag' => 'Disability Flag',
+                'is_using_pseudonym' => 'Using Pseudonym',
+                'consent_to_provide_details' => 'Consent to Provide Details',
+                'consent_to_be_contacted' => 'Consent to be Contacted',
+                'client_type' => 'Client Type',
+                'migrated_at' => 'Migration Date',
+                'verification_status' => 'Verification Status',
+                'verified_at' => 'Verified Date'
+            ],
+            'cases' => [
+                'case_id' => 'Case ID',
+                'client_id' => 'Client ID',
+                'outlet_activity_id' => 'Outlet Activity ID',
+                'referral_source_code' => 'Referral Source Code',
+                'reasons_for_assistance' => 'Reasons for Assistance',
+                'total_unidentified_clients' => 'Total Unidentified Clients',
+                'client_attendance_profile_code' => 'Client Attendance Profile Code',
+                'end_date' => 'End Date',
+                'exit_reason_code' => 'Exit Reason Code',
+                'ag_business_type_code' => 'AG Business Type Code',
+                'migrated_at' => 'Migration Date',
+                'verification_status' => 'Verification Status',
+                'verified_at' => 'Verified Date'
+            ],
+            'sessions' => [
+                'session_id' => 'Session ID',
+                'case_id' => 'Case ID',
+                'service_type_id' => 'Service Type ID',
+                'session_date' => 'Session Date',
+                'duration_minutes' => 'Duration (Minutes)',
+                'location' => 'Location',
+                'session_status' => 'Session Status',
+                'attendees' => 'Attendees',
+                'outcome' => 'Outcome',
+                'notes' => 'Notes',
+                'migrated_at' => 'Migration Date',
+                'verification_status' => 'Verification Status',
+                'verified_at' => 'Verified Date'
+            ],
+            default => []
+        };
+    }
+
+    /**
+     * Format a row for CSV export with proper value transformation
+     */
+    private function formatRowForExport($row, array $fieldOrder): array
+    {
+        $formattedRow = [];
+
+        foreach ($fieldOrder as $field) {
+            $value = $row->$field ?? '';
+
+            // Transform values based on type
+            $value = match (true) {
+                // Boolean values
+                is_bool($value) => $value ? 'Yes' : 'No',
+
+                // VerificationStatus enum
+                $value instanceof \App\Enums\VerificationStatus => $value->value,
+
+                // Dates
+                $value instanceof \Carbon\Carbon => $value->format('Y-m-d H:i:s'),
+
+                // Arrays (like reasons_for_assistance)
+                is_array($value) => implode('; ', $value),
+
+                // Null values
+                is_null($value) => '',
+
+                // Default: convert to string
+                default => (string) $value
+            };
+
+            $formattedRow[] = $value;
+        }
+
+        return $formattedRow;
+    }
+
+    /**
+     * Get resource type from model class
+     */
+    private function getResourceTypeFromModel(string $modelClass): string
+    {
+        return match ($modelClass) {
+            \App\Models\MigratedClient::class => 'clients',
+            \App\Models\MigratedCase::class => 'cases',
+            \App\Models\MigratedSession::class => 'sessions',
+            default => 'unknown'
+        };
     }
 
     /**
