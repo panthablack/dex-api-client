@@ -1228,23 +1228,25 @@ class DataExchangeService
     /**
      * Fetch Full Case Data - Search for cases then get detailed data for each using GetCase
      * This provides richer case information compared to SearchCase alone
+     * Returns the same structure as getCaseDataWithPagination but with enriched case data
      */
     public function fetchFullCaseData($filters = [])
     {
         try {
-            // First, search for cases using the existing SearchCase functionality
+            // First, search for cases using the basic SearchCase functionality
             Log::info('Fetching full case data - starting with SearchCase', [
                 'filters' => $filters
             ]);
 
-            $searchResult = $this->getCaseDataWithPagination($filters);
+            // Get the basic search result with pagination metadata
+            $searchResult = $this->getCaseData($filters);
 
             // Convert objects to arrays for consistent handling
             if (is_object($searchResult)) {
                 $searchResult = json_decode(json_encode($searchResult), true);
             }
 
-            // Handle different response structures
+            // Extract cases from the search result to enrich with detailed data
             $cases = [];
             if (isset($searchResult['Cases']['Case'])) {
                 $cases = $searchResult['Cases']['Case'];
@@ -1252,17 +1254,12 @@ class DataExchangeService
                 if (!is_array($cases) || (is_array($cases) && isset($cases['CaseId']))) {
                     $cases = [$cases];
                 }
-            } elseif (is_array($searchResult) && isset($searchResult[0]['CaseId'])) {
-                // Already an array of cases
-                $cases = $searchResult;
-            } elseif (isset($searchResult['CaseId'])) {
-                // Single case
-                $cases = [$searchResult];
             }
 
             if (empty($cases)) {
                 Log::info('No cases found in search result');
-                return [];
+                // Add pagination metadata to empty result and return
+                return $this->addPaginationMetadata($searchResult, $filters);
             }
 
             Log::info('Found cases, now fetching full data', [
@@ -1271,33 +1268,24 @@ class DataExchangeService
             ]);
 
             // Now get detailed data for each case using GetCase
-            $fullCaseData = [];
+            $enrichedCases = [];
             $errors = [];
             $successCount = 0;
 
-            foreach ($cases as $index => $caseInfo) {
+            foreach ($cases as $caseInfo) {
                 $caseId = null;
 
-                // Extract Case ID (should be array after conversion above)
+                // Extract Case ID
                 if (is_array($caseInfo) && isset($caseInfo['CaseId'])) {
                     $caseId = $caseInfo['CaseId'];
                 } elseif (is_array($caseInfo) && isset($caseInfo['CaseDetail']['CaseId'])) {
                     $caseId = $caseInfo['CaseDetail']['CaseId'];
-                } elseif (is_object($caseInfo)) {
-                    // Convert this individual case to array if still an object
-                    $caseInfo = json_decode(json_encode($caseInfo), true);
-                    $caseId = $caseInfo['CaseId'] ?? null;
-                } elseif (is_string($caseInfo)) {
-                    $caseId = $caseInfo;
                 }
 
                 // Skip invalid data - only process actual case IDs
                 if (!$caseId) {
-                    Log::info('Skipping non-case data', [
-                        'index' => $index,
-                        'case_id' => $caseId,
-                        'case_info_type' => gettype($caseInfo),
-                        'is_string_case_id' => is_string($caseId)
+                    Log::info('Skipping case with missing ID', [
+                        'case_info_type' => gettype($caseInfo)
                     ]);
                     continue;
                 }
@@ -1311,9 +1299,9 @@ class DataExchangeService
                     // Extract clean case data from the SOAP response
                     $cleanCaseData = $this->extractCleanCaseData($fullCaseResult);
 
-                    // Only include successfully retrieved cases
+                    // Only include cases where enrichment was successful
                     if ($cleanCaseData) {
-                        $fullCaseData[] = $cleanCaseData;
+                        $enrichedCases[] = $cleanCaseData;
                         $successCount++;
                     }
                 } catch (\Exception $e) {
@@ -1336,8 +1324,13 @@ class DataExchangeService
                 'errors' => count($errors)
             ]);
 
-            // Return successful cases (maintain backward compatibility by returning simple array)
-            return $fullCaseData;
+            // Replace the cases in the original search result with enriched data
+            if (isset($searchResult['Cases']['Case'])) {
+                $searchResult['Cases']['Case'] = $enrichedCases;
+            }
+
+            // Add pagination metadata and return the enriched result
+            return $this->addPaginationMetadata($searchResult, $filters);
         } catch (\Exception $e) {
             Log::error('Failed to fetch full case data', [
                 'error' => $e->getMessage(),
