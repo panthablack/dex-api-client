@@ -225,13 +225,15 @@
                 <h5 class="card-title mb-0">Batch Details</h5>
                 <div class="btn-group btn-group-sm" role="group">
                     @foreach ($migration->resource_types as $type)
-                        <button onclick="filterBatches('{{ $type }}')"
-                            class="btn btn-outline-secondary batch-filter" data-resource="{{ $type }}">
+                        <button @click="setResourceFilter('{{ $type }}')"
+                            class="btn"
+                            :class="resourceFilter === '{{ $type }}' ? 'btn-secondary' : 'btn-outline-secondary'">
                             {{ ucfirst($type) }}
                         </button>
                     @endforeach
-                    <button onclick="filterBatches('all')" class="btn btn-outline-secondary batch-filter active"
-                        data-resource="all">
+                    <button @click="setResourceFilter('all')"
+                        class="btn"
+                        :class="resourceFilter === 'all' ? 'btn-secondary' : 'btn-outline-secondary'">
                         All
                     </button>
                 </div>
@@ -251,8 +253,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <template x-for="batch in migration.batches" :key="batch.id">
-                                <tr :data-resource-type="batch.resource_type" :data-batch-id="batch.id">
+                            <template x-for="batch in filteredBatches" :key="batch.id">
+                                <tr>
                                     <td>
                                         <div class="fw-medium" x-text="`#${batch.batch_number}`"></div>
                                         <small class="text-muted"
@@ -379,8 +381,76 @@
                                 aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <div id="verify-results-content">
-                                <!-- Results will be populated here -->
+                            <!-- Loading State -->
+                            <div x-show="verifyModal.state === 'loading'" class="text-center py-5">
+                                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <h5>Verifying Data...</h5>
+                                <p class="text-muted">Please wait while we verify your migrated data.</p>
+                            </div>
+
+                            <!-- Error State -->
+                            <div x-show="verifyModal.state === 'error'" class="text-center py-5">
+                                <div class="text-danger mb-3">
+                                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
+                                </div>
+                                <h5 class="text-danger">Verification Failed</h5>
+                                <p class="text-muted" x-text="verifyModal.errorMessage"></p>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+
+                            <!-- Results State -->
+                            <div x-show="verifyModal.state === 'results'">
+                                <div class="mb-3">
+                                    <h6 class="text-muted">Sample Size: <span x-text="verifyModal.results?.sample_size || 10"></span> records per resource type</h6>
+                                </div>
+
+                                <!-- No Results -->
+                                <div x-show="verifyModal.results && Object.keys(verifyModal.results.results || {}).length === 0" class="text-center py-5">
+                                    <i class="fas fa-info-circle text-muted fa-3x mb-3"></i>
+                                    <h5 class="text-muted">No verification results available</h5>
+                                    <p class="text-muted">No data was found to verify for this migration.</p>
+                                </div>
+
+                                <!-- Results Grid -->
+                                <div x-show="verifyModal.results && Object.keys(verifyModal.results.results || {}).length > 0" class="row">
+                                    <template x-for="[resourceType, result] in Object.entries(verifyModal.results?.results || {})" :key="resourceType">
+                                        <div class="col-md-4 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <h5 class="card-title text-capitalize" x-text="resourceType"></h5>
+                                                    <div class="mb-2" style="font-size: 2rem;"
+                                                        :class="{
+                                                            'text-success': result.status === 'completed' && (result.success_rate || 0) >= 95,
+                                                            'text-warning': result.status === 'completed' && (result.success_rate || 0) >= 80 && (result.success_rate || 0) < 95,
+                                                            'text-danger': result.status === 'completed' && (result.success_rate || 0) < 80,
+                                                            'text-muted': result.status === 'no_data',
+                                                            'text-danger': result.status !== 'completed' && result.status !== 'no_data'
+                                                        }"
+                                                        x-text="result.status === 'completed' ?
+                                                            ((result.success_rate || 0) >= 95 ? '✓' :
+                                                             (result.success_rate || 0) >= 80 ? '⚠' : '✗') :
+                                                            (result.status === 'no_data' ? '—' : '✗')">
+                                                    </div>
+                                                    <p class="card-text"
+                                                        :class="{
+                                                            'text-success': result.status === 'completed' && (result.success_rate || 0) >= 95,
+                                                            'text-warning': result.status === 'completed' && (result.success_rate || 0) >= 80 && (result.success_rate || 0) < 95,
+                                                            'text-danger': result.status === 'completed' && (result.success_rate || 0) < 80,
+                                                            'text-muted': result.status === 'no_data',
+                                                            'text-danger': result.status !== 'completed' && result.status !== 'no_data'
+                                                        }"
+                                                        x-text="result.status === 'completed' ?
+                                                            `${result.verified || 0}/${result.total_checked || 0} verified (${result.success_rate || 0}%)` :
+                                                            (result.status === 'no_data' ? 'No data to verify' :
+                                                             `Error: ${result.error || 'Unknown error'}`)">
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -392,638 +462,218 @@
                 </div>
             </div>
 
-            <script>
-                let refreshInterval;
-                const migrationId = {{ $migration->id }};
+        <script>
+            function migrationApp() {
+                return {
+                    migration: {
+                        id: {{ $migration->id }},
+                        name: @json($migration->name),
+                        status: @json($migration->status),
+                        progress_percentage: {{ $migration->progress_percentage }},
+                        success_rate: {{ $migration->success_rate }},
+                        total_items: {{ $migration->total_items }},
+                        processed_items: {{ $migration->processed_items }},
+                        successful_items: {{ $migration->successful_items }},
+                        failed_items: {{ $migration->failed_items }},
+                        batches: @json($migration->batches->toArray())
+                    },
+                    refreshInterval: null,
+                    resourceFilter: 'all',
+                    verifyModal: {
+                        state: 'loading', // 'loading', 'error', 'results'
+                        errorMessage: '',
+                        results: null
+                    },
 
-                function startAutoRefresh() {
-                    refreshInterval = setInterval(refreshStatus, 10000); // Every 10 seconds
-                }
+                    get filteredBatches() {
+                        if (this.resourceFilter === 'all') {
+                            return this.migration.batches;
+                        }
+                        return this.migration.batches.filter(batch => batch.resource_type === this.resourceFilter);
+                    },
 
-                function refreshStatus() {
-                    fetch(`{{ route('data-migration.api.status', $migration) }}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                updateMigrationDisplay(data.data);
-                            }
-                        })
-                        .catch(error => console.error('Error refreshing status:', error));
-                }
-
-                function updateMigrationDisplay(migration) {
-                    // Update status badge
-                    const statusElement = document.getElementById('migration-status');
-                    if (statusElement) {
-                        statusElement.className = statusElement.className.replace(
-                            /bg-(success|warning|danger|secondary|primary|info)/g, '');
-                        statusElement.className += ' ' + getStatusClass(migration.status);
-                        statusElement.textContent = migration.status.charAt(0).toUpperCase() + migration.status.slice(1);
-                    }
-
-                    // Update progress
-                    document.getElementById('progress-percentage').textContent = migration.progress_percentage + '%';
-                    document.getElementById('progress-bar').style.width = migration.progress_percentage + '%';
-                    document.getElementById('processed-items').textContent = migration.processed_items;
-                    document.getElementById('total-items').textContent = migration.total_items;
-                    document.getElementById('success-rate').textContent = migration.success_rate + '%';
-                    document.getElementById('failed-items').textContent = migration.failed_items;
-
-                    // Check if we need to create the batch table (was showing "No batches yet")
-                    const batchTableContainer = document.querySelector('#batches-table');
-                    const noBatchesMessage = document.querySelector('.card-body.text-center.py-5');
-
-                    if (migration.batches.length > 0 && noBatchesMessage) {
-                        // Replace "No batches yet" with batch table
-                        const batchCard = noBatchesMessage.parentElement.parentElement;
-                        batchCard.innerHTML = `
-            <div class="card-header">
-                <h5 class="mb-0">Batch Details</h5>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Batch</th>
-                            <th>Type</th>
-                            <th>Status</th>
-                            <th>Progress</th>
-                            <th>Started</th>
-                            <th>Duration</th>
-                        </tr>
-                    </thead>
-                    <tbody id="batches-table">
-                    </tbody>
-                </table>
-            </div>
-        `;
-                    }
-
-                    // Update or create batch rows
-                    migration.batches.forEach(batch => {
-                        let row = document.querySelector(`[data-batch-id="${batch.id}"]`);
-
-                        if (!row) {
-                            // Create new batch row
-                            const tbody = document.querySelector('#batches-table');
-                            if (tbody) {
-                                const newRow = document.createElement('tr');
-                                newRow.setAttribute('data-resource-type', batch.resource_type);
-                                newRow.setAttribute('data-batch-id', batch.id);
-
-                                const progressText = `${batch.items_stored}/${batch.items_received} stored`;
-                                const successRate = batch.items_received > 0 ? Math.round((batch.items_stored / batch
-                                    .items_received) * 100) : 0;
-
-                                let startedText = '-';
-                                let durationText = '-';
-
-                                if (batch.started_at) {
-                                    const startTime = new Date(batch.started_at);
-                                    startedText = startTime.toLocaleString();
-
-                                    if (batch.completed_at) {
-                                        const endTime = new Date(batch.completed_at);
-                                        const durationSeconds = Math.round((endTime - startTime) / 1000);
-                                        durationText = `${durationSeconds}s`;
-                                    } else {
-                                        const now = new Date();
-                                        const elapsed = Math.round((now - startTime) / 1000);
-                                        durationText = `${elapsed}s ago`;
-                                    }
-                                }
-
-                                newRow.innerHTML = `
-                    <td>
-                        <div class="fw-medium">#${batch.batch_number}</div>
-                        <small class="text-muted">Page ${batch.page_index || batch.batch_number}</small>
-                    </td>
-                    <td>
-                        <span class="badge bg-light text-dark">${batch.resource_type}</span>
-                    </td>
-                    <td>
-                        <span class="badge batch-status ${getStatusClass(batch.status)}">
-                            ${batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
-                        </span>
-                        ${batch.error_message ? `<br><small class="text-danger">${batch.error_message}</small>` : ''}
-                    </td>
-                    <td>
-                        <div class="batch-progress">
-                            <div>${progressText}</div>
-                            ${batch.items_received > 0 ? `<small class="text-muted">${successRate}% success</small>` : ''}
-                        </div>
-                    </td>
-                    <td>
-                        <small class="text-muted">${startedText}</small>
-                    </td>
-                    <td>
-                        <small class="text-muted">${durationText}</small>
-                    </td>
-                `;
-
-                                tbody.appendChild(newRow);
-                                row = newRow;
-                            }
+                    init() {
+                        if (this.migration.status === 'in_progress' || this.migration.status === 'pending') {
+                            this.startAutoRefresh();
                         }
 
-                        if (row) {
-                            const statusSpan = row.querySelector('.batch-status');
-                            const progressDiv = row.querySelector('.batch-progress');
-
-                            if (statusSpan) {
-                                statusSpan.className = statusSpan.className.replace(
-                                    /bg-(success|warning|danger|secondary|primary|info)/g, '');
-                                statusSpan.className += ' ' + getStatusClass(batch.status);
-                                statusSpan.textContent = batch.status.charAt(0).toUpperCase() + batch.status.slice(1);
-                            }
-
-                            if (progressDiv) {
-                                const progressText = `${batch.items_stored}/${batch.items_received} stored`;
-                                const successRate = batch.items_received > 0 ? Math.round((batch.items_stored / batch
-                                    .items_received) * 100) : 0;
-                                progressDiv.innerHTML = `
-                    <div>${progressText}</div>
-                    ${batch.items_received > 0 ? `<small class="text-muted">${successRate}% success</small>` : ''}
-                `;
-                            }
-
-                            // Update timestamps and duration
-                            const timestampCell = row.querySelector('td:nth-child(4)');
-                            const durationCell = row.querySelector('td:nth-child(5)');
-
-                            if (timestampCell) {
-                                if (batch.started_at) {
-                                    const startTime = new Date(batch.started_at);
-                                    timestampCell.innerHTML =
-                                        `<small class="text-muted">${startTime.toLocaleString()}</small>`;
-                                } else {
-                                    timestampCell.innerHTML = `<small class="text-muted">-</small>`;
-                                }
-                            }
-
-                            if (durationCell) {
-                                if (batch.started_at && batch.completed_at) {
-                                    const start = new Date(batch.started_at);
-                                    const end = new Date(batch.completed_at);
-                                    const durationSeconds = Math.round((end - start) / 1000);
-                                    durationCell.innerHTML = `<small class="text-muted">${durationSeconds}s</small>`;
-                                } else if (batch.started_at) {
-                                    const start = new Date(batch.started_at);
-                                    const now = new Date();
-                                    const elapsed = Math.round((now - start) / 1000);
-                                    durationCell.innerHTML = `<small class="text-muted">${elapsed}s ago</small>`;
-                                } else {
-                                    durationCell.innerHTML = `<small class="text-muted">-</small>`;
-                                }
-                            }
-                        }
-                    });
-                }
-
-                function getStatusClass(status) {
-                    const classes = {
-                        'completed': 'bg-success',
-                        'processing': 'bg-warning',
-                        'in_progress': 'bg-warning',
-                        'failed': 'bg-danger',
-                        'pending': 'bg-secondary',
-                        'cancelled': 'bg-danger'
-                    };
-                    return classes[status] || 'bg-secondary';
-                }
-
-                function filterBatches(resourceType) {
-                    const rows = document.querySelectorAll('#batches-table tr');
-                    const filters = document.querySelectorAll('.batch-filter');
-
-                    // Update filter buttons
-                    filters.forEach(filter => {
-                        filter.classList.remove('active');
-                        if (filter.classList.contains('btn-outline-secondary')) {
-                            filter.classList.remove('btn-secondary');
-                            filter.classList.add('btn-outline-secondary');
-                        }
-                    });
-
-                    event.target.classList.add('active');
-                    if (event.target.classList.contains('btn-outline-secondary')) {
-                        event.target.classList.remove('btn-outline-secondary');
-                        event.target.classList.add('btn-secondary');
-                    }
-
-                    // Show/hide rows
-                    rows.forEach(row => {
-                        if (resourceType === 'all' || row.dataset.resourceType === resourceType) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
-                    });
-                }
-
-                function showError(message) {
-                    document.getElementById('error-message').textContent = message;
-                    const modal = new bootstrap.Modal(document.getElementById('error-modal'));
-                    modal.show();
-                }
-
-                function cancelMigration() {
-                    if (!confirm('Are you sure you want to cancel this migration?')) return;
-
-                    fetch(`{{ route('data-migration.api.cancel', $migration) }}`, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Content-Type': 'application/json'
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                location.reload();
-                            } else {
-                                showAlert('Error: ' + data.error, 'error');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            showAlert('Failed to cancel migration', 'error');
-                        });
-                }
-
-                function retryMigration() {
-                    if (!confirm('Are you sure you want to retry failed batches for this migration?')) return;
-
-                    fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Content-Type': 'application/json'
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                showAlert(data.message, 'success');
-                                location.reload();
-                            } else {
-                                showAlert('Error: ' + data.error, 'error');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            showAlert('Failed to retry migration', 'error');
-                        });
-                }
-
-
-                // Auto-refresh for active migrations
-                document.addEventListener('DOMContentLoaded', function() {
-                    const status = '{{ $migration->status }}';
-                    if (status === 'in_progress' || status === 'pending') {
-                        startAutoRefresh();
-                    }
-                });
-
-                // Stop auto-refresh when page is hidden
-                document.addEventListener('visibilitychange', () => {
-                    if (document.hidden) {
-                        clearInterval(refreshInterval);
-                    } else if ('{{ $migration->status }}' === 'in_progress') {
-                        startAutoRefresh();
-                    }
-                });
-
-                function migrationApp() {
-                    return {
-                        migration: {
-                            id: {{ $migration->id }},
-                            name: @json($migration->name),
-                            status: @json($migration->status),
-                            progress_percentage: {{ $migration->progress_percentage }},
-                            success_rate: {{ $migration->success_rate }},
-                            total_items: {{ $migration->total_items }},
-                            processed_items: {{ $migration->processed_items }},
-                            successful_items: {{ $migration->successful_items }},
-                            failed_items: {{ $migration->failed_items }},
-                            batches: @json($migration->batches->toArray())
-                        },
-                        refreshInterval: null,
-
-                        init() {
-                            if (this.migration.status === 'in_progress' || this.migration.status === 'pending') {
+                        document.addEventListener('visibilitychange', () => {
+                            if (document.hidden) {
+                                if (this.refreshInterval) clearInterval(this.refreshInterval);
+                            } else if (this.migration.status === 'in_progress') {
                                 this.startAutoRefresh();
                             }
+                        });
+                    },
 
-                            document.addEventListener('visibilitychange', () => {
-                                if (document.hidden) {
-                                    if (this.refreshInterval) clearInterval(this.refreshInterval);
-                                } else if (this.migration.status === 'in_progress') {
-                                    this.startAutoRefresh();
-                                }
-                            });
-                        },
+                    setResourceFilter(type) {
+                        this.resourceFilter = type;
+                    },
 
-                        startAutoRefresh() {
-                            this.refreshInterval = setInterval(() => this.refreshStatus(), 10000);
-                        },
+                    startAutoRefresh() {
+                        this.refreshInterval = setInterval(() => this.refreshStatus(), 10000);
+                    },
 
-                        async refreshStatus() {
-                            try {
-                                const response = await fetch(`{{ route('data-migration.api.status', $migration) }}`);
-                                const data = await response.json();
+                    async refreshStatus() {
+                        try {
+                            const response = await fetch(`{{ route('data-migration.api.status', $migration) }}`);
+                            const data = await response.json();
 
-                                if (data.success) {
-                                    const oldStatus = this.migration.status;
-                                    this.migration = data.data;
+                            if (data.success) {
+                                const oldStatus = this.migration.status;
+                                this.migration = data.data;
 
-                                    // Check if migration just completed (status changed to completed/failed)
-                                    if ((oldStatus === 'in_progress' || oldStatus === 'pending') &&
-                                        (data.data.status === 'completed' || data.data.status === 'failed')) {
-
-                                        // Stop auto-refresh
-                                        if (this.refreshInterval) {
-                                            clearInterval(this.refreshInterval);
-                                            this.refreshInterval = null;
-                                        }
-
-                                        // Reload page after short delay to ensure all server-side conditionals update
-                                        window.location.reload();
-
-                                        return;
+                                if ((oldStatus === 'in_progress' || oldStatus === 'pending') &&
+                                    (data.data.status === 'completed' || data.data.status === 'failed')) {
+                                    if (this.refreshInterval) {
+                                        clearInterval(this.refreshInterval);
+                                        this.refreshInterval = null;
                                     }
+                                    window.location.reload();
+                                    return;
+                                }
 
-                                    if (data.data.status === 'completed' || data.data.status === 'failed' || data.data
-                                        .status === 'cancelled') {
-                                        if (this.refreshInterval) {
-                                            clearInterval(this.refreshInterval);
-                                            this.refreshInterval = null;
-                                        }
+                                if (data.data.status === 'completed' || data.data.status === 'failed' || data.data.status === 'cancelled') {
+                                    if (this.refreshInterval) {
+                                        clearInterval(this.refreshInterval);
+                                        this.refreshInterval = null;
                                     }
                                 }
-                            } catch (error) {
-                                console.error('Error fetching migration status:', error);
                             }
-                        },
-
-                        isVerificationAvailable() {
-                            return (this.migration.status === 'completed' &&
-                                this.migration.batches &&
-                                this.migration.batches.some(b => b.status === 'completed'));
-                        },
-
-                        getStatusClass(status) {
-                            const classes = {
-                                'completed': 'bg-success',
-                                'processing': 'bg-warning',
-                                'in_progress': 'bg-warning',
-                                'failed': 'bg-danger',
-                                'pending': 'bg-secondary',
-                                'cancelled': 'bg-danger'
-                            };
-                            return classes[status] || 'bg-secondary';
-                        },
-
-                        formatTimestamp(timestamp) {
-                            if (!timestamp) return '-';
-                            return new Date(timestamp).toLocaleString();
-                        },
-
-                        formatDuration(startedAt, completedAt) {
-                            if (!startedAt) return '-';
-
-                            const start = new Date(startedAt);
-                            if (completedAt) {
-                                const end = new Date(completedAt);
-                                const durationSeconds = Math.round((end - start) / 1000);
-                                return `${durationSeconds}s`;
-                            } else {
-                                const now = new Date();
-                                const elapsed = Math.round((now - start) / 1000);
-                                return `${elapsed}s ago`;
-                            }
-                        },
-
-                        showError(message) {
-                            document.getElementById('error-message').textContent = message;
-                            const modal = new bootstrap.Modal(document.getElementById('error-modal'));
-                            modal.show();
-                        },
-
-                        async cancelMigration() {
-                            if (!confirm('Are you sure you want to cancel this migration?')) return;
-
-                            try {
-                                const response = await fetch(`{{ route('data-migration.api.cancel', $migration) }}`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                        'Content-Type': 'application/json'
-                                    }
-                                });
-
-                                const data = await response.json();
-                                if (data.success) {
-                                    location.reload();
-                                } else {
-                                    showAlert('Error: ' + data.error, 'error');
-                                }
-                            } catch (error) {
-                                console.error('Error:', error);
-                                showAlert('Failed to cancel migration', 'error');
-                            }
-                        },
-
-                        async retryMigration() {
-                            if (!confirm('Are you sure you want to retry failed batches?')) return;
-
-                            try {
-                                const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                        'Content-Type': 'application/json'
-                                    }
-                                });
-
-                                const data = await response.json();
-                                if (data.success) {
-                                    location.reload();
-                                } else {
-                                    showAlert('Error: ' + data.error, 'error');
-                                }
-                            } catch (error) {
-                                console.error('Error:', error);
-                                showAlert('Failed to retry migration', 'error');
-                            }
-                        },
-
-                        async quickVerifyData() {
-                            // Show modal immediately with loading state - don't wait for API
-                            this.showLoadingModal();
-
-                            // Start API call after modal is shown
-                            try {
-                                const response = await fetch(`{{ route('data-migration.api.quick-verify', $migration) }}`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                        'Content-Type': 'application/json'
-                                    }
-                                });
-
-                                const data = await response.json();
-
-                                if (data.success) {
-                                    this.showVerificationResults(data.data);
-                                } else {
-                                    this.showErrorInModal('Error: ' + data.error);
-                                }
-                            } catch (error) {
-                                console.error('Error:', error);
-                                this.showErrorInModal('Network error: Failed to verify data');
-                            }
-                        },
-
-                        showLoadingModal() {
-                            const loadingContent = `
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <h5>Verifying Data...</h5>
-                    <p class="text-muted">Please wait while we verify your migrated data.</p>
-                </div>
-            `;
-
-                            const modalElement = document.getElementById('quick-verify-modal');
-                            const contentElement = document.getElementById('verify-results-content');
-
-                            // Clean up any existing modal instances first
-                            const existingModal = bootstrap.Modal.getInstance(modalElement);
-                            if (existingModal) {
-                                existingModal.dispose();
-                            }
-
-                            // Update content before showing modal
-                            if (contentElement) {
-                                contentElement.innerHTML = loadingContent;
-                            }
-
-                            // Create and show new modal instance
-                            const modal = new bootstrap.Modal(modalElement, {
-                                backdrop: 'static',
-                                keyboard: false
-                            });
-
-                            // Show modal immediately
-                            modal.show();
-                        },
-
-                        showErrorInModal(errorMessage) {
-                            const errorContent = `
-                <div class="text-center py-5">
-                    <div class="text-danger mb-3">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
-                    </div>
-                    <h5 class="text-danger">Verification Failed</h5>
-                    <p class="text-muted" id="quick-verify-error-message">${errorMessage}</p>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            `;
-
-                            document.getElementById('verify-results-content').innerHTML = errorContent;
-
-                            // Re-enable backdrop dismiss and keyboard close for errors
-                            const modalElement = document.getElementById('quick-verify-modal');
-                            const existingModal = bootstrap.Modal.getInstance(modalElement);
-                            if (existingModal) {
-                                existingModal.dispose();
-                                const modal = new bootstrap.Modal(modalElement);
-                                // Modal should already be visible, so no need to show() again
-                            }
-                        },
-
-                        showVerificationResults(results) {
-                            try {
-                                // Validate results structure
-                                if (!results || !results.results || typeof results.results !== 'object') {
-                                    throw new Error('Invalid verification results format');
-                                }
-
-                                let content = `
-                    <div class="mb-3">
-                        <h6 class="text-muted">Sample Size: ${results.sample_size || 10} records per resource type</h6>
-                    </div>
-                    <div class="row">
-                `;
-
-                                const resultsEntries = Object.entries(results.results);
-                                if (resultsEntries.length === 0) {
-                                    content += `
-                        <div class="col-12">
-                            <div class="text-center py-5">
-                                <i class="fas fa-info-circle text-muted fa-3x mb-3"></i>
-                                <h5 class="text-muted">No verification results available</h5>
-                                <p class="text-muted">No data was found to verify for this migration.</p>
-                            </div>
-                        </div>
-                    `;
-                                } else {
-                                    for (const [resourceType, result] of resultsEntries) {
-                                        let statusClass, statusIcon, statusText;
-
-                                        if (result.status === 'completed') {
-                                            const rate = result.success_rate || 0;
-                                            if (rate >= 95) {
-                                                statusClass = 'text-success';
-                                                statusIcon = '✓';
-                                            } else if (rate >= 80) {
-                                                statusClass = 'text-warning';
-                                                statusIcon = '⚠';
-                                            } else {
-                                                statusClass = 'text-danger';
-                                                statusIcon = '✗';
-                                            }
-                                            statusText = `${result.verified || 0}/${result.total_checked || 0} verified (${rate}%)`;
-                                        } else if (result.status === 'no_data') {
-                                            statusClass = 'text-muted';
-                                            statusIcon = '—';
-                                            statusText = 'No data to verify';
-                                        } else {
-                                            statusClass = 'text-danger';
-                                            statusIcon = '✗';
-                                            statusText = `Error: ${result.error || 'Unknown error'}`;
-                                        }
-
-                                        content += `
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body text-center">
-                                        <h5 class="card-title text-capitalize">${resourceType}</h5>
-                                        <div class="${statusClass} mb-2" style="font-size: 2rem;">${statusIcon}</div>
-                                        <p class="card-text ${statusClass}">${statusText}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                                    }
-                                }
-
-                                content += '</div>';
-
-                                // Update modal content (modal should already be visible from loading state)
-                                document.getElementById('verify-results-content').innerHTML = content;
-
-                                // Modal should already be visible, no need to show it again
-                            } catch (error) {
-                                console.error('Error displaying verification results:', error);
-                                this.showErrorInModal('Failed to display verification results: ' + error.message);
-                            }
+                        } catch (error) {
+                            console.error('Error fetching migration status:', error);
                         }
-                    };
-                }
-            </script>
+                    },
+
+                    isVerificationAvailable() {
+                        return (this.migration.status === 'completed' &&
+                            this.migration.batches &&
+                            this.migration.batches.some(b => b.status === 'completed'));
+                    },
+
+                    getStatusClass(status) {
+                        const classes = {
+                            'completed': 'bg-success',
+                            'processing': 'bg-warning',
+                            'in_progress': 'bg-warning',
+                            'failed': 'bg-danger',
+                            'pending': 'bg-secondary',
+                            'cancelled': 'bg-danger'
+                        };
+                        return classes[status] || 'bg-secondary';
+                    },
+
+                    formatTimestamp(timestamp) {
+                        if (!timestamp) return '-';
+                        return new Date(timestamp).toLocaleString();
+                    },
+
+                    formatDuration(startedAt, completedAt) {
+                        if (!startedAt) return '-';
+                        const start = new Date(startedAt);
+                        if (completedAt) {
+                            const end = new Date(completedAt);
+                            const durationSeconds = Math.round((end - start) / 1000);
+                            return `${durationSeconds}s`;
+                        } else {
+                            const now = new Date();
+                            const elapsed = Math.round((now - start) / 1000);
+                            return `${elapsed}s ago`;
+                        }
+                    },
+
+                    showError(message) {
+                        document.getElementById('error-message').textContent = message;
+                        const modal = new bootstrap.Modal(document.getElementById('error-modal'));
+                        modal.show();
+                    },
+
+                    async cancelMigration() {
+                        if (!confirm('Are you sure you want to cancel this migration?')) return;
+                        try {
+                            const response = await fetch(`{{ route('data-migration.api.cancel', $migration) }}`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert('Error: ' + data.error);
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('Failed to cancel migration');
+                        }
+                    },
+
+                    async retryMigration() {
+                        if (!confirm('Are you sure you want to retry failed batches?')) return;
+                        try {
+                            const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert('Error: ' + data.error);
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('Failed to retry migration');
+                        }
+                    },
+
+                    async quickVerifyData() {
+                        this.verifyModal.state = 'loading';
+                        this.showModal();
+
+                        try {
+                            const response = await fetch(`{{ route('data-migration.api.quick-verify', $migration) }}`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            const data = await response.json();
+
+                            if (data.success) {
+                                this.verifyModal.results = data.data;
+                                this.verifyModal.state = 'results';
+                            } else {
+                                this.verifyModal.errorMessage = 'Error: ' + data.error;
+                                this.verifyModal.state = 'error';
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            this.verifyModal.errorMessage = 'Network error: Failed to verify data';
+                            this.verifyModal.state = 'error';
+                        }
+                    },
+
+                    showModal() {
+                        const modalElement = document.getElementById('quick-verify-modal');
+                        const existingModal = bootstrap.Modal.getInstance(modalElement);
+                        if (existingModal) existingModal.dispose();
+
+                        const modal = new bootstrap.Modal(modalElement, {
+                            backdrop: 'static',
+                            keyboard: false
+                        });
+                        modal.show();
+                    }
+                };
+            }
+        </script>
 
         </div>
     @endsection
