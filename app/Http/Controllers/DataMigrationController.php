@@ -444,13 +444,33 @@ class DataMigrationController extends Controller
                 ], 400);
             }
 
-            Log::info("Starting full verification for migration {$migration->id}");
+            Log::info("Starting full verification for migration {$migration->id}", [
+                'migration_id' => $migration->id,
+                'migration_name' => $migration->name,
+                'resource_types' => $migration->resource_types,
+                'queue_connection' => config('queue.default')
+            ]);
 
             // Generate unique verification ID
             $verificationId = $migration->id . '_' . time();
 
             // Dispatch async verification job
-            \App\Jobs\VerifyMigrationJob::dispatch($migration, $verificationId);
+            try {
+                \App\Jobs\VerifyMigrationJob::dispatch($migration, $verificationId);
+                Log::info("VerifyMigrationJob dispatched successfully", [
+                    'migration_id' => $migration->id,
+                    'verification_id' => $verificationId,
+                    'queue_connection' => config('queue.default')
+                ]);
+            } catch (\Exception $e) {
+                Log::error("Failed to dispatch VerifyMigrationJob", [
+                    'migration_id' => $migration->id,
+                    'verification_id' => $verificationId,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
 
             return response()->json([
                 'success' => true,
@@ -485,28 +505,95 @@ class DataMigrationController extends Controller
         try {
             $verificationId = $request->get('verification_id');
 
-            if ($verificationId) {
-                // Check cache for ongoing verification status
-                $status = Cache::get("verification_status_{$verificationId}");
+            // PRIMARY: Get current verification state from database
+            $stats = $this->newVerificationService->getMigrationVerificationStats($migration);
 
-                if ($status) {
+            // Calculate actual verification state from database
+            $totalRecords = $stats['total'];
+            $verifiedRecords = $stats['verified'];
+            $resourceProgress = [];
+
+            // Build resource progress from actual database state
+            foreach ($migration->resource_types as $resourceType) {
+                $modelClass = $this->getModelClass($resourceType);
+                if ($modelClass) {
+                    // Get the batch IDs for this migration and resource type
+                    $batchIds = $migration->batches()
+                        ->where('resource_type', $resourceType)
+                        ->where('status', 'completed')
+                        ->pluck('batch_id')
+                        ->toArray();
+
+                    if (!empty($batchIds)) {
+                        $total = $modelClass::whereIn('migration_batch_id', $batchIds)->count();
+                        $verified = $modelClass::whereIn('migration_batch_id', $batchIds)
+                            ->where('verified', true)
+                            ->count();
+
+                        $resourceProgress[$resourceType] = [
+                            'total' => $total,
+                            'processed' => $verified  // Show actual verified count as processed
+                        ];
+                    } else {
+                        $resourceProgress[$resourceType] = [
+                            'total' => 0,
+                            'processed' => 0
+                        ];
+                    }
+                }
+            }
+
+            // Determine status based on ACTUAL database verification state
+            $verificationStatus = 'idle';
+            $currentActivity = 'No verification has been run yet';
+
+            if ($verifiedRecords > 0) {
+                if ($verifiedRecords === $totalRecords) {
+                    $verificationStatus = 'completed';
+                    $currentActivity = 'All records have been verified';
+                } else {
+                    $verificationStatus = 'partial';
+                    $currentActivity = "Partial verification: {$verifiedRecords} of {$totalRecords} records verified";
+                }
+            }
+
+            // SECONDARY: Check cache only for active job progress (if verification_id provided)
+            if ($verificationId) {
+                $cacheStatus = Cache::get("verification_status_{$verificationId}");
+
+                if ($cacheStatus && in_array($cacheStatus['status'], ['starting', 'in_progress'])) {
+                    // Active job in progress - use cache data for real-time progress
+                    Log::info("Returning active job progress from cache", [
+                        'migration_id' => $migration->id,
+                        'verification_id' => $verificationId,
+                        'cache_status' => $cacheStatus['status']
+                    ]);
+
                     return response()->json([
                         'success' => true,
-                        'data' => $status
+                        'data' => $cacheStatus
                     ]);
                 }
             }
 
-            // Fallback: return current verification stats from database
-            $stats = $this->newVerificationService->getMigrationVerificationStats($migration);
+            // Return database state (default case)
+            Log::info("Returning database verification status", [
+                'migration_id' => $migration->id,
+                'verification_id' => $verificationId,
+                'status' => $verificationStatus,
+                'total' => $totalRecords,
+                'verified' => $verifiedRecords
+            ]);
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'status' => 'completed',
-                    'total' => $stats['total'],
-                    'processed' => $stats['total'],
-                    'verified' => $stats['verified'],
+                    'status' => $verificationStatus,
+                    'total' => $totalRecords,
+                    'processed' => $verifiedRecords,  // Show actual verified count
+                    'verified' => $verifiedRecords,
+                    'current_activity' => $currentActivity,
+                    'resource_progress' => $resourceProgress,
                     'results' => $stats['results']
                 ]
             ]);
@@ -517,5 +604,18 @@ class DataMigrationController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Get the model class for a resource type
+     */
+    private function getModelClass(string $resourceType): ?string
+    {
+        return match ($resourceType) {
+            'clients' => \App\Models\MigratedClient::class,
+            'cases' => \App\Models\MigratedCase::class,
+            'sessions' => \App\Models\MigratedSession::class,
+            default => null
+        };
     }
 }

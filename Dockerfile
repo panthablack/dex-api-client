@@ -142,4 +142,4 @@ USER root
 
 # Queue workers don't need Apache, just PHP CLI
 # Override the CMD to run queue worker instead
-CMD ["php", "artisan", "queue:work", "database", "--queue=data-migration", "--sleep=3", "--tries=3", "--max-time=3600", "--timeout=300"]
+CMD ["php", "artisan", "queue:work", "database", "--queue=data-migration,data-verification", "--sleep=3", "--tries=3", "--max-time=3600", "--timeout=300"]

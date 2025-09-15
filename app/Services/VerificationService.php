@@ -234,7 +234,7 @@ class VerificationService
     /**
      * Verify a record based on its type
      */
-    private function verifyRecord(string $resourceType, $record): bool
+    public function verifyRecord(string $resourceType, $record): bool
     {
         switch ($resourceType) {
             case 'clients':

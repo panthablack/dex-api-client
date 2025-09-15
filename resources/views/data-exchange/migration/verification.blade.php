@@ -93,7 +93,7 @@
     @endif
 
     <!-- Verification Status Card -->
-    <div x-show="verification.status !== 'idle'" class="card mb-4" x-transition>
+    <div x-show="verification.status !== 'idle' || verification.total > 0" class="card mb-4" x-transition>
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="fas fa-shield-alt me-2"></i>
@@ -168,7 +168,7 @@
             <!-- Current Activity -->
             <div x-show="verification.currentActivity" class="mt-3">
                 <small class="text-muted">
-                    <i class="fas fa-cog fa-spin me-1"></i>
+                    <i :class="verification.status === 'in_progress' || verification.status === 'starting' ? 'fas fa-cog fa-spin' : 'fas fa-info-circle'" class="me-1"></i>
                     <span x-text="verification.currentActivity"></span>
                 </small>
             </div>
@@ -349,8 +349,22 @@
                     errors: []
                 },
 
-                init() {
-                    // Auto-start if needed or setup initial state
+                async init() {
+                    // Load initial verification status
+                    await this.loadInitialStatus();
+                },
+
+                async loadInitialStatus() {
+                    try {
+                        const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`);
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.updateVerification(data.data);
+                        }
+                    } catch (error) {
+                        console.error('Error loading initial verification status:', error);
+                    }
                 },
 
                 async startVerification() {
@@ -429,8 +443,10 @@
                     switch (this.verification.status) {
                         case 'starting': return 'Starting...';
                         case 'in_progress': return 'In Progress...';
-                        case 'completed': return 'Verification Complete';
-                        case 'failed': return 'Verification Failed';
+                        case 'completed': return 'Run Verification Again';
+                        case 'partial': return 'Continue Verification';
+                        case 'failed': return 'Retry Verification';
+                        case 'idle': return 'Start Full Verification';
                         default: return 'Start Full Verification';
                     }
                 },
@@ -440,7 +456,9 @@
                         case 'starting': return 'Starting...';
                         case 'in_progress': return 'In Progress';
                         case 'completed': return 'Completed';
+                        case 'partial': return 'Partially Verified';
                         case 'failed': return 'Failed';
+                        case 'idle': return 'Ready to Start';
                         default: return 'Initializing...';
                     }
                 },
@@ -450,7 +468,9 @@
                         case 'starting': return 'bg-info';
                         case 'in_progress': return 'bg-warning';
                         case 'completed': return 'bg-success';
+                        case 'partial': return 'bg-warning';
                         case 'failed': return 'bg-danger';
+                        case 'idle': return 'bg-secondary';
                         default: return 'bg-info';
                     }
                 },
@@ -458,6 +478,7 @@
                 getProgressBarClass() {
                     switch (this.verification.status) {
                         case 'completed': return 'bg-success';
+                        case 'partial': return 'bg-warning';
                         case 'failed': return 'bg-danger';
                         case 'in_progress': return 'progress-bar-striped progress-bar-animated bg-warning';
                         default: return 'progress-bar-striped progress-bar-animated';
