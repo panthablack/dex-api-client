@@ -2247,4 +2247,268 @@ class DataExchangeController extends Controller
 
         return null;
     }
+
+    /**
+     * Export clients data as CSV or JSON
+     */
+    public function exportClients(Request $request)
+    {
+        try {
+            $format = $request->get('format', 'csv');
+            if (!in_array($format, ['csv', 'json'])) {
+                return response()->json(['error' => 'Invalid format. Use csv or json.'], 400);
+            }
+
+            // Build filters from request
+            $filters = $this->buildFilters($request);
+
+            // Get all data (not paginated for export)
+            $rawData = $this->dataExchangeService->getClientDataWithPagination($filters);
+
+            // Extract clients data
+            $clients = [];
+            if (is_object($rawData)) {
+                $rawData = json_decode(json_encode($rawData), true);
+            }
+
+            if (isset($rawData['Clients']['Client'])) {
+                $clients = $rawData['Clients']['Client'];
+                if (!is_array($clients)) {
+                    $clients = [$clients];
+                }
+            }
+
+            if (empty($clients)) {
+                return response()->json(['error' => 'No client data found for export.'], 404);
+            }
+
+            $filename = 'clients_export_' . now()->format('Y-m-d_H-i-s');
+
+            if ($format === 'csv') {
+                return $this->exportLiveDataToCsv($clients, $filename, 'clients');
+            } else {
+                return $this->exportLiveDataToJson($clients, $filename);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to export clients: ' . $e->getMessage());
+            return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Export cases data as CSV or JSON
+     */
+    public function exportCases(Request $request)
+    {
+        try {
+            $format = $request->get('format', 'csv');
+            if (!in_array($format, ['csv', 'json'])) {
+                return response()->json(['error' => 'Invalid format. Use csv or json.'], 400);
+            }
+
+            // Build filters from request
+            $filters = $this->buildFilters($request);
+
+            // Get all data (not paginated for export)
+            $rawData = $this->dataExchangeService->getCaseDataWithPagination($filters);
+
+            // Extract cases data
+            $cases = [];
+            if (is_object($rawData)) {
+                $rawData = json_decode(json_encode($rawData), true);
+            }
+
+            if (isset($rawData['Cases']['Case'])) {
+                $cases = $rawData['Cases']['Case'];
+                if (!is_array($cases)) {
+                    $cases = [$cases];
+                }
+            }
+
+            if (empty($cases)) {
+                return response()->json(['error' => 'No case data found for export.'], 404);
+            }
+
+            $filename = 'cases_export_' . now()->format('Y-m-d_H-i-s');
+
+            if ($format === 'csv') {
+                return $this->exportLiveDataToCsv($cases, $filename, 'cases');
+            } else {
+                return $this->exportLiveDataToJson($cases, $filename);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to export cases: ' . $e->getMessage());
+            return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Export sessions data as CSV or JSON
+     */
+    public function exportSessions(Request $request)
+    {
+        try {
+            $format = $request->get('format', 'csv');
+            if (!in_array($format, ['csv', 'json'])) {
+                return response()->json(['error' => 'Invalid format. Use csv or json.'], 400);
+            }
+
+            // Build filters from request
+            $filters = $this->buildFilters($request);
+
+            // For sessions, ensure we have some filtering to avoid huge exports
+            if (empty($filters['case_id']) && empty($filters['date_from'])) {
+                $filters['date_from'] = now()->subDays(30)->format('Y-m-d');
+            }
+
+            // Get all data (not paginated for export)
+            $rawData = $this->dataExchangeService->getSessionDataWithPagination($filters);
+
+            // Extract sessions data
+            $sessions = [];
+            if (is_object($rawData)) {
+                $rawData = json_decode(json_encode($rawData), true);
+            }
+
+            if (isset($rawData['Sessions']['Session'])) {
+                $sessions = $rawData['Sessions']['Session'];
+                if (!is_array($sessions)) {
+                    $sessions = [$sessions];
+                }
+            }
+
+            if (empty($sessions)) {
+                return response()->json(['error' => 'No session data found for export.'], 404);
+            }
+
+            $filename = 'sessions_export_' . now()->format('Y-m-d_H-i-s');
+
+            if ($format === 'csv') {
+                return $this->exportLiveDataToCsv($sessions, $filename, 'sessions');
+            } else {
+                return $this->exportLiveDataToJson($sessions, $filename);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to export sessions: ' . $e->getMessage());
+            return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Export live data to CSV format
+     */
+    protected function exportLiveDataToCsv(array $data, string $filename, string $dataType)
+    {
+        $csv = \League\Csv\Writer::createFromString('');
+
+        if (!empty($data)) {
+            // Get header mapping for this data type
+            $headerMapping = $this->getLiveDataHeaderMapping($dataType);
+
+            // Add headers
+            $headers = array_values($headerMapping);
+            $csv->insertOne($headers);
+
+            // Add data rows
+            foreach ($data as $row) {
+                $formattedRow = $this->formatLiveDataRowForExport($row, array_keys($headerMapping));
+                $csv->insertOne($formattedRow);
+            }
+        }
+
+        return response($csv->toString(), 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}.csv\""
+        ]);
+    }
+
+    /**
+     * Export live data to JSON format
+     */
+    protected function exportLiveDataToJson(array $data, string $filename)
+    {
+        return response()->json($data, 200, [
+            'Content-Disposition' => "attachment; filename=\"{$filename}.json\""
+        ]);
+    }
+
+    /**
+     * Get header mappings for live data export
+     */
+    private function getLiveDataHeaderMapping(string $dataType): array
+    {
+        return match ($dataType) {
+            'clients' => [
+                'ClientId' => 'Client ID',
+                'GivenName' => 'First Name',
+                'FamilyName' => 'Last Name',
+                'BirthDate' => 'Date of Birth',
+                'GenderCode' => 'Gender',
+                'CountryOfBirthName' => 'Country of Birth',
+                'PreferredLanguageName' => 'Preferred Language',
+                'IndigenousStatusDescription' => 'Indigenous Status',
+                'ResidentialAddress.Suburb' => 'Suburb',
+                'ResidentialAddress.State' => 'State',
+                'ResidentialAddress.Postcode' => 'Postcode',
+                'ClientType.ClientTypeDescription' => 'Client Type'
+            ],
+            'cases' => [
+                'CaseId' => 'Case ID',
+                'ClientId' => 'Client ID',
+                'OutletActivityId' => 'Outlet Activity ID',
+                'ReferralSourceCode' => 'Referral Source Code',
+                'ReasonsForAssistance' => 'Reasons for Assistance',
+                'TotalUnidentifiedClients' => 'Total Unidentified Clients',
+                'ClientAttendanceProfileCode' => 'Client Attendance Profile Code',
+                'EndDate' => 'End Date',
+                'ExitReasonCode' => 'Exit Reason Code'
+            ],
+            'sessions' => [
+                'SessionId' => 'Session ID',
+                'CaseId' => 'Case ID',
+                'ServiceTypeId' => 'Service Type ID',
+                'SessionDate' => 'Session Date',
+                'DurationMinutes' => 'Duration (Minutes)',
+                'Location' => 'Location',
+                'SessionStatus' => 'Session Status',
+                'Attendees' => 'Attendees',
+                'Outcome' => 'Outcome'
+            ],
+            default => []
+        };
+    }
+
+    /**
+     * Format a live data row for CSV export
+     */
+    private function formatLiveDataRowForExport(array $row, array $fieldOrder): array
+    {
+        $formattedRow = [];
+
+        foreach ($fieldOrder as $field) {
+            // Handle nested fields like 'ResidentialAddress.State'
+            if (str_contains($field, '.')) {
+                $parts = explode('.', $field);
+                $value = $row;
+                foreach ($parts as $part) {
+                    $value = $value[$part] ?? '';
+                    if (!is_array($value)) break;
+                }
+            } else {
+                $value = $row[$field] ?? '';
+            }
+
+            // Format arrays as semicolon-separated values
+            if (is_array($value)) {
+                $value = implode('; ', $value);
+            }
+
+            $formattedRow[] = (string) $value;
+        }
+
+        return $formattedRow;
+    }
 }

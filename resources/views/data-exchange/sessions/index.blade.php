@@ -10,7 +10,26 @@
                     <h1 class="mb-2">Sessions</h1>
                     <p class="text-muted">View and manage session records from the DSS Data Exchange system</p>
                 </div>
-                <div>
+                <div class="d-flex gap-2">
+                    <!-- Export Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download"></i> Export Data
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="exportData('csv')">
+                                    <i class="fas fa-file-csv"></i> Export as CSV
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="exportData('json')">
+                                    <i class="fas fa-file-code"></i> Export as JSON
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
                     <a href="{{ route('data-exchange.session-form') }}" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Add New Session
                     </a>
@@ -161,5 +180,33 @@
                 // this.form.submit();
             });
         });
+
+        // Export function
+        function exportData(format) {
+            // Get current filters from the form
+            const filters = new URLSearchParams();
+
+            // Add current filter values
+            const caseIdInput = document.getElementById('case_id');
+            if (caseIdInput && caseIdInput.value) filters.append('case_id', caseIdInput.value);
+
+            const sessionStatusSelect = document.getElementById('session_status');
+            if (sessionStatusSelect && sessionStatusSelect.value) filters.append('session_status', sessionStatusSelect.value);
+
+            const serviceTypeSelect = document.getElementById('service_type_id');
+            if (serviceTypeSelect && serviceTypeSelect.value) filters.append('service_type_id', serviceTypeSelect.value);
+
+            const dateRangeSelect = document.getElementById('date_range');
+            if (dateRangeSelect && dateRangeSelect.value) filters.append('date_range', dateRangeSelect.value);
+
+            // Add format parameter
+            filters.append('format', format);
+
+            // Create download URL
+            const exportUrl = `{{ route('data-exchange.api.export-sessions') }}?${filters.toString()}`;
+
+            // Trigger download
+            window.location.href = exportUrl;
+        }
     </script>
 @endpush

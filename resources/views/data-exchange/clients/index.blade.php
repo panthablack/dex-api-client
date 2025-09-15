@@ -10,7 +10,26 @@
                     <h1 class="mb-2">Clients</h1>
                     <p class="text-muted">View and manage client records from the DSS Data Exchange system</p>
                 </div>
-                <div>
+                <div class="d-flex gap-2">
+                    <!-- Export Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download"></i> Export Data
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="exportData('csv')">
+                                    <i class="fas fa-file-csv"></i> Export as CSV
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="exportData('json')">
+                                    <i class="fas fa-file-code"></i> Export as JSON
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
                     <a href="{{ route('data-exchange.client-form') }}" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Add New Client
                     </a>
@@ -136,5 +155,33 @@
                 // this.form.submit();
             });
         });
+
+        // Export function
+        function exportData(format) {
+            // Get current filters from the form
+            const filters = new URLSearchParams();
+
+            // Add current filter values
+            const firstNameInput = document.getElementById('first_name');
+            if (firstNameInput && firstNameInput.value) filters.append('first_name', firstNameInput.value);
+
+            const lastNameInput = document.getElementById('last_name');
+            if (lastNameInput && lastNameInput.value) filters.append('last_name', lastNameInput.value);
+
+            const genderSelect = document.getElementById('gender');
+            if (genderSelect && genderSelect.value) filters.append('gender', genderSelect.value);
+
+            const stateSelect = document.getElementById('state');
+            if (stateSelect && stateSelect.value) filters.append('state', stateSelect.value);
+
+            // Add format parameter
+            filters.append('format', format);
+
+            // Create download URL
+            const exportUrl = `{{ route('data-exchange.api.export-clients') }}?${filters.toString()}`;
+
+            // Trigger download
+            window.location.href = exportUrl;
+        }
     </script>
 @endpush

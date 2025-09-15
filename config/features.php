@@ -2,7 +2,7 @@
 
 return [
     'debugging' => [
-        'show_debug_information' => env('SHOW_DEBUG_INFORMATION')
+        'show_debug_information' => env('SHOW_DEBUG_INFORMATION', false)
     ],
     'pagination' => [
         'default_page_size' => 10
