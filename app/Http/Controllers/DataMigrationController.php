@@ -444,6 +444,9 @@ class DataMigrationController extends Controller
                 ], 400);
             }
 
+            // Reset all verification states before starting new verification
+            $this->resetVerificationStates($migration);
+
             Log::info("Starting full verification for migration {$migration->id}", [
                 'migration_id' => $migration->id,
                 'migration_name' => $migration->name,
@@ -604,6 +607,50 @@ class DataMigrationController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Reset verification states for all records in a migration
+     */
+    private function resetVerificationStates(DataMigration $migration): void
+    {
+        Log::info("Resetting verification states for migration {$migration->id}");
+
+        $totalReset = 0;
+
+        foreach ($migration->resource_types as $resourceType) {
+            $modelClass = $this->getModelClass($resourceType);
+            if ($modelClass) {
+                // Get the batch IDs for this migration and resource type
+                $batchIds = $migration->batches()
+                    ->where('resource_type', $resourceType)
+                    ->where('status', 'completed')
+                    ->pluck('batch_id')
+                    ->toArray();
+
+                if (!empty($batchIds)) {
+                    $resetCount = $modelClass::whereIn('migration_batch_id', $batchIds)
+                        ->update([
+                            'verified' => false,
+                            'verified_at' => null,
+                            'verification_error' => null
+                        ]);
+
+                    $totalReset += $resetCount;
+
+                    Log::info("Reset verification states for resource type", [
+                        'migration_id' => $migration->id,
+                        'resource_type' => $resourceType,
+                        'records_reset' => $resetCount
+                    ]);
+                }
+            }
+        }
+
+        Log::info("Verification state reset completed", [
+            'migration_id' => $migration->id,
+            'total_records_reset' => $totalReset
+        ]);
     }
 
     /**
