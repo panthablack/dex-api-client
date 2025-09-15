@@ -24,21 +24,26 @@
         [x-cloak] {
             display: none !important;
         }
-        
+
         .btn:disabled {
             opacity: 0.65;
             cursor: not-allowed;
         }
-        
+
         .fa-spin {
             animation: fa-spin 1s infinite linear;
         }
-        
+
         @keyframes fa-spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         .xml-container {
             max-height: 400px;
             overflow-y: auto;
@@ -96,15 +101,19 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ route('data-exchange.retrieve-form') }}">
-                                <i class="fas fa-search"></i> Search & Retrieve</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Browse Resources</h6></li>
+                                    <i class="fas fa-search"></i> Search & Retrieve</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <h6 class="dropdown-header">Browse Resources</h6>
+                            </li>
                             <li><a class="dropdown-item" href="{{ route('data-exchange.clients.index') }}">
-                                <i class="fas fa-users"></i> View All Clients</a></li>
+                                    <i class="fas fa-users"></i> View All Clients</a></li>
                             <li><a class="dropdown-item" href="{{ route('data-exchange.cases.index') }}">
-                                <i class="fas fa-folder-open"></i> View All Cases</a></li>
+                                    <i class="fas fa-folder-open"></i> View All Cases</a></li>
                             <li><a class="dropdown-item" href="{{ route('data-exchange.sessions.index') }}">
-                                <i class="fas fa-calendar-alt"></i> View All Sessions</a></li>
+                                    <i class="fas fa-calendar-alt"></i> View All Sessions</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">

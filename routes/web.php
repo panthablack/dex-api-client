@@ -43,12 +43,12 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
         Route::get('/clients/{id}', [DataExchangeController::class, 'apiGetClient'])->name('api.clients.show');
         Route::put('/clients/{id}', [DataExchangeController::class, 'apiUpdateClient'])->name('api.clients.update');
         Route::delete('/clients/{id}', [DataExchangeController::class, 'apiDeleteClient'])->name('api.clients.delete');
-        
+
         // Case API endpoints
         Route::get('/cases/{id}', [DataExchangeController::class, 'apiGetCase'])->name('api.cases.show');
         Route::put('/cases/{id}', [DataExchangeController::class, 'apiUpdateCase'])->name('api.cases.update');
         Route::delete('/cases/{id}', [DataExchangeController::class, 'apiDeleteCase'])->name('api.cases.delete');
-        
+
         // Session API endpoints (requires case_id parameter)
         Route::get('/sessions/{id}', [DataExchangeController::class, 'apiGetSession'])->name('api.sessions.show');
         Route::put('/sessions/{id}', [DataExchangeController::class, 'apiUpdateSession'])->name('api.sessions.update');

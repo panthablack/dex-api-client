@@ -21,7 +21,7 @@ class CaseIdDebugTest extends TestCase
     {
         // Create a real instance to see what actually gets called
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Expect the service to be called with correct parameters
         $mockSoapClient->shouldReceive('call')
             ->with('GetCase', [
@@ -76,7 +76,7 @@ class CaseIdDebugTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
-        
+
         $errorMessage = session('error');
         $this->assertStringContainsString('Case ID is required', $errorMessage);
     }
@@ -96,7 +96,7 @@ class CaseIdDebugTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
-        
+
         $errorMessage = session('error');
         $this->assertStringContainsString('Case ID is required', $errorMessage);
     }
@@ -107,9 +107,9 @@ class CaseIdDebugTest extends TestCase
     public function test_form_contains_correct_field_names()
     {
         $response = $this->get(route('data-exchange.retrieve-form'));
-        
+
         $response->assertStatus(200);
-        
+
         // Check that the required case_id field is present
         $response->assertSee('name="case_id"', false);
         $response->assertSee('id="req_case_id"', false);
@@ -124,7 +124,7 @@ class CaseIdDebugTest extends TestCase
     {
         // Mock the service
         $mockDataService = Mockery::mock(DataExchangeService::class);
-        
+
         $mockDataService->shouldReceive('getCaseById')
             ->once()
             ->with('BROWSER_CASE_456')
@@ -132,7 +132,7 @@ class CaseIdDebugTest extends TestCase
                 'CaseId' => 'BROWSER_CASE_456',
                 'Status' => 'Open'
             ]);
-        
+
         $mockDataService->shouldReceive('getSanitizedLastRequest')->andReturn('Mock request');
         $mockDataService->shouldReceive('getSanitizedLastResponse')->andReturn('Mock response');
 

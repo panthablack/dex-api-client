@@ -34,7 +34,7 @@ class DataVerificationService
 
         foreach ($migration->resource_types as $resourceType) {
             Log::info("Verifying {$resourceType} data for migration {$migration->id}");
-            
+
             try {
                 $resourceResult = $this->verifyResourceType($migration, $resourceType);
                 $results['resource_results'][$resourceType] = $resourceResult;
@@ -79,7 +79,7 @@ class DataVerificationService
 
         // Get migrated records
         $migratedRecords = $this->getMigratedRecords($resourceType, $batchIds);
-        
+
         if ($migratedRecords->isEmpty()) {
             return [
                 'status' => 'no_data',
@@ -108,7 +108,7 @@ class DataVerificationService
         foreach ($sampleRecords as $record) {
             try {
                 $verification = $this->verifyRecord($resourceType, $record);
-                
+
                 if ($verification['status'] === 'verified') {
                     $verificationResults['verified_count']++;
                 } elseif ($verification['status'] === 'discrepancy') {
@@ -137,11 +137,11 @@ class DataVerificationService
     protected function verifyRecord(string $resourceType, $record): array
     {
         $recordId = $this->getRecordId($resourceType, $record);
-        
+
         try {
             // Fetch current data from API
             $apiData = $this->fetchFromApi($resourceType, $recordId, $record);
-            
+
             if (!$apiData) {
                 return [
                     'record_id' => $recordId,
@@ -152,7 +152,7 @@ class DataVerificationService
 
             // Compare key fields
             $discrepancies = $this->compareRecords($resourceType, $record, $apiData);
-            
+
             if (empty($discrepancies)) {
                 return [
                     'record_id' => $recordId,
@@ -167,7 +167,6 @@ class DataVerificationService
                     'discrepancies' => $discrepancies
                 ];
             }
-            
         } catch (\Exception $e) {
             return [
                 'record_id' => $recordId,
@@ -219,15 +218,15 @@ class DataVerificationService
         switch ($resourceType) {
             case 'clients':
                 return $this->dataExchangeService->getClientById($recordId);
-                
+
             case 'cases':
                 return $this->dataExchangeService->getCaseById($recordId);
-                
+
             case 'sessions':
                 // Sessions require case_id
                 $caseId = $record->case_id;
                 return $this->dataExchangeService->getSessionById($recordId, $caseId);
-                
+
             default:
                 throw new \InvalidArgumentException("Unknown resource type: {$resourceType}");
         }
@@ -261,7 +260,7 @@ class DataVerificationService
     protected function compareClientRecords($migrated, $api): array
     {
         $discrepancies = [];
-        
+
         // Convert API data to array if it's an object
         if (is_object($api)) {
             $api = json_decode(json_encode($api), true);
@@ -300,7 +299,7 @@ class DataVerificationService
     protected function compareCaseRecords($migrated, $api): array
     {
         $discrepancies = [];
-        
+
         if (is_object($api)) {
             $api = json_decode(json_encode($api), true);
         }
@@ -334,7 +333,7 @@ class DataVerificationService
     protected function compareSessionRecords($migrated, $api): array
     {
         $discrepancies = [];
-        
+
         if (is_object($api)) {
             $api = json_decode(json_encode($api), true);
         }
@@ -434,7 +433,7 @@ class DataVerificationService
         }
 
         $totalChecked = $summary['total_verified'] + $summary['total_discrepancies'] + $summary['total_missing'];
-        
+
         if ($totalChecked > 0) {
             $summary['success_rate'] = round(($summary['total_verified'] / $totalChecked) * 100, 2);
         }
@@ -484,7 +483,7 @@ class DataVerificationService
 
                 $records = $this->getMigratedRecords($resourceType, $batchIds);
                 $sample = $records->random(min($sampleSize, $records->count()));
-                
+
                 $verified = 0;
                 foreach ($sample as $record) {
                     $verification = $this->verifyRecord($resourceType, $record);
@@ -499,7 +498,6 @@ class DataVerificationService
                     'total_checked' => $sample->count(),
                     'success_rate' => $sample->count() > 0 ? round(($verified / $sample->count()) * 100, 2) : 0
                 ];
-
             } catch (\Exception $e) {
                 $results['results'][$resourceType] = [
                     'status' => 'error',

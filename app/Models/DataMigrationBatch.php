@@ -69,7 +69,7 @@ class DataMigrationBatch extends Model
         if ($this->items_received == 0) {
             return 0;
         }
-        
+
         return round(($this->items_stored / $this->items_received) * 100, 2);
     }
 }

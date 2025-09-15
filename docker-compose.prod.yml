@@ -1,50 +1,50 @@
 services:
-    app:
-        build:
-            context: .
-            target: production
-        ports:
-            - "8000:80"
-        environment:
-            - APP_ENV=production
-            - APP_DEBUG=false
-            - APP_KEY=${APP_KEY}
-        depends_on:
-            db:
-                condition: service_healthy
-        restart: unless-stopped
+  app:
+    build:
+      context: .
+      target: production
+    ports:
+      - "8000:80"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_KEY=${APP_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
-    queue:
-        build:
-            context: .
-            target: queue-worker
-        environment:
-            - APP_ENV=production
-            - APP_DEBUG=false
-            - APP_KEY=${APP_KEY}
-        depends_on:
-            db:
-                condition: service_healthy
-        restart: unless-stopped
+  queue:
+    build:
+      context: .
+      target: queue-worker
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_KEY=${APP_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
-    db:
-        image: mysql:8.0
-        environment:
-            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-secret}
-            MYSQL_DATABASE: ${DB_DATABASE:-dex}
-            MYSQL_USER: ${DB_USER:-dex}
-            MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-        ports:
-            - "${DB_HOST_PORT:-3306}:${DB_PORT:-3306}"
-        volumes:
-            - db_prod:/var/lib/mysql
-        restart: unless-stopped
-        healthcheck:
-            test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-secret}" ]
-            timeout: 20s
-            retries: 10
-            interval: 10s
-            start_period: 40s
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-secret}
+      MYSQL_DATABASE: ${DB_DATABASE:-dex}
+      MYSQL_USER: ${DB_USER:-dex}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    ports:
+      - "${DB_HOST_PORT:-3306}:${DB_PORT:-3306}"
+    volumes:
+      - db_prod:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-secret}" ]
+      timeout: 20s
+      retries: 10
+      interval: 10s
+      start_period: 40s
 
 volumes:
-    db_prod:
+  db_prod:

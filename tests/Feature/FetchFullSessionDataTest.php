@@ -21,7 +21,7 @@ class FetchFullSessionDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -71,7 +71,7 @@ class FetchFullSessionDataTest extends TestCase
                 ],
                 'Case' => [
                     'CaseId' => 'CASE002',
-                    'OutletName' => 'Test Outlet 2', 
+                    'OutletName' => 'Test Outlet 2',
                     'ProgramActivityName' => 'Test Program 2',
                     'CaseDetail' => [
                         'CaseId' => 'CASE002'
@@ -106,7 +106,7 @@ class FetchFullSessionDataTest extends TestCase
         $mockSoapClient->shouldReceive('call')
             ->with('GetSession', [
                 'SessionId' => 'SESSION002',
-                'CaseId' => 'CASE001', 
+                'CaseId' => 'CASE001',
                 'Criteria' => []
             ])
             ->once()
@@ -152,7 +152,7 @@ class FetchFullSessionDataTest extends TestCase
         // Verify structure - should be a simple array of session data
         $this->assertIsArray($result);
         $this->assertCount(3, $result); // 3 sessions total
-        
+
         // Verify first session
         $session1 = $result[0];
         $this->assertEquals('SESSION001', $session1['SessionId']);
@@ -161,12 +161,12 @@ class FetchFullSessionDataTest extends TestCase
         $this->assertArrayHasKey('_case_context', $session1);
         $this->assertEquals('CASE001', $session1['_case_context']['CaseId']);
         $this->assertEquals('Test Outlet 1', $session1['_case_context']['OutletName']);
-        
+
         // Verify second session
         $session2 = $result[1];
         $this->assertEquals('SESSION002', $session2['SessionId']);
         $this->assertEquals('Assessment', $session2['SessionType']);
-        
+
         // Verify third session
         $session3 = $result[2];
         $this->assertEquals('SESSION003', $session3['SessionId']);
@@ -182,7 +182,7 @@ class FetchFullSessionDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -245,7 +245,7 @@ class FetchFullSessionDataTest extends TestCase
         // Verify single session handling
         $this->assertIsArray($result);
         $this->assertCount(1, $result);
-        
+
         $session = $result[0];
         $this->assertEquals('SINGLE_SESSION001', $session['SessionId']);
         $this->assertEquals('SINGLE001', $session['CaseId']);
@@ -260,7 +260,7 @@ class FetchFullSessionDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call (returns no cases)
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -287,7 +287,7 @@ class FetchFullSessionDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -337,7 +337,7 @@ class FetchFullSessionDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -403,7 +403,7 @@ class FetchFullSessionDataTest extends TestCase
     {
         // Mock the DataExchangeService
         $mockDataService = Mockery::mock(DataExchangeService::class);
-        
+
         $mockDataService->shouldReceive('fetchFullSessionData')
             ->once()
             ->with(Mockery::on(function ($filters) {
@@ -421,7 +421,7 @@ class FetchFullSessionDataTest extends TestCase
                     ]
                 ]
             ]);
-        
+
         // Mock debug methods
         $mockDataService->shouldReceive('getSanitizedLastRequest')->andReturn('Mock request');
         $mockDataService->shouldReceive('getSanitizedLastResponse')->andReturn('Mock response');

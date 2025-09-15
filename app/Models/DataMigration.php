@@ -58,7 +58,7 @@ class DataMigration extends Model
         if ($this->total_items == 0) {
             return 0;
         }
-        
+
         return round(($this->processed_items / $this->total_items) * 100, 2);
     }
 
@@ -67,7 +67,7 @@ class DataMigration extends Model
         if ($this->processed_items == 0) {
             return 0;
         }
-        
+
         return round(($this->successful_items / $this->processed_items) * 100, 2);
     }
 }

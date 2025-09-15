@@ -5,7 +5,7 @@ A Laravel-based SOAP client for connecting to the Australian Government's Depart
 ## Features
 
 - **Web Interface**: User-friendly web interface for submitting client and service data
-- **Command Line Interface**: Comprehensive CLI for automation and bulk operations  
+- **Command Line Interface**: Comprehensive CLI for automation and bulk operations
 - **SOAP Integration**: Native PHP SOAP client with full error handling and logging
 - **Bulk Upload**: CSV file processing for bulk data submissions
 - **Docker Support**: Complete Docker environment with SOAP extension enabled
@@ -16,12 +16,14 @@ A Laravel-based SOAP client for connecting to the Australian Government's Depart
 ### Option 1: Docker (Recommended)
 
 1. Configure environment variables:
+
    ```bash
    cp .env.example .env
    # Edit .env file with your DSS credentials
    ```
 
 2. Build and run with Docker:
+
    ```bash
    docker-compose up --build -d
    ```
@@ -32,11 +34,13 @@ A Laravel-based SOAP client for connecting to the Australian Government's Depart
 
 1. Ensure PHP 8.3+ with SOAP extension is installed
 2. Install dependencies:
+
    ```bash
    composer install
    ```
 
 3. Configure environment:
+
    ```bash
    cp .env.example .env
    php artisan key:generate
@@ -81,12 +85,14 @@ Navigate to the web interface to access:
 ## Command Line Interface
 
 ### Connection Testing
+
 ```bash
 php artisan dex:client test
 php artisan dex:client test --detailed
 ```
 
 ### Data Submission
+
 ```bash
 # Interactive client submission
 php artisan dex:client submit-client --interactive
@@ -110,6 +116,7 @@ php artisan dex:client status --submission-id=12345
 ```
 
 ### Data Retrieval & Export
+
 ```bash
 # Get all clients as JSON
 php artisan dex:client get-clients --format=json
@@ -141,6 +148,7 @@ php artisan dex:client generate-report \
 ```
 
 ### Available Resources & Reports
+
 ```bash
 # Show available SOAP functions
 php artisan dex:client functions
@@ -150,11 +158,13 @@ php artisan dex:client --help
 ```
 
 ### Format Options
+
 - **JSON**: `--format=json` - JavaScript Object Notation
-- **XML**: `--format=xml` - Extensible Markup Language  
+- **XML**: `--format=xml` - Extensible Markup Language
 - **CSV**: `--format=csv` - Comma Separated Values
 
 ### Filter Options
+
 - `--client-id=ID` - Specific client identifier
 - `--first-name=Name` - Client first name
 - `--last-name=Name` - Client last name
@@ -176,16 +186,19 @@ TEST001,John,Doe,1990-01-15,M,N,Australia,2000,English,false,false,Individual
 ## Usage Examples
 
 1. **Start the application**:
+
    ```bash
    docker-compose up -d
    ```
 
 2. **Test SOAP connection**:
+
    ```bash
    php artisan dex:client test --verbose
    ```
 
 3. **Submit client data via CLI**:
+
    ```bash
    php artisan dex:client submit-client --interactive
    ```

@@ -14,12 +14,12 @@ return [
     'dss' => [
         // WSDL URL - Update with actual DSS endpoint
         'wsdl_url' => env('DSS_WSDL_URL', 'https://dex.dss.gov.au/webservice?wsdl'),
-        
+
         // Authentication credentials
         'username' => env('DSS_USERNAME'),
         'password' => env('DSS_PASSWORD'),
         'organisation_id' => env('DSS_ORGANISATION_ID'),
-        
+
         // SOAP client options
         'soap_options' => [
             'soap_version' => extension_loaded('soap') ? SOAP_1_2 : 2,
@@ -36,7 +36,7 @@ return [
                 ]
             ]
         ],
-        
+
         // Logging configuration
         'logging' => [
             'enabled' => env('DSS_LOGGING_ENABLED', true),
@@ -49,7 +49,7 @@ return [
             'show_requests' => env('DSS_DEBUG_SHOW_REQUESTS', env('APP_DEBUG', false)),
             'show_responses' => env('DSS_DEBUG_SHOW_RESPONSES', env('APP_DEBUG', false)),
         ],
-        
+
         // Timeout settings
         'timeout' => [
             'connection' => 30,

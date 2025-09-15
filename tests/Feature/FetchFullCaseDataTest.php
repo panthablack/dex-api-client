@@ -21,7 +21,7 @@ class FetchFullCaseDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call (returns basic case info - using arrays for consistency)
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -85,13 +85,13 @@ class FetchFullCaseDataTest extends TestCase
         // Verify structure - should be a simple array of case data
         $this->assertIsArray($result);
         $this->assertCount(2, $result);
-        
+
         // Verify first case has detailed info
         $case1 = $result[0];
         $this->assertEquals('CASE001', $case1['CaseId']);
         $this->assertEquals('CLIENT123', $case1['ClientId']);
         $this->assertArrayHasKey('DetailedInfo', $case1);
-        
+
         // Verify second case has detailed info
         $case2 = $result[1];
         $this->assertEquals('CASE002', $case2['CaseId']);
@@ -106,7 +106,7 @@ class FetchFullCaseDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call (returns single case)
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -145,7 +145,7 @@ class FetchFullCaseDataTest extends TestCase
         // Verify single case handling
         $this->assertIsArray($result);
         $this->assertCount(1, $result);
-        
+
         $case = $result[0];
         $this->assertEquals('SINGLE001', $case['CaseId']);
         $this->assertEquals('CLIENT789', $case['ClientId']);
@@ -159,7 +159,7 @@ class FetchFullCaseDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call (returns no cases)
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -186,7 +186,7 @@ class FetchFullCaseDataTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -235,12 +235,12 @@ class FetchFullCaseDataTest extends TestCase
         // Verify error handling - only successful cases are returned
         $this->assertIsArray($result);
         $this->assertCount(1, $result); // Only successful case returned
-        
+
         // Verify only the successful case is returned
         $successfulCase = $result[0];
         $this->assertEquals('GOOD001', $successfulCase['CaseId']);
         $this->assertArrayHasKey('DetailedInfo', $successfulCase);
-        
+
         // Failed cases should not be in the result
         foreach ($result as $case) {
             $this->assertArrayNotHasKey('error', $case);
@@ -254,7 +254,7 @@ class FetchFullCaseDataTest extends TestCase
     {
         // Mock the DataExchangeService
         $mockDataService = Mockery::mock(DataExchangeService::class);
-        
+
         $mockDataService->shouldReceive('fetchFullCaseData')
             ->once()
             ->with(Mockery::on(function ($filters) {
@@ -267,7 +267,7 @@ class FetchFullCaseDataTest extends TestCase
                     'DetailedInfo' => 'Complete case information'
                 ]
             ]);
-        
+
         // Mock debug methods
         $mockDataService->shouldReceive('getSanitizedLastRequest')->andReturn('Mock request');
         $mockDataService->shouldReceive('getSanitizedLastResponse')->andReturn('Mock response');

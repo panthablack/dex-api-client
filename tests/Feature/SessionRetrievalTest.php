@@ -20,7 +20,7 @@ class SessionRetrievalTest extends TestCase
     public function test_session_form_shows_required_case_id_field()
     {
         $response = $this->get(route('data-exchange.retrieve-form'));
-        
+
         $response->assertStatus(200);
         $response->assertSee('req_case_id');
         $response->assertSee('Case ID');
@@ -43,7 +43,7 @@ class SessionRetrievalTest extends TestCase
         // Should redirect back with error
         $response->assertRedirect();
         $response->assertSessionHas('error');
-        
+
         // Check error message contains Case ID requirement
         $errorMessage = session('error');
         $this->assertStringContainsString('Case ID is required', $errorMessage);
@@ -56,7 +56,7 @@ class SessionRetrievalTest extends TestCase
     {
         // Mock the DataExchangeService with all required methods
         $mockDataService = Mockery::mock(DataExchangeService::class);
-        
+
         // Mock the main method
         $mockDataService->shouldReceive('getSessionData')
             ->once()
@@ -72,7 +72,7 @@ class SessionRetrievalTest extends TestCase
                     ]
                 ]
             ]);
-        
+
         // Mock debug methods
         $mockDataService->shouldReceive('getSanitizedLastRequest')->andReturn('Mock request');
         $mockDataService->shouldReceive('getSanitizedLastResponse')->andReturn('Mock response');
@@ -130,7 +130,7 @@ class SessionRetrievalTest extends TestCase
     {
         // Mock the SOAP client
         $mockSoapClient = Mockery::mock(SoapClientService::class);
-        
+
         // Mock SearchCase call (first call)
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
@@ -142,7 +142,7 @@ class SessionRetrievalTest extends TestCase
                     ]
                 ]
             ]);
-            
+
         // Mock GetCase call (second call for detailed data)
         $mockSoapClient->shouldReceive('call')
             ->with('GetCase', Mockery::any())
@@ -160,7 +160,7 @@ class SessionRetrievalTest extends TestCase
                     ]
                 ]
             ]);
-            
+
         // Mock GetSession call (third call for session details)
         $mockSoapClient->shouldReceive('call')
             ->with('GetSession', Mockery::any())
@@ -177,7 +177,7 @@ class SessionRetrievalTest extends TestCase
 
         // Test with valid case ID
         $result = $service->getSessionData(['case_id' => 'CASE789']);
-        
+
         $this->assertIsArray($result);
         $this->assertNotEmpty($result);
     }
@@ -203,7 +203,7 @@ class SessionRetrievalTest extends TestCase
     {
         // Mock the DataExchangeService
         $mockDataService = Mockery::mock(DataExchangeService::class);
-        
+
         // Mock the main method
         $mockDataService->shouldReceive('getSessionData')
             ->once()
@@ -219,14 +219,14 @@ class SessionRetrievalTest extends TestCase
                     ]
                 ]
             ]);
-        
+
         // Mock debug methods
         $mockDataService->shouldReceive('getSanitizedLastRequest')->andReturn('Mock request');
         $mockDataService->shouldReceive('getSanitizedLastResponse')->andReturn('Mock response');
 
         // Replace the service in the container
         $this->app->instance(DataExchangeService::class, $mockDataService);
-        
+
         // Test that when both required and optional case_id fields might be present,
         // the system handles it correctly
         $response = $this->post(route('data-exchange.retrieve-data'), [
@@ -240,7 +240,7 @@ class SessionRetrievalTest extends TestCase
         // Should not get the "Case ID required" error since we provided one
         $response->assertRedirect();
         $response->assertSessionHas('success');
-        
+
         // Check if we got past the Case ID validation
         if (session('error')) {
             $errorMessage = session('error');

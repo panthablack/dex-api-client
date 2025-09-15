@@ -38,7 +38,8 @@
         <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-filter"></i> Filters
-                <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+                <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#filtersCollapse">
                     <i class="fas fa-chevron-down"></i>
                 </button>
             </h5>
@@ -49,34 +50,42 @@
                     <div class="row">
                         <div class="col-md-3">
                             <label for="case_id" class="form-label">Case ID</label>
-                            <input type="text" class="form-control" id="case_id" name="case_id" 
-                                   value="{{ request('case_id') }}" placeholder="Search case ID">
+                            <input type="text" class="form-control" id="case_id" name="case_id"
+                                value="{{ request('case_id') }}" placeholder="Search case ID">
                         </div>
                         <div class="col-md-3">
                             <label for="session_status" class="form-label">Session Status</label>
                             <select class="form-select" id="session_status" name="session_status">
                                 <option value="">All Statuses</option>
-                                <option value="Scheduled" {{ request('session_status') === 'Scheduled' ? 'selected' : '' }}>Scheduled</option>
-                                <option value="Completed" {{ request('session_status') === 'Completed' ? 'selected' : '' }}>Completed</option>
-                                <option value="Cancelled" {{ request('session_status') === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
-                                <option value="No Show" {{ request('session_status') === 'No Show' ? 'selected' : '' }}>No Show</option>
-                                <option value="In Progress" {{ request('session_status') === 'In Progress' ? 'selected' : '' }}>In Progress</option>
-                                <option value="Rescheduled" {{ request('session_status') === 'Rescheduled' ? 'selected' : '' }}>Rescheduled</option>
+                                <option value="Scheduled" {{ request('session_status') === 'Scheduled' ? 'selected' : '' }}>
+                                    Scheduled</option>
+                                <option value="Completed" {{ request('session_status') === 'Completed' ? 'selected' : '' }}>
+                                    Completed</option>
+                                <option value="Cancelled" {{ request('session_status') === 'Cancelled' ? 'selected' : '' }}>
+                                    Cancelled</option>
+                                <option value="No Show" {{ request('session_status') === 'No Show' ? 'selected' : '' }}>No
+                                    Show</option>
+                                <option value="In Progress"
+                                    {{ request('session_status') === 'In Progress' ? 'selected' : '' }}>In Progress</option>
+                                <option value="Rescheduled"
+                                    {{ request('session_status') === 'Rescheduled' ? 'selected' : '' }}>Rescheduled
+                                </option>
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label for="service_type_id" class="form-label">Service Type</label>
                             <select class="form-select" id="service_type_id" name="service_type_id">
                                 <option value="">All Types</option>
-                                @if(isset($serviceTypes))
-                                    @foreach($serviceTypes as $serviceType)
-                                        <option value="{{ $serviceType->ServiceTypeId }}" 
-                                                {{ request('service_type_id') == $serviceType->ServiceTypeId ? 'selected' : '' }}>
+                                @if (isset($serviceTypes))
+                                    @foreach ($serviceTypes as $serviceType)
+                                        <option value="{{ $serviceType->ServiceTypeId }}"
+                                            {{ request('service_type_id') == $serviceType->ServiceTypeId ? 'selected' : '' }}>
                                             {{ substr($serviceType->ServiceTypeName, 0, 20) }}{{ strlen($serviceType->ServiceTypeName) > 20 ? '...' : '' }}
                                         </option>
                                     @endforeach
                                 @else
-                                    <option value="5" {{ request('service_type_id') == '5' ? 'selected' : '' }}>Counselling</option>
+                                    <option value="5" {{ request('service_type_id') == '5' ? 'selected' : '' }}>
+                                        Counselling</option>
                                 @endif
                             </select>
                         </div>
@@ -84,9 +93,12 @@
                             <label for="date_range" class="form-label">Date Range</label>
                             <select class="form-select" id="date_range" name="date_range">
                                 <option value="">All Dates</option>
-                                <option value="7" {{ request('date_range') === '7' ? 'selected' : '' }}>Last 7 days</option>
-                                <option value="30" {{ request('date_range') === '30' ? 'selected' : '' }}>Last 30 days</option>
-                                <option value="90" {{ request('date_range') === '90' ? 'selected' : '' }}>Last 90 days</option>
+                                <option value="7" {{ request('date_range') === '7' ? 'selected' : '' }}>Last 7 days
+                                </option>
+                                <option value="30" {{ request('date_range') === '30' ? 'selected' : '' }}>Last 30 days
+                                </option>
+                                <option value="90" {{ request('date_range') === '90' ? 'selected' : '' }}>Last 90 days
+                                </option>
                             </select>
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
@@ -106,28 +118,22 @@
     </div>
 
     <!-- Sessions Table -->
-    <x-resource-table 
-        title="Session Records" 
-        resource-type="session"
-        :data="$sessions ?? []"
-        :columns="[
-            ['key' => 'SessionDetails.SessionId', 'label' => 'Session ID'],
-            ['key' => 'CaseId', 'label' => 'Case ID'],
-            ['key' => 'SessionDetails.ServiceTypeId', 'label' => 'Service Type ID'],
-            ['key' => 'SessionDetails.SessionDate', 'label' => 'Session Date', 'format' => 'date'],
-            ['key' => 'SessionDetails.Time', 'label' => 'Duration/Time'],
-            ['key' => 'SessionDetails.TopicCode', 'label' => 'Topic'],
-            ['key' => 'CreatedDateTime', 'label' => 'Created Date', 'format' => 'date'],
-            ['key' => 'SessionDetails.TotalNumberOfUnidentifiedClients', 'label' => 'Unidentified Clients']
-        ]"
-        :loading="$loading ?? false"
-        empty-message="No sessions found. Try adjusting your filters or add a new session."
-    />
+    <x-resource-table title="Session Records" resource-type="session" :data="$sessions ?? []" :columns="[
+        ['key' => 'SessionDetails.SessionId', 'label' => 'Session ID'],
+        ['key' => 'CaseId', 'label' => 'Case ID'],
+        ['key' => 'SessionDetails.ServiceTypeId', 'label' => 'Service Type ID'],
+        ['key' => 'SessionDetails.SessionDate', 'label' => 'Session Date', 'format' => 'date'],
+        ['key' => 'SessionDetails.Time', 'label' => 'Duration/Time'],
+        ['key' => 'SessionDetails.TopicCode', 'label' => 'Topic'],
+        ['key' => 'CreatedDateTime', 'label' => 'Created Date', 'format' => 'date'],
+        ['key' => 'SessionDetails.TotalNumberOfUnidentifiedClients', 'label' => 'Unidentified Clients'],
+    ]" :loading="$loading ?? false"
+        empty-message="No sessions found. Try adjusting your filters or add a new session." />
 
     <!-- Pagination -->
     <x-pagination :pagination="$pagination ?? null" />
 
-    @if(isset($debugInfo['view_debug']) && $debugInfo['view_debug'] && config('features.debugging.show_debug_information'))
+    @if (isset($debugInfo['view_debug']) && $debugInfo['view_debug'] && config('features.debugging.show_debug_information'))
         <div class="card mt-4">
             <div class="card-header">
                 <h5 class="mb-0">Debug Information</h5>
@@ -138,26 +144,22 @@
         </div>
     @endif
 
-    @if(isset($errorToast))
+    @if (isset($errorToast))
         <x-toast-container>
-            <x-error-toast 
-                :title="$errorToast['title']"
-                :message="$errorToast['message']"
-                :details="$errorToast['details'] ?? null"
-            />
+            <x-error-toast :title="$errorToast['title']" :message="$errorToast['message']" :details="$errorToast['details'] ?? null" />
         </x-toast-container>
     @endif
 
 @endsection
 
 @push('scripts')
-<script>
-    // Auto-submit form when filters change (optional)
-    document.querySelectorAll('#filtersCollapse select').forEach(select => {
-        select.addEventListener('change', function() {
-            // Uncomment to auto-submit on filter change
-            // this.form.submit();
+    <script>
+        // Auto-submit form when filters change (optional)
+        document.querySelectorAll('#filtersCollapse select').forEach(select => {
+            select.addEventListener('change', function() {
+                // Uncomment to auto-submit on filter change
+                // this.form.submit();
+            });
         });
-    });
-</script>
+    </script>
 @endpush

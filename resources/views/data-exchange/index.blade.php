@@ -89,7 +89,8 @@
                                     <code>{{ config('soap.dss.soap_options.soap_version') == SOAP_1_2 ? '1.2' : '1.1' }}</code>
                                 </li>
                                 <li><strong>Organization ID:</strong>
-                                    <code>{{ config('soap.dss.organisation_id') ?? 'Not configured' }}</code></li>
+                                    <code>{{ config('soap.dss.organisation_id') ?? 'Not configured' }}</code>
+                                </li>
                             </ul>
                         </div>
                         <div class="col-md-6">

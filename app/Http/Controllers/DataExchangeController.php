@@ -697,7 +697,7 @@ class DataExchangeController extends Controller
         // Add pagination parameters
         $filters['page_index'] = max(1, intval($request->get('page', 1))); // 1-based page index
         $filters['page_size'] = intval($request->get('per_page', config('features.pagination.default_page_size', 10)));
-        
+
         // Add sorting parameters
         $filters['sort_column'] = $request->get('sort_by', $this->getDefaultSortColumn($request));
         $filters['is_ascending'] = $request->get('sort_direction', 'asc') === 'asc';
@@ -712,10 +712,10 @@ class DataExchangeController extends Controller
     {
         // Determine default sort column based on current route or context
         $route = $request->route();
-        
+
         if ($route) {
             $routeName = $route->getName();
-            
+
             if ($routeName && str_contains($routeName, 'clients')) {
                 return 'ClientId';
             } elseif ($routeName && str_contains($routeName, 'cases')) {
@@ -724,7 +724,7 @@ class DataExchangeController extends Controller
                 return 'CaseId';
             }
         }
-        
+
         // Default fallback - use CreatedDate which is valid for all resource types
         return 'CreatedDate';
     }
@@ -1264,7 +1264,7 @@ class DataExchangeController extends Controller
     {
         try {
             $caseId = $request->get('case_id');
-            
+
             // If case_id is provided, use it directly
             if ($caseId) {
                 $data = $this->dataExchangeService->getSessionById($id, $caseId);
@@ -1273,21 +1273,23 @@ class DataExchangeController extends Controller
                     'resource' => $data
                 ]);
             }
-            
+
             // Fallback: try to find the case_id by searching through all sessions
             $allSessionsData = $this->dataExchangeService->getSessionData([]);
             $foundCaseId = null;
-            
+
             if (isset($allSessionsData['sessions'])) {
                 foreach ($allSessionsData['sessions'] as $session) {
-                    if (isset($session['SessionDetails']['SessionId']) && 
-                        $session['SessionDetails']['SessionId'] === $id) {
+                    if (
+                        isset($session['SessionDetails']['SessionId']) &&
+                        $session['SessionDetails']['SessionId'] === $id
+                    ) {
                         $foundCaseId = $session['CaseId'] ?? null;
                         break;
                     }
                 }
             }
-            
+
             if ($foundCaseId) {
                 $data = $this->dataExchangeService->getSessionById($id, $foundCaseId);
                 return response()->json([
@@ -1295,13 +1297,12 @@ class DataExchangeController extends Controller
                     'resource' => $data
                 ]);
             }
-            
+
             // If all else fails, return a helpful error message
             return response()->json([
                 'success' => false,
                 'message' => 'Session retrieval requires a Case ID. Unable to find Case ID for session: ' . $id
             ], 400);
-            
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1379,27 +1380,26 @@ class DataExchangeController extends Controller
             // Load data with default filters
             try {
                 $rawData = $this->dataExchangeService->getClientDataWithPagination($filters);
-                
+
                 $debugInfo['raw_data_type'] = gettype($rawData);
                 $debugInfo['filters_applied'] = $filters;
-                
+
                 // Convert to array if it's an object
                 if (is_object($rawData)) {
                     $rawData = json_decode(json_encode($rawData), true);
                 }
-                
+
                 $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
-                
+
                 // Extract pagination information
                 $pagination = $rawData['pagination'] ?? null;
-                
+
                 // Handle different response structures - be more flexible
                 $clients = $this->extractClientsFromResponse($rawData);
-                
+
                 $debugInfo['final_clients_count'] = count($clients);
                 $debugInfo['sample_client'] = !empty($clients) ? array_slice($clients, 0, 1) : null;
                 $debugInfo['pagination_info'] = $pagination;
-                
             } catch (\Exception $e) {
                 $debugInfo = [
                     'error' => $e->getMessage(),
@@ -1407,7 +1407,7 @@ class DataExchangeController extends Controller
                     'stack_trace' => $e->getTraceAsString()
                 ];
                 Log::error('Failed to load clients: ' . $e->getMessage());
-                
+
                 // Add sample data for testing when API fails (only in debug mode)
                 if (config('app.debug', false)) {
                     $clients = $this->getSampleClients();
@@ -1465,8 +1465,10 @@ class DataExchangeController extends Controller
         // If we have some data but couldn't extract it through normal paths
         if (is_array($data)) {
             // Check if this looks like a single client record
-            if (isset($data['client_id']) || isset($data['ClientId']) || 
-                isset($data['first_name']) || isset($data['FirstName'])) {
+            if (
+                isset($data['client_id']) || isset($data['ClientId']) ||
+                isset($data['first_name']) || isset($data['FirstName'])
+            ) {
                 return [$data];
             }
         }
@@ -1503,17 +1505,17 @@ class DataExchangeController extends Controller
             // Load data with default filters
             try {
                 $rawData = $this->dataExchangeService->fetchFullCaseData($filters);
-                
+
                 $debugInfo['raw_data_type'] = gettype($rawData);
                 $debugInfo['filters_applied'] = $filters;
-                
+
                 // Convert to array if it's an object
                 if (is_object($rawData)) {
                     $rawData = json_decode(json_encode($rawData), true);
                 }
-                
+
                 $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
-                
+
                 // Extract pagination information - handle new fetchFullCaseData structure
                 if (isset($rawData['pagination']) && isset($rawData['data'])) {
                     // New structure with separate data and pagination
@@ -1524,11 +1526,10 @@ class DataExchangeController extends Controller
                     $pagination = $rawData['pagination'] ?? null;
                     $cases = $this->extractCasesFromResponse($rawData);
                 }
-                
+
                 $debugInfo['final_cases_count'] = count($cases);
                 $debugInfo['sample_case'] = !empty($cases) ? array_slice($cases, 0, 1) : null;
                 $debugInfo['pagination_info'] = $pagination;
-
             } catch (\Exception $e) {
                 $debugInfo = [
                     'error' => $e->getMessage(),
@@ -1536,7 +1537,7 @@ class DataExchangeController extends Controller
                     'stack_trace' => $e->getTraceAsString()
                 ];
                 Log::error('Failed to load cases: ' . $e->getMessage());
-                
+
                 // Add sample data for testing when API fails (only in debug mode)
                 if (config('app.debug', false)) {
                     $cases = $this->getSampleCases();
@@ -1595,8 +1596,10 @@ class DataExchangeController extends Controller
         // If we have some data but couldn't extract it through normal paths
         if (is_array($data)) {
             // Check if this looks like a single case record
-            if (isset($data['case_id']) || isset($data['CaseId']) || 
-                isset($data['client_id']) || isset($data['ClientId'])) {
+            if (
+                isset($data['case_id']) || isset($data['CaseId']) ||
+                isset($data['client_id']) || isset($data['ClientId'])
+            ) {
                 return [$data];
             }
         }
@@ -1611,12 +1614,12 @@ class DataExchangeController extends Controller
     {
         try {
             $filters = $this->buildFilters($request);
-            
+
             // For sessions, set a default date range to get some data
             if (empty($filters['case_id']) && !$request->has('case_id') && empty($request->all())) {
                 $filters['date_from'] = now()->subDays(30)->format('Y-m-d');
             }
-            
+
             $loading = false;
             $sessions = [];
             $debugInfo = [];
@@ -1639,17 +1642,17 @@ class DataExchangeController extends Controller
             // Load data with filters
             try {
                 $rawData = $this->dataExchangeService->fetchFullSessionData($filters);
-                
+
                 $debugInfo['raw_data_type'] = gettype($rawData);
                 $debugInfo['filters_applied'] = $filters;
-                
+
                 // Convert to array if it's an object
                 if (is_object($rawData)) {
                     $rawData = json_decode(json_encode($rawData), true);
                 }
-                
+
                 $debugInfo['converted_data_keys'] = is_array($rawData) ? array_keys($rawData) : 'not_array';
-                
+
                 // Extract pagination information - handle new fetchFullSessionData structure
                 if (isset($rawData['pagination']) && isset($rawData['data'])) {
                     // New structure with separate data and pagination
@@ -1660,11 +1663,10 @@ class DataExchangeController extends Controller
                     $pagination = $rawData['pagination'] ?? null;
                     $sessions = $this->extractSessionsFromResponse($rawData);
                 }
-                
+
                 $debugInfo['final_sessions_count'] = count($sessions);
                 $debugInfo['sample_session'] = !empty($sessions) ? array_slice($sessions, 0, 1) : null;
                 $debugInfo['pagination_info'] = $pagination;
-
             } catch (\Exception $e) {
                 $debugInfo = [
                     'error' => $e->getMessage(),
@@ -1672,11 +1674,11 @@ class DataExchangeController extends Controller
                     'stack_trace' => $e->getTraceAsString()
                 ];
                 Log::error('Failed to load sessions: ' . $e->getMessage());
-                
+
                 // Set empty sessions array when API fails
                 $sessions = [];
                 $pagination = null;
-                
+
                 // Prepare error toast data
                 $errorToast = [
                     'title' => 'Sessions Loading Failed',
@@ -1695,7 +1697,7 @@ class DataExchangeController extends Controller
                 'message' => 'A critical error occurred while loading the sessions page.',
                 'details' => $e->getMessage()
             ];
-            
+
             return view('data-exchange.sessions.index', [
                 'sessions' => [],
                 'loading' => false,
@@ -1743,8 +1745,10 @@ class DataExchangeController extends Controller
         // If we have some data but couldn't extract it through normal paths
         if (is_array($data)) {
             // Check if this looks like a single session record
-            if (isset($data['session_id']) || isset($data['SessionId']) || 
-                isset($data['case_id']) || isset($data['CaseId'])) {
+            if (
+                isset($data['session_id']) || isset($data['SessionId']) ||
+                isset($data['case_id']) || isset($data['CaseId'])
+            ) {
                 return [$data];
             }
         }
@@ -1844,7 +1848,7 @@ class DataExchangeController extends Controller
 
 
     // API Methods for AJAX frontend operations
-    
+
     /**
      * Get a client by ID via API
      */
@@ -1852,10 +1856,10 @@ class DataExchangeController extends Controller
     {
         try {
             $result = $this->dataExchangeService->getClientById($id);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -1863,7 +1867,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Client retrieved successfully',
@@ -1876,7 +1880,7 @@ class DataExchangeController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Get a case by ID via API
      */
@@ -1884,10 +1888,10 @@ class DataExchangeController extends Controller
     {
         try {
             $result = $this->dataExchangeService->getCaseById($id);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -1895,7 +1899,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Case retrieved successfully',
@@ -1908,7 +1912,7 @@ class DataExchangeController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Get a session by ID via API
      */
@@ -1916,19 +1920,19 @@ class DataExchangeController extends Controller
     {
         try {
             $caseId = $request->get('case_id');
-            
+
             if (!$caseId) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Case ID is required to retrieve session details'
                 ], 400);
             }
-            
+
             $result = $this->dataExchangeService->getSessionById($id, $caseId);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -1936,7 +1940,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Session retrieved successfully',
@@ -1949,7 +1953,7 @@ class DataExchangeController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Update a client via API
      */
@@ -1961,7 +1965,7 @@ class DataExchangeController extends Controller
             'birth_date' => 'required|date',
             'gender_code' => 'required|in:MALE,FEMALE,OTHER,NOTSTATED'
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -1969,21 +1973,27 @@ class DataExchangeController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-        
+
         try {
+            // *************************************************************************************
+            // TODO: Loads of mandatory fields are missing - we may need to make an initial
+            // GetClient call here, then set all keys for update, then overwrite with new values
+            // from the request if they are sent
+            // *************************************************************************************
             // Transform form data to API format
             $apiData = [
+                'ClientId' => $id,
                 'GivenName' => $request->given_name,
                 'FamilyName' => $request->family_name,
                 'BirthDate' => $request->birth_date,
                 'GenderCode' => $request->gender_code,
             ];
-            
+
             $result = $this->dataExchangeService->updateClient($id, $apiData);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -1991,7 +2001,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Client updated successfully',
@@ -2004,7 +2014,7 @@ class DataExchangeController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Delete a client via API
      */
@@ -2012,10 +2022,10 @@ class DataExchangeController extends Controller
     {
         try {
             $result = $this->dataExchangeService->deleteClient($id);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -2023,7 +2033,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Client deleted successfully',
@@ -2036,7 +2046,7 @@ class DataExchangeController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Update a case via API
      */
@@ -2046,7 +2056,7 @@ class DataExchangeController extends Controller
             'referral_source_code' => 'required|string|max:50',
             'client_attendance_profile_code' => 'sometimes|string|max:50'
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -2054,19 +2064,19 @@ class DataExchangeController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-        
+
         try {
             // Transform form data to API format
             $apiData = [
                 'ReferralSourceCode' => $request->referral_source_code,
                 'ClientAttendanceProfileCode' => $request->client_attendance_profile_code,
             ];
-            
+
             $result = $this->dataExchangeService->updateCase($id, $apiData);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -2074,7 +2084,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Case updated successfully',
@@ -2087,7 +2097,7 @@ class DataExchangeController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Delete a case via API
      */
@@ -2095,10 +2105,10 @@ class DataExchangeController extends Controller
     {
         try {
             $result = $this->dataExchangeService->deleteCase($id);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -2106,7 +2116,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Case deleted successfully',
@@ -2119,7 +2129,7 @@ class DataExchangeController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Update a session via API
      */
@@ -2131,7 +2141,7 @@ class DataExchangeController extends Controller
             'time' => 'sometimes|string|max:100',
             'case_id' => 'required|string|max:50' // Required for session updates
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -2139,7 +2149,7 @@ class DataExchangeController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-        
+
         try {
             // Transform form data to API format
             $apiData = [
@@ -2148,12 +2158,12 @@ class DataExchangeController extends Controller
                 'Time' => $request->time,
                 'CaseId' => $request->case_id,
             ];
-            
+
             $result = $this->dataExchangeService->updateSession($id, $apiData);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -2161,7 +2171,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Session updated successfully',
@@ -2174,7 +2184,7 @@ class DataExchangeController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Delete a session via API
      */
@@ -2182,10 +2192,10 @@ class DataExchangeController extends Controller
     {
         try {
             $result = $this->dataExchangeService->deleteSession($id);
-            
+
             // Check if the SOAP response indicates success or failure
             $errorMessage = $this->extractDeleteErrorMessage($result);
-            
+
             if ($errorMessage) {
                 return response()->json([
                     'success' => false,
@@ -2193,7 +2203,7 @@ class DataExchangeController extends Controller
                     'soap_response' => $result
                 ], 400);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Session deleted successfully',

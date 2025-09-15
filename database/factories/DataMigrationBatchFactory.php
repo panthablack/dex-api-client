@@ -44,7 +44,7 @@ class DataMigrationBatchFactory extends Factory
      */
     public function completed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => 'completed',
             'items_received' => $attributes['items_requested'] ?? 50,
             'items_stored' => $attributes['items_requested'] ?? 50,
@@ -57,7 +57,7 @@ class DataMigrationBatchFactory extends Factory
      */
     public function pending(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => 'pending',
             'items_received' => 0,
             'items_stored' => 0,
@@ -71,7 +71,7 @@ class DataMigrationBatchFactory extends Factory
      */
     public function failed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => 'failed',
             'items_received' => fake()->numberBetween(1, $attributes['items_requested'] ?? 50),
             'items_stored' => 0,

@@ -32,7 +32,7 @@ class SoapClientService
 
         try {
             $options = $this->config['soap_options'];
-            
+
             // Note: Authentication is now handled via WSE headers in the call method
             // Basic auth can still be used as fallback if WSE is not available
 
@@ -44,17 +44,16 @@ class SoapClientService
             }
 
             $this->client = new SoapClient($this->config['wsdl_url'], $options);
-            
+
             $this->log('SOAP client initialized successfully', [
                 'wsdl_url' => $this->config['wsdl_url']
             ]);
-            
         } catch (SoapFault $e) {
             $this->log('Failed to initialize SOAP client', [
                 'error' => $e->getMessage(),
                 'wsdl_url' => $this->config['wsdl_url']
             ], 'error');
-            
+
             throw new \Exception('SOAP Client initialization failed: ' . $e->getMessage());
         }
     }
@@ -110,7 +109,7 @@ class SoapClientService
     {
         try {
             $this->ensureClientInitialized();
-            
+
             $this->log('Making SOAP call', [
                 'method' => $method,
                 'parameters' => $parameters,
@@ -118,7 +117,7 @@ class SoapClientService
             ]);
 
             $headers = [];
-            
+
             // Add WSE authentication header if credentials are configured
             if (!empty($this->config['username']) && !empty($this->config['password'])) {
                 $wsseHeader = $this->attachWSSUsernameToken($this->config['username'], $this->config['password']);
@@ -127,34 +126,33 @@ class SoapClientService
                     $this->log('Added WSE authentication header');
                 }
             }
-            
+
             // Add minimal DSS header
             $dssHeader = $this->createMinimalDSSHeader();
             if ($dssHeader) {
                 $headers[] = $dssHeader;
             }
-            
+
             if (!empty($headers)) {
                 $this->client->__setSoapHeaders($headers);
             }
-            
+
             $result = $this->client->__soapCall($method, [$parameters]);
-            
+
             // Store last request and response for debugging
             $this->lastRequest = $this->client ? $this->client->__getLastRequest() : null;
             $this->lastResponse = $this->client ? $this->client->__getLastResponse() : null;
-            
+
             $this->log('SOAP call successful', [
                 'method' => $method,
                 'result' => $result
             ]);
-            
+
             return $result;
-            
         } catch (SoapFault $e) {
             $this->lastRequest = $this->client ? $this->client->__getLastRequest() : null;
             $this->lastResponse = $this->client ? $this->client->__getLastResponse() : null;
-            
+
             $this->log('SOAP call failed', [
                 'method' => $method,
                 'error' => $e->getMessage(),
@@ -163,7 +161,7 @@ class SoapClientService
                 'request' => $this->sanitizeXmlForLogging($this->lastRequest),
                 'response' => $this->sanitizeXmlForLogging($this->lastResponse)
             ], 'error');
-            
+
             throw new \Exception('SOAP call failed: ' . $e->getMessage());
         }
     }
@@ -194,7 +192,7 @@ class SoapClientService
     }
 
     /**
-     * Get sanitized last SOAP response (safe for web display) 
+     * Get sanitized last SOAP response (safe for web display)
      */
     public function getSanitizedLastResponse()
     {
@@ -312,21 +310,21 @@ class SoapClientService
     protected function sanitizeXmlForLogging($xml)
     {
         if (!$xml) return $xml;
-        
+
         // Mask password content in WSE headers
         $xml = preg_replace(
             '/<[^>]*:Password[^>]*>.*?<\/[^>]*:Password>/i',
             '<ns4:Password>***MASKED***</ns4:Password>',
             $xml
         );
-        
+
         // Mask username content in WSE headers
         $xml = preg_replace(
             '/<[^>]*:Username[^>]*>.*?<\/[^>]*:Username>/i',
             '<ns4:Username>***MASKED***</ns4:Username>',
             $xml
         );
-        
+
         return $xml;
     }
 
@@ -338,7 +336,7 @@ class SoapClientService
         if ($this->config['logging']['enabled']) {
             // Filter sensitive data from context
             $sanitizedContext = $this->filterSensitiveData($context);
-            
+
             Log::channel($this->config['logging']['channel'])
                 ->{$level}('[DSS SOAP] ' . $message, $sanitizedContext);
         }
@@ -352,7 +350,7 @@ class SoapClientService
         try {
             $functions = $this->getFunctions();
             $types = $this->getTypes();
-            
+
             return [
                 'status' => 'success',
                 'message' => 'Connection successful',
@@ -361,7 +359,6 @@ class SoapClientService
                 'functions' => $functions,
                 'types' => $types
             ];
-            
         } catch (\Exception $e) {
             return [
                 'status' => 'error',

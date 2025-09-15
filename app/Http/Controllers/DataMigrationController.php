@@ -20,7 +20,7 @@ class DataMigrationController extends Controller
     protected VerificationService $newVerificationService;
 
     public function __construct(
-        DataMigrationService $migrationService, 
+        DataMigrationService $migrationService,
         DataVerificationService $verificationService,
         VerificationService $newVerificationService
     ) {
@@ -90,7 +90,6 @@ class DataMigrationController extends Controller
 
             return redirect()->route('data-migration.show', $migration)
                 ->with('success', 'Data migration created and initiated successfully');
-
         } catch (\Exception $e) {
             Log::error('Failed to create data migration: ' . $e->getMessage());
             return redirect()->back()
@@ -164,7 +163,7 @@ class DataMigrationController extends Controller
     {
         try {
             $failedBatches = $migration->batches()->where('status', 'failed')->count();
-            
+
             if ($failedBatches === 0) {
                 return response()->json([
                     'success' => false,
@@ -199,7 +198,7 @@ class DataMigrationController extends Controller
 
             // Delete related migrated data based on batch IDs
             $batchIds = $migration->batches()->pluck('batch_id');
-            
+
             if ($batchIds->isNotEmpty()) {
                 // Delete migrated records
                 \App\Models\MigratedClient::whereIn('migration_batch_id', $batchIds)->delete();
@@ -212,7 +211,6 @@ class DataMigrationController extends Controller
 
             return redirect()->route('data-migration.index')
                 ->with('success', 'Migration and all associated data deleted successfully');
-
         } catch (\Exception $e) {
             Log::error('Failed to delete data migration: ' . $e->getMessage());
             return redirect()->back()
@@ -316,7 +314,7 @@ class DataMigrationController extends Controller
         try {
             $resourceType = $request->resource_type;
             $format = $request->format;
-            
+
             $batchIds = $migration->batches()
                 ->where('resource_type', $resourceType)
                 ->where('status', 'completed')
@@ -344,7 +342,7 @@ class DataMigrationController extends Controller
 
             // Convert to the requested format
             $filename = "{$migration->name}_{$resourceType}_" . now()->format('Y-m-d_H-i-s');
-            
+
             switch ($format) {
                 case 'csv':
                     return $this->exportToCsv($data, $filename);
@@ -353,7 +351,6 @@ class DataMigrationController extends Controller
                 case 'xlsx':
                     return $this->exportToExcel($data, $filename);
             }
-
         } catch (\Exception $e) {
             Log::error('Failed to export migration data: ' . $e->getMessage());
             return response()->json([
@@ -369,12 +366,12 @@ class DataMigrationController extends Controller
     protected function exportToCsv($data, $filename)
     {
         $csv = \League\Csv\Writer::createFromString('');
-        
+
         if ($data->isNotEmpty()) {
             // Add headers
             $headers = array_keys($data->first()->toArray());
             $csv->insertOne($headers);
-            
+
             // Add data rows
             foreach ($data as $row) {
                 $csv->insertOne(array_values($row->toArray()));
@@ -411,6 +408,7 @@ class DataMigrationController extends Controller
      */
     public function quickVerify(DataMigration $migration): JsonResponse
     {
+        throw new \Exception('No no no!');
         try {
             if (!in_array($migration->status, ['completed', 'failed']) && $migration->batches->where('status', 'completed')->count() === 0) {
                 return response()->json([
@@ -487,11 +485,11 @@ class DataMigrationController extends Controller
     {
         try {
             $verificationId = $request->get('verification_id');
-            
+
             if ($verificationId) {
                 // Check cache for ongoing verification status
                 $status = Cache::get("verification_status_{$verificationId}");
-                
+
                 if ($status) {
                     return response()->json([
                         'success' => true,
@@ -499,10 +497,10 @@ class DataMigrationController extends Controller
                     ]);
                 }
             }
-            
+
             // Fallback: return current verification stats from database
             $stats = $this->newVerificationService->getMigrationVerificationStats($migration);
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [

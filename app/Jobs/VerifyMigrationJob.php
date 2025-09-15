@@ -83,10 +83,9 @@ class VerifyMigrationJob implements ShouldQueue
             ], 3600);
 
             Log::info("Verification job completed for migration {$this->migration->id}");
-
         } catch (\Exception $e) {
             Log::error("Verification job failed for migration {$this->migration->id}: " . $e->getMessage());
-            
+
             Cache::put("verification_status_{$this->verificationId}", [
                 'status' => 'failed',
                 'error' => $e->getMessage(),

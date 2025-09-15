@@ -51,8 +51,8 @@ docker compose --profile testing run --rm playwright npx playwright test -g "tes
 **File:** `tests/e2e/modals.spec.js`
 **Overall Status:** ✅ ALL PASSING (10/10)
 
-| Test Name                                                | Status     | Command                                                                                                                                  | Notes/Errors                               |
-| -------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Test Name                                                | Status  | Command                                                                                                                                  | Notes/Errors |
+| -------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | should have all modal elements present in DOM            | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have all modal elements present in DOM"`            | -            |
 | view modal should have correct structure                 | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "view modal should have correct structure"`                 | -            |
 | update modal should have correct structure               | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "update modal should have correct structure"`               | -            |
@@ -76,7 +76,7 @@ docker compose --profile testing run --rm playwright npx playwright test -g "tes
 | should have refresh button that works                  | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have refresh button that works"`                  | -                                                       |
 | should have action buttons for each row                | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have action buttons for each row"`                | -                                                       |
 | should have Alpine.js click handlers on action buttons | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have Alpine.js click handlers on action buttons"` | Fixed: Removed non-existent disabled state expectations |
-| should display proper data in table cells              | ❌ FAIL | `docker compose --profile testing run --rm playwright npx playwright test -g "should display proper data in table cells"`              | **Error:** Empty cell content - clientId.trim() is "" |
+| should display proper data in table cells              | ❌ FAIL | `docker compose --profile testing run --rm playwright npx playwright test -g "should display proper data in table cells"`              | **Error:** Empty cell content - clientId.trim() is ""   |
 | should handle empty states gracefully                  | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should handle empty states gracefully"`                  | -                                                       |
 | should have responsive table wrapper                   | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have responsive table wrapper"`                   | -                                                       |
 | should have proper Bootstrap classes                   | ✅ PASS | `docker compose --profile testing run --rm playwright npx playwright test -g "should have proper Bootstrap classes"`                   | Fixed: Made selectors more specific for strict mode     |
@@ -134,8 +134,8 @@ docker compose --profile testing run --rm playwright npx playwright test -g "tes
 
 **Current Status (50 tests total):**
 
--   ✅ **38 tests PASSING** (76%)
--   ❌ **12 tests FAILING** (24%)
+- ✅ **38 tests PASSING** (76%)
+- ❌ **12 tests FAILING** (24%)
 
 **By File:**
 

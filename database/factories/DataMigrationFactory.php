@@ -44,7 +44,7 @@ class DataMigrationFactory extends Factory
      */
     public function pending(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => 'pending',
             'total_items' => 0,
             'processed_items' => 0,
@@ -60,7 +60,7 @@ class DataMigrationFactory extends Factory
      */
     public function inProgress(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => 'in_progress',
             'total_items' => 100,
             'processed_items' => 50,
@@ -76,7 +76,7 @@ class DataMigrationFactory extends Factory
      */
     public function completed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => 'completed',
             'total_items' => 100,
             'processed_items' => 100,
@@ -92,7 +92,7 @@ class DataMigrationFactory extends Factory
      */
     public function failed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => 'failed',
             'total_items' => 100,
             'processed_items' => 30,

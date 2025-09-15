@@ -244,7 +244,7 @@
                     items.forEach(item => {
                         const code = item.Code || item.code || item.id || 'N/A';
                         const description = item.Description || item.description || item.name || item.label ||
-                        'N/A';
+                            'N/A';
                         const additional = item.AdditionalInfo || item.additional || item.notes || '';
 
                         html += `

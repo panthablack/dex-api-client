@@ -1,15 +1,15 @@
 <!-- Dynamic Alert Component with Alpine.js -->
-<div 
+<div
     x-data="alertComponent()"
-    x-show="show" 
+    x-show="show"
     x-transition.opacity.duration.300ms
     x-init="$store.alert.init()"
-    class="position-fixed" 
+    class="position-fixed"
     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;"
     x-cloak
 >
-    <div 
-        class="alert alert-dismissible fade show shadow-lg" 
+    <div
+        class="alert alert-dismissible fade show shadow-lg"
         :class="alertClass"
         role="alert"
     >
@@ -17,9 +17,9 @@
             <i :class="iconClass" class="me-2"></i>
             <div class="flex-grow-1" x-text="message"></div>
         </div>
-        <button 
-            type="button" 
-            class="btn-close" 
+        <button
+            type="button"
+            class="btn-close"
             @click="close()"
             aria-label="Close"
         ></button>
@@ -33,21 +33,21 @@ document.addEventListener('alpine:init', () => {
         message: '',
         type: 'info',
         timeout: null,
-        
+
         init() {
             // Initialize the global alert store
         },
-        
+
         show(message, type = 'info', duration = 5000) {
             this.message = message;
             this.type = type;
             this.show = true;
-            
+
             // Clear any existing timeout
             if (this.timeout) {
                 clearTimeout(this.timeout);
             }
-            
+
             // Auto-hide after duration
             if (duration > 0) {
                 this.timeout = setTimeout(() => {
@@ -55,7 +55,7 @@ document.addEventListener('alpine:init', () => {
                 }, duration);
             }
         },
-        
+
         hide() {
             this.show = false;
             if (this.timeout) {
@@ -71,15 +71,15 @@ function alertComponent() {
         get show() {
             return this.$store.alert.show;
         },
-        
+
         get message() {
             return this.$store.alert.message;
         },
-        
+
         get type() {
             return this.$store.alert.type;
         },
-        
+
         get alertClass() {
             const classes = {
                 'success': 'alert-success',
@@ -91,7 +91,7 @@ function alertComponent() {
             };
             return classes[this.type] || 'alert-info';
         },
-        
+
         get iconClass() {
             const icons = {
                 'success': 'fas fa-check-circle',
@@ -103,7 +103,7 @@ function alertComponent() {
             };
             return icons[this.type] || 'fas fa-info-circle';
         },
-        
+
         close() {
             this.$store.alert.hide();
         }

@@ -451,7 +451,7 @@ test.describe('Data Migration Verification', () => {
   test.describe('Verification Button Visibility', () => {
     test('should show verification buttons only for completed migrations', async ({ page }) => {
       // Navigate to a completed migration (ID 2)
-      await page.goto('/data-migration/2')
+      await page.goto('/data-migration/1')
 
       // Verify buttons are visible for completed migrations (check the main page buttons, not modal)
       await expect(page.locator('.btn.btn-success.btn-sm:has-text("Quick Verify")')).toBeVisible()

@@ -38,7 +38,8 @@
         <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-filter"></i> Filters
-                <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+                <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#filtersCollapse">
                     <i class="fas fa-chevron-down"></i>
                 </button>
             </h5>
@@ -49,13 +50,13 @@
                     <div class="row">
                         <div class="col-md-3">
                             <label for="first_name" class="form-label">First Name</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" 
-                                   value="{{ request('first_name') }}" placeholder="Search first name">
+                            <input type="text" class="form-control" id="first_name" name="first_name"
+                                value="{{ request('first_name') }}" placeholder="Search first name">
                         </div>
                         <div class="col-md-3">
                             <label for="last_name" class="form-label">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" 
-                                   value="{{ request('last_name') }}" placeholder="Search last name">
+                            <input type="text" class="form-control" id="last_name" name="last_name"
+                                value="{{ request('last_name') }}" placeholder="Search last name">
                         </div>
                         <div class="col-md-2">
                             <label for="gender" class="form-label">Gender</label>
@@ -98,28 +99,22 @@
     </div>
 
     <!-- Clients Table -->
-    <x-resource-table 
-        title="Client Records" 
-        resource-type="client"
-        :data="$clients ?? []"
-        :columns="[
-            ['key' => 'ClientId', 'label' => 'Client ID'],
-            ['key' => 'GivenName', 'label' => 'First Name'],
-            ['key' => 'FamilyName', 'label' => 'Last Name'],
-            ['key' => 'BirthDate', 'label' => 'Date of Birth', 'format' => 'date'],
-            ['key' => 'GenderCode', 'label' => 'Gender'],
-            ['key' => 'ResidentialAddress.State', 'label' => 'State'],
-            ['key' => 'ResidentialAddress.Postcode', 'label' => 'Postcode'],
-            ['key' => 'ResidentialAddress.Suburb', 'label' => 'Suburb']
-        ]"
-        :loading="$loading ?? false"
-        empty-message="No clients found. Try adjusting your filters or add a new client."
-    />
+    <x-resource-table title="Client Records" resource-type="client" :data="$clients ?? []" :columns="[
+        ['key' => 'ClientId', 'label' => 'Client ID'],
+        ['key' => 'GivenName', 'label' => 'First Name'],
+        ['key' => 'FamilyName', 'label' => 'Last Name'],
+        ['key' => 'BirthDate', 'label' => 'Date of Birth', 'format' => 'date'],
+        ['key' => 'GenderCode', 'label' => 'Gender'],
+        ['key' => 'ResidentialAddress.State', 'label' => 'State'],
+        ['key' => 'ResidentialAddress.Postcode', 'label' => 'Postcode'],
+        ['key' => 'ResidentialAddress.Suburb', 'label' => 'Suburb'],
+    ]" :loading="$loading ?? false"
+        empty-message="No clients found. Try adjusting your filters or add a new client." />
 
     <!-- Pagination -->
     <x-pagination :pagination="$pagination ?? null" />
 
-    @if(isset($debugInfo['view_debug']) && $debugInfo['view_debug'] && config('features.debugging.show_debug_information'))
+    @if (isset($debugInfo['view_debug']) && $debugInfo['view_debug'] && config('features.debugging.show_debug_information'))
         <div class="card mt-4">
             <div class="card-header">
                 <h5 class="mb-0">Debug Information</h5>
@@ -133,13 +128,13 @@
 @endsection
 
 @push('scripts')
-<script>
-    // Auto-submit form when filters change (optional)
-    document.querySelectorAll('#filtersCollapse select').forEach(select => {
-        select.addEventListener('change', function() {
-            // Uncomment to auto-submit on filter change
-            // this.form.submit();
+    <script>
+        // Auto-submit form when filters change (optional)
+        document.querySelectorAll('#filtersCollapse select').forEach(select => {
+            select.addEventListener('change', function() {
+                // Uncomment to auto-submit on filter change
+                // this.form.submit();
+            });
         });
-    });
-</script>
+    </script>
 @endpush

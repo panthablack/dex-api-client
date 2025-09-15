@@ -35,7 +35,7 @@ class ProcessDataMigrationBatch implements ShouldQueue
     public function handle(DataMigrationService $migrationService): void
     {
         Log::info("Processing data migration batch {$this->batch->id} for {$this->batch->resource_type}");
-        
+
         try {
             $migrationService->processBatch($this->batch);
             Log::info("Successfully processed data migration batch {$this->batch->id}");
@@ -51,7 +51,7 @@ class ProcessDataMigrationBatch implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error("Data migration batch job failed permanently: " . $exception->getMessage());
-        
+
         $this->batch->update([
             'status' => 'failed',
             'error_message' => $exception->getMessage(),

@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('migration_batch_id')->nullable()->index();
             $table->timestamp('migrated_at')->nullable();
             $table->timestamps();
-            
+
             // Foreign key to migrated cases
             $table->foreign('case_id')->references('case_id')->on('migrated_cases')->onDelete('cascade');
         });

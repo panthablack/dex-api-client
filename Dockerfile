@@ -15,14 +15,14 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libzip-dev \
     && docker-php-ext-install \
-        pdo_mysql \
-        mbstring \
-        exif \
-        pcntl \
-        bcmath \
-        gd \
-        soap \
-        zip \
+    pdo_mysql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    soap \
+    zip \
     && docker-php-ext-enable soap \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -35,12 +35,12 @@ RUN a2enmod rewrite
 RUN echo '<VirtualHost *:80>\n\
     DocumentRoot /var/www/html/public\n\
     <Directory /var/www/html/public>\n\
-        AllowOverride All\n\
-        Require all granted\n\
+    AllowOverride All\n\
+    Require all granted\n\
     </Directory>\n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+    </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
 # Set working directory
 WORKDIR /var/www/html

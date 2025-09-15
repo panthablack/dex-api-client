@@ -29,7 +29,7 @@ return new class extends Migration
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
-            
+
             $table->index(['data_migration_id', 'resource_type', 'batch_number'], 'migration_batch_lookup');
         });
     }

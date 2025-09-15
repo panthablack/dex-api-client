@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('migration_batch_id')->nullable()->index();
             $table->timestamp('migrated_at')->nullable();
             $table->timestamps();
-            
+
             // Foreign key to migrated clients
             $table->foreign('client_id')->references('client_id')->on('migrated_clients')->onDelete('cascade');
         });

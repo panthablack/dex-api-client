@@ -1,16 +1,9 @@
-@props([
-    'title',
-    'description',
-    'formAction',
-    'method' => 'POST',
-    'sampleData' => null,
-    'helpContent' => null
-])
+@props(['title', 'description', 'formAction', 'method' => 'POST', 'sampleData' => null, 'helpContent' => null])
 
 <div class="row">
     <div class="col-12">
         <h1 class="mb-4">{{ $title }}</h1>
-        @if($description)
+        @if ($description)
             <p class="text-muted">{{ $description }}</p>
         @endif
     </div>
@@ -35,20 +28,22 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">{{ $slot }}</h5>
-                @if($sampleData)
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="loadSampleData()">Load Sample Data</button>
+                @if ($sampleData)
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="loadSampleData()">Load
+                        Sample Data</button>
                 @endif
             </div>
             <div class="card-body">
                 <form action="{{ $formAction }}" method="{{ $method }}" id="resourceForm">
                     @csrf
-                    @if(strtoupper($method) !== 'GET')
+                    @if (strtoupper($method) !== 'GET')
                         @method($method)
                     @endif
                     {{ $form }}
-                    
+
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <button type="button" class="btn btn-outline-secondary me-md-2" onclick="clearForm()">Clear Form</button>
+                        <button type="button" class="btn btn-outline-secondary me-md-2" onclick="clearForm()">Clear
+                            Form</button>
                         {{ $buttons ?? '' }}
                     </div>
                 </form>
@@ -56,7 +51,7 @@
         </div>
     </div>
 
-    @if($helpContent)
+    @if ($helpContent)
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">
@@ -104,7 +99,7 @@
     </div>
 @endif
 
-@if($sampleData)
+@if ($sampleData)
     @push('scripts')
         <script>
             const sampleData = @json($sampleData);
@@ -121,7 +116,7 @@
                             }
                         }
                     });
-                    
+
                     // Handle special data structures if needed
                     if (typeof window.handleSpecialSampleData === 'function') {
                         window.handleSpecialSampleData(sampleData);
