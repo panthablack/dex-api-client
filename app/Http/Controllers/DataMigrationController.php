@@ -408,7 +408,6 @@ class DataMigrationController extends Controller
      */
     public function quickVerify(DataMigration $migration): JsonResponse
     {
-        throw new \Exception('No no no!');
         try {
             if (!in_array($migration->status, ['completed', 'failed']) && $migration->batches->where('status', 'completed')->count() === 0) {
                 return response()->json([

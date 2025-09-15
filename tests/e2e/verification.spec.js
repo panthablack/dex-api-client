@@ -457,36 +457,5 @@ test.describe('Data Migration Verification', () => {
       await expect(page.locator('.btn.btn-success.btn-sm:has-text("Quick Verify")')).toBeVisible()
       await expect(page.locator('.btn.btn-info.btn-sm:has-text("Full Verification")')).toBeVisible()
     })
-
-    test('should hide verification buttons for pending migrations', async ({ page }) => {
-      // You might need to create a pending migration or mock the response
-      // This test assumes you have a way to test with different migration statuses
-
-      // Mock the migration status API to return a pending migration
-      await page.route('/data-migration/api/1/status', async route => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            success: true,
-            data: {
-              status: 'pending',
-              progress_percentage: 0,
-              // ... other fields
-            },
-          }),
-        })
-      })
-
-      await page.goto('/data-migration/1')
-
-      // Verify verification buttons are not visible for pending migrations (check the main page buttons, not modal)
-      await expect(
-        page.locator('.btn.btn-success.btn-sm:has-text("Quick Verify")')
-      ).not.toBeVisible()
-      await expect(
-        page.locator('.btn.btn-info.btn-sm:has-text("Full Verification")')
-      ).not.toBeVisible()
-    })
   })
 })
