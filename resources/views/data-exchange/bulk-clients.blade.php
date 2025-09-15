@@ -110,7 +110,18 @@
                         </button>
                     </div>
 
-                    <div id="fake-generation-status" class="mt-2"></div>
+                    <div id="fake-generation-status" class="mt-2">
+                        <div x-show="fakeGeneration.status === 'warning'" class="alert alert-warning alert-sm" x-text="fakeGeneration.message"></div>
+                        <div x-show="fakeGeneration.status === 'loading'" class="alert alert-info alert-sm">
+                            <i class="fas fa-spinner fa-spin"></i> Generating fake data...
+                        </div>
+                        <div x-show="fakeGeneration.status === 'success'" class="alert alert-success alert-sm">
+                            <i class="fas fa-check"></i> <span x-text="fakeGeneration.message"></span>
+                        </div>
+                        <div x-show="fakeGeneration.status === 'error'" class="alert alert-danger alert-sm">
+                            <i class="fas fa-exclamation-triangle"></i> Failed to generate fake data
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -123,62 +134,64 @@
     <script>
         function bulkClientsApp() {
             return {
+                fakeGeneration: {
+                    status: 'idle',
+                    message: ''
+                },
+
                 generateFakeCSV() {
                     const count = parseInt(document.getElementById('fake_count').value);
-                    const statusDiv = document.getElementById('fake-generation-status');
 
-            if (count < 1 || count > 1000) {
-                statusDiv.innerHTML =
-                    '<div class="alert alert-warning alert-sm">Please enter a number between 1 and 1000</div>';
-                return;
-            }
-
-            statusDiv.innerHTML =
-                '<div class="alert alert-info alert-sm"><i class="fas fa-spinner fa-spin"></i> Generating fake data...</div>';
-
-            fetch('{{ route('data-exchange.generate-fake-data') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        type: 'clients',
-                        count: count,
-                        format: 'csv'
-                    })
-                })
-                .then(response => {
-                    if (response.ok) {
-                        return response.blob();
+                    if (count < 1 || count > 1000) {
+                        this.fakeGeneration.status = 'warning';
+                        this.fakeGeneration.message = 'Please enter a number between 1 and 1000';
+                        return;
                     }
-                    throw new Error('Network response was not ok');
-                })
-                .then(blob => {
-                    // Download the generated CSV
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download =
-                        `fake_clients_${count}_records_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
 
-                    statusDiv.innerHTML =
-                        `<div class="alert alert-success alert-sm"><i class="fas fa-check"></i> Generated ${count} fake client records!</div>`;
+                    this.fakeGeneration.status = 'loading';
+                    this.fakeGeneration.message = '';
 
-                    // Clear status after 5 seconds
-                    setTimeout(() => {
-                        statusDiv.innerHTML = '';
-                    }, 5000);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    statusDiv.innerHTML =
-                        '<div class="alert alert-danger alert-sm"><i class="fas fa-exclamation-triangle"></i> Failed to generate fake data</div>';
-                });
+                    fetch('{{ route('data-exchange.generate-fake-data') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            type: 'clients',
+                            count: count,
+                            format: 'csv'
+                        })
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.blob();
+                        }
+                        throw new Error('Network response was not ok');
+                    })
+                    .then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `fake_clients_${count}_records_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+
+                        this.fakeGeneration.status = 'success';
+                        this.fakeGeneration.message = `Generated ${count} fake client records!`;
+
+                        setTimeout(() => {
+                            this.fakeGeneration.status = 'idle';
+                            this.fakeGeneration.message = '';
+                        }, 5000);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        this.fakeGeneration.status = 'error';
+                        this.fakeGeneration.message = '';
+                    });
                 }
             };
         }
