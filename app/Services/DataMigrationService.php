@@ -60,13 +60,15 @@ class DataMigrationService
                 'started_at' => now()
             ]);
 
-            foreach ($migration->resource_types as $resourceType) {
+            // Create batches for all resource types, but respect dependencies
+            $orderedResourceTypes = $this->getOrderedResourceTypes($migration->resource_types);
+            foreach ($orderedResourceTypes as $resourceType) {
                 $this->createBatchesForResource($migration, $resourceType);
             }
         });
 
-        // Dispatch first batch of each resource type
-        $this->dispatchNextBatches($migration);
+        // Dispatch first batch of independent resource types only
+        $this->dispatchIndependentBatches($migration);
     }
 
     /**
@@ -211,11 +213,51 @@ class DataMigrationService
     }
 
     /**
-     * Dispatch next pending batches for processing
+     * Get resource types ordered by dependencies
      */
-    public function dispatchNextBatches(DataMigration $migration, int $limit = 3): void
+    protected function getOrderedResourceTypes(array $resourceTypes): array
     {
+        $dependencies = [
+            'clients' => [],
+            'cases' => ['clients'], // Cases depend on clients
+            'sessions' => ['clients', 'cases'] // Sessions depend on both clients and cases
+        ];
+
+        $ordered = [];
+        $processed = [];
+
+        // Function to add a resource type and its dependencies
+        $addResourceType = function($resourceType) use (&$addResourceType, $dependencies, &$ordered, &$processed, $resourceTypes) {
+            if (in_array($resourceType, $processed) || !in_array($resourceType, $resourceTypes)) {
+                return;
+            }
+
+            // Add dependencies first
+            foreach ($dependencies[$resourceType] ?? [] as $dependency) {
+                $addResourceType($dependency);
+            }
+
+            $ordered[] = $resourceType;
+            $processed[] = $resourceType;
+        };
+
+        // Process all requested resource types
+        foreach ($resourceTypes as $resourceType) {
+            $addResourceType($resourceType);
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * Dispatch batches for independent resource types (no dependencies)
+     */
+    protected function dispatchIndependentBatches(DataMigration $migration, int $limit = 3): void
+    {
+        $independentTypes = ['clients']; // Only clients have no dependencies
+
         $pendingBatches = $migration->batches()
+            ->whereIn('resource_type', $independentTypes)
             ->where('status', 'pending')
             ->orderBy('resource_type')
             ->orderBy('batch_number')
@@ -225,6 +267,70 @@ class DataMigrationService
         foreach ($pendingBatches as $batch) {
             ProcessDataMigrationBatch::dispatch($batch);
             $batch->update(['status' => 'processing']);
+        }
+    }
+
+    /**
+     * Check if a resource type can start processing (dependencies completed)
+     */
+    protected function canProcessResourceType(DataMigration $migration, string $resourceType): bool
+    {
+        $dependencies = [
+            'clients' => [],
+            'cases' => ['clients'],
+            'sessions' => ['cases'] // Sessions only depend on cases being completed
+        ];
+
+        $requiredDependencies = $dependencies[$resourceType] ?? [];
+
+        foreach ($requiredDependencies as $dependency) {
+            // Check if all batches for this dependency are completed
+            $incompleteBatches = $migration->batches()
+                ->where('resource_type', $dependency)
+                ->whereNotIn('status', ['completed'])
+                ->count();
+
+            if ($incompleteBatches > 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Dispatch next pending batches for processing (respecting dependencies)
+     */
+    public function dispatchNextBatches(DataMigration $migration, int $limit = 3): void
+    {
+        $dispatchedCount = 0;
+
+        // Get all pending batches ordered by dependency priority
+        $allPendingBatches = $migration->batches()
+            ->where('status', 'pending')
+            ->orderBy('resource_type')
+            ->orderBy('batch_number')
+            ->get();
+
+        foreach ($allPendingBatches as $batch) {
+            if ($dispatchedCount >= $limit) {
+                break;
+            }
+
+            // Check if this resource type can be processed (dependencies met)
+            if ($this->canProcessResourceType($migration, $batch->resource_type)) {
+                ProcessDataMigrationBatch::dispatch($batch);
+                $batch->update(['status' => 'processing']);
+                $dispatchedCount++;
+
+                Log::info("Dispatched {$batch->resource_type} batch {$batch->batch_number} (dependencies satisfied)");
+            } else {
+                Log::info("Waiting for dependencies: {$batch->resource_type} batch {$batch->batch_number}");
+            }
+        }
+
+        if ($dispatchedCount === 0) {
+            Log::info("No batches ready for dispatch - waiting for dependencies to complete");
         }
     }
 
@@ -286,8 +392,7 @@ class DataMigrationService
                 return $this->extractCasesFromResponse($response);
 
             case 'sessions':
-                $response = $this->dataExchangeService->fetchFullSessionData($filters);
-                return $this->extractSessionsFromResponse($response);
+                return $this->fetchSessionsForMigratedCases($batch);
 
             default:
                 throw new \InvalidArgumentException("Unknown resource type: {$batch->resource_type}");
@@ -473,6 +578,54 @@ class DataMigrationService
         }
 
         return [];
+    }
+
+    /**
+     * Fetch sessions for already migrated cases only
+     * This solves the core API limitation problem by working with case-specific data
+     */
+    protected function fetchSessionsForMigratedCases(DataMigrationBatch $batch): array
+    {
+        $batchSize = $batch->page_size;
+        $batchNumber = $batch->batch_number;
+
+        // Get migrated cases for this migration, paginated for this batch
+        $migratedCases = MigratedCase::where('migration_batch_id', $batch->data_migration_id)
+            ->orderBy('case_id')
+            ->skip(($batchNumber - 1) * $batchSize)
+            ->take($batchSize)
+            ->get();
+
+        if ($migratedCases->isEmpty()) {
+            Log::info("No migrated cases found for session batch {$batch->batch_number}");
+            return [];
+        }
+
+        $allSessions = [];
+
+        foreach ($migratedCases as $migratedCase) {
+            try {
+                // Fetch sessions for this specific case
+                $filters = ['case_id' => $migratedCase->case_id];
+                $response = $this->dataExchangeService->fetchFullSessionData($filters);
+
+                // Extract sessions from response
+                $caseSessions = $this->extractSessionsFromResponse($response);
+
+                if (!empty($caseSessions)) {
+                    $allSessions = array_merge($allSessions, $caseSessions);
+                    Log::info("Found " . count($caseSessions) . " sessions for case {$migratedCase->case_id}");
+                }
+
+            } catch (\Exception $e) {
+                Log::warning("Failed to fetch sessions for case {$migratedCase->case_id}: " . $e->getMessage());
+                // Continue with other cases instead of failing the entire batch
+            }
+        }
+
+        Log::info("Session batch {$batch->batch_number}: processed " . count($migratedCases) . " cases, found " . count($allSessions) . " total sessions");
+
+        return $allSessions;
     }
 
     /**

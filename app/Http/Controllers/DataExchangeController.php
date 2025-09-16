@@ -1710,6 +1710,126 @@ class DataExchangeController extends Controller
     }
 
     /**
+     * Show sessions for a specific case
+     */
+    public function caseSessions(Request $request, $caseId)
+    {
+        try {
+            // Validate case ID
+            if (empty($caseId)) {
+                return redirect()->route('data-exchange.cases.index')
+                    ->with('error', 'Case ID is required to view sessions.');
+            }
+
+            $filters = $this->buildFilters($request);
+            $filters['case_id'] = $caseId; // Force case ID in filters
+
+            $loading = false;
+            $sessions = [];
+            $caseInfo = null;
+            $debugInfo = [];
+            $pagination = null;
+            $serviceTypes = [];
+            $errorToast = null;
+
+            // Get case information first
+            try {
+                $caseResult = $this->dataExchangeService->getCaseById($caseId);
+
+                // Convert object to array for consistent handling
+                if (is_object($caseResult)) {
+                    $caseResult = json_decode(json_encode($caseResult), true);
+                }
+
+                if (isset($caseResult['Result']['Case'])) {
+                    $caseInfo = $caseResult['Result']['Case'];
+                } elseif (isset($caseResult['Case'])) {
+                    $caseInfo = $caseResult['Case'];
+                }
+            } catch (\Exception $e) {
+                Log::warning("Could not fetch case info for case {$caseId}: " . $e->getMessage());
+            }
+
+            // Get service types for filter dropdown
+            try {
+                $serviceTypes = [
+                    (object)['ServiceTypeId' => '5', 'ServiceTypeName' => 'Counselling'],
+                    (object)['ServiceTypeId' => '1', 'ServiceTypeName' => 'Assessment'],
+                    (object)['ServiceTypeId' => '2', 'ServiceTypeName' => 'Support Group'],
+                    (object)['ServiceTypeId' => '3', 'ServiceTypeName' => 'Case Management'],
+                ];
+            } catch (\Exception $e) {
+                Log::error('Failed to load service types: ' . $e->getMessage());
+            }
+
+            // Load session data for this specific case
+            try {
+                $rawData = $this->dataExchangeService->fetchFullSessionData($filters);
+
+                $debugInfo['raw_data_type'] = gettype($rawData);
+                $debugInfo['filters_applied'] = $filters;
+
+                // Convert to array if it's an object
+                if (is_object($rawData)) {
+                    $rawData = json_decode(json_encode($rawData), true);
+                }
+
+                // Extract pagination and sessions
+                if (isset($rawData['pagination']) && isset($rawData['data'])) {
+                    $pagination = $rawData['pagination'];
+                    $sessions = $rawData['data'];
+                } else {
+                    $pagination = $rawData['pagination'] ?? null;
+                    $sessions = $this->extractSessionsFromResponse($rawData);
+                }
+
+                $debugInfo['final_sessions_count'] = count($sessions);
+                $debugInfo['case_info'] = $caseInfo;
+            } catch (\Exception $e) {
+                $debugInfo = [
+                    'error' => $e->getMessage(),
+                    'filters_applied' => $filters,
+                    'case_id' => $caseId
+                ];
+                Log::error("Failed to load sessions for case {$caseId}: " . $e->getMessage());
+
+                $sessions = [];
+                $pagination = null;
+
+                $errorToast = [
+                    'title' => 'Sessions Loading Failed',
+                    'message' => "Unable to load sessions for case {$caseId}. The data service may be temporarily unavailable.",
+                    'details' => $e->getMessage()
+                ];
+            }
+
+            $debugInfo['view_debug'] = config('app.debug', false);
+
+            return view('data-exchange.sessions.index', compact(
+                'sessions', 'loading', 'debugInfo', 'pagination', 'serviceTypes',
+                'errorToast', 'caseId', 'caseInfo'
+            ));
+        } catch (\Exception $e) {
+            $errorToast = [
+                'title' => 'Application Error',
+                'message' => 'A critical error occurred while loading sessions for this case.',
+                'details' => $e->getMessage()
+            ];
+
+            return view('data-exchange.sessions.index', [
+                'sessions' => [],
+                'loading' => false,
+                'debugInfo' => ['controller_error' => $e->getMessage()],
+                'pagination' => null,
+                'serviceTypes' => [],
+                'errorToast' => $errorToast,
+                'caseId' => $caseId ?? null,
+                'caseInfo' => null
+            ]);
+        }
+    }
+
+    /**
      * Extract sessions from various response structures
      */
     private function extractSessionsFromResponse($data)
@@ -2249,6 +2369,170 @@ class DataExchangeController extends Controller
     }
 
     /**
+     * Get a session by ID via API (nested under case)
+     */
+    public function apiGetCaseSession($caseId, $sessionId)
+    {
+        try {
+            $result = $this->dataExchangeService->getSessionById($sessionId, $caseId);
+
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve session: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update a session via API (nested under case)
+     */
+    public function apiUpdateCaseSession(Request $request, $caseId, $sessionId)
+    {
+        $validator = Validator::make($request->all(), [
+            'session_date' => 'required|date',
+            'topic_code' => 'sometimes|string|max:50',
+            'time' => 'sometimes|string|max:100'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            // Transform form data to API format
+            $apiData = [
+                'SessionDate' => $request->session_date,
+                'TopicCode' => $request->topic_code,
+                'Time' => $request->time,
+                'CaseId' => $caseId, // Use the case ID from URL
+            ];
+
+            $result = $this->dataExchangeService->updateSession($sessionId, $apiData);
+
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Session updated successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update session: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a session via API (nested under case)
+     */
+    public function apiDeleteCaseSession($caseId, $sessionId)
+    {
+        try {
+            $result = $this->dataExchangeService->deleteSession($sessionId);
+
+            // Check if the SOAP response indicates success or failure
+            $errorMessage = $this->extractDeleteErrorMessage($result);
+
+            if ($errorMessage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'soap_response' => $result
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Session deleted successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete session: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export sessions data for a specific case as CSV or JSON
+     */
+    public function exportCaseSessions(Request $request, $caseId)
+    {
+        try {
+            $format = $request->get('format', 'csv');
+            if (!in_array($format, ['csv', 'json'])) {
+                return response()->json(['error' => 'Invalid format. Use csv or json.'], 400);
+            }
+
+            // Build filters from request and force case ID
+            $filters = $this->buildFilters($request);
+            $filters['case_id'] = $caseId;
+
+            // Get all session data for this case
+            $rawData = $this->dataExchangeService->fetchFullSessionData($filters);
+
+            // Extract sessions data
+            $sessions = [];
+            if (is_object($rawData)) {
+                $rawData = json_decode(json_encode($rawData), true);
+            }
+
+            if (isset($rawData['data'])) {
+                $sessions = $rawData['data'];
+            } else {
+                $sessions = $this->extractSessionsFromResponse($rawData);
+            }
+
+            if (empty($sessions)) {
+                return response()->json(['error' => "No session data found for case {$caseId}."], 404);
+            }
+
+            $filename = "case_{$caseId}_sessions_export_" . now()->format('Y-m-d_H-i-s');
+
+            if ($format === 'csv') {
+                return $this->exportLiveDataToCsv($sessions, $filename, 'sessions');
+            } else {
+                return $this->exportLiveDataToJson($sessions, $filename);
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to export sessions for case {$caseId}: " . $e->getMessage());
+            return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Export clients data as CSV or JSON
      */
     public function exportClients(Request $request)
@@ -2364,7 +2648,7 @@ class DataExchangeController extends Controller
             }
 
             // Get all data (not paginated for export)
-            $rawData = $this->dataExchangeService->getSessionDataWithPagination($filters);
+            $rawData = $this->dataExchangeService->fetchFullSessionData($filters);
 
             // Extract sessions data
             $sessions = [];

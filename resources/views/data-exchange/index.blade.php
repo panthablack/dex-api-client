@@ -62,9 +62,9 @@
                             <a href="{{ route('data-exchange.cases.index') }}" class="btn btn-outline-success btn-sm">
                                 <i class="fas fa-folder-open"></i> Cases
                             </a>
-                            <a href="{{ route('data-exchange.sessions.index') }}" class="btn btn-outline-success btn-sm">
-                                <i class="fas fa-calendar-alt"></i> Sessions
-                            </a>
+                            <span class="btn btn-outline-secondary btn-sm disabled" title="Sessions are now accessed via Cases">
+                                <i class="fas fa-calendar-alt"></i> Sessions (via Cases)
+                            </span>
                         </div>
                         <small class="text-muted mt-2">Browse by resource type or search specific records</small>
                     </div>

@@ -35,7 +35,9 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     // Resource Index Routes
     Route::get('/clients', [DataExchangeController::class, 'clientsIndex'])->name('clients.index');
     Route::get('/cases', [DataExchangeController::class, 'casesIndex'])->name('cases.index');
-    Route::get('/sessions', [DataExchangeController::class, 'sessionsIndex'])->name('sessions.index');
+
+    // Nested sessions under cases
+    Route::get('/cases/{caseId}/sessions', [DataExchangeController::class, 'caseSessions'])->name('cases.sessions.index');
 
     // API endpoints for resource operations
     Route::prefix('api')->group(function () {
@@ -49,7 +51,12 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
         Route::put('/cases/{id}', [DataExchangeController::class, 'apiUpdateCase'])->name('api.cases.update');
         Route::delete('/cases/{id}', [DataExchangeController::class, 'apiDeleteCase'])->name('api.cases.delete');
 
-        // Session API endpoints (requires case_id parameter)
+        // Nested session API endpoints under cases
+        Route::get('/cases/{caseId}/sessions/{sessionId}', [DataExchangeController::class, 'apiGetCaseSession'])->name('api.cases.sessions.show');
+        Route::put('/cases/{caseId}/sessions/{sessionId}', [DataExchangeController::class, 'apiUpdateCaseSession'])->name('api.cases.sessions.update');
+        Route::delete('/cases/{caseId}/sessions/{sessionId}', [DataExchangeController::class, 'apiDeleteCaseSession'])->name('api.cases.sessions.delete');
+
+        // Legacy session endpoints (deprecated, kept for backwards compatibility)
         Route::get('/sessions/{id}', [DataExchangeController::class, 'apiGetSession'])->name('api.sessions.show');
         Route::put('/sessions/{id}', [DataExchangeController::class, 'apiUpdateSession'])->name('api.sessions.update');
         Route::delete('/sessions/{id}', [DataExchangeController::class, 'apiDeleteSession'])->name('api.sessions.delete');
@@ -57,6 +64,9 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
         // Export endpoints for live data
         Route::get('/export-clients', [DataExchangeController::class, 'exportClients'])->name('api.export-clients');
         Route::get('/export-cases', [DataExchangeController::class, 'exportCases'])->name('api.export-cases');
+        Route::get('/cases/{caseId}/export-sessions', [DataExchangeController::class, 'exportCaseSessions'])->name('api.cases.export-sessions');
+
+        // Legacy session export (deprecated)
         Route::get('/export-sessions', [DataExchangeController::class, 'exportSessions'])->name('api.export-sessions');
     });
 

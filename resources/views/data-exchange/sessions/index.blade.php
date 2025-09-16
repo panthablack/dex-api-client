@@ -1,14 +1,52 @@
 @extends('layouts.app')
 
-@section('title', 'Sessions - DSS Data Exchange')
+@section('title', 'Sessions for Case {{ $caseId ?? "Unknown" }} - DSS Data Exchange')
 
 @section('content')
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ route('home') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('data-exchange.cases.index') }}">Cases</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Sessions for Case {{ $caseId ?? 'Unknown' }}</li>
+        </ol>
+    </nav>
+
     <div class="row">
         <div class="col-12">
+            <!-- Case Information Card -->
+            @if(isset($caseInfo) && $caseInfo)
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-folder-open me-2"></i>Case Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>Case ID:</strong><br>
+                                <span class="badge bg-primary">{{ $caseInfo['CaseDetail']['CaseId'] ?? $caseId }}</span>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Client ID:</strong><br>
+                                {{ $caseInfo['Clients']['CaseClient']['ClientId'] ?? 'N/A' }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Outlet Activity:</strong><br>
+                                {{ $caseInfo['CaseDetail']['OutletActivityId'] ?? 'N/A' }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Created Date:</strong><br>
+                                {{ isset($caseInfo['CreatedDateTime']) ? \Carbon\Carbon::parse($caseInfo['CreatedDateTime'])->format('Y-m-d') : 'N/A' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h1 class="mb-2">Sessions</h1>
-                    <p class="text-muted">View and manage session records from the DSS Data Exchange system</p>
+                    <h1 class="mb-2">Sessions for Case {{ $caseId ?? 'Unknown' }}</h1>
+                    <p class="text-muted">View and manage session records associated with this case</p>
                 </div>
                 <div class="d-flex gap-2">
                     <!-- Export Dropdown -->
@@ -65,13 +103,8 @@
         </div>
         <div class="collapse show" id="filtersCollapse">
             <div class="card-body">
-                <form method="GET" action="{{ route('data-exchange.sessions.index') }}">
+                <form method="GET" action="{{ route('data-exchange.cases.sessions.index', ['caseId' => $caseId ?? '']) }}">
                     <div class="row">
-                        <div class="col-md-3">
-                            <label for="case_id" class="form-label">Case ID</label>
-                            <input type="text" class="form-control" id="case_id" name="case_id"
-                                value="{{ request('case_id') }}" placeholder="Search case ID">
-                        </div>
                         <div class="col-md-3">
                             <label for="session_status" class="form-label">Session Status</label>
                             <select class="form-select" id="session_status" name="session_status">
@@ -125,7 +158,7 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-search"></i> Filter
                                 </button>
-                                <a href="{{ route('data-exchange.sessions.index') }}" class="btn btn-outline-secondary">
+                                <a href="{{ route('data-exchange.cases.sessions.index', ['caseId' => $caseId ?? '']) }}" class="btn btn-outline-secondary">
                                     <i class="fas fa-times"></i> Clear
                                 </a>
                             </div>
@@ -187,9 +220,6 @@
             const filters = new URLSearchParams();
 
             // Add current filter values
-            const caseIdInput = document.getElementById('case_id');
-            if (caseIdInput && caseIdInput.value) filters.append('case_id', caseIdInput.value);
-
             const sessionStatusSelect = document.getElementById('session_status');
             if (sessionStatusSelect && sessionStatusSelect.value) filters.append('session_status', sessionStatusSelect.value);
 
@@ -202,8 +232,15 @@
             // Add format parameter
             filters.append('format', format);
 
-            // Create download URL
-            const exportUrl = `{{ route('data-exchange.api.export-sessions') }}?${filters.toString()}`;
+            // Get case ID from the page context
+            const caseId = '{{ $caseId ?? "" }}';
+            if (!caseId) {
+                alert('Case ID is required for session export.');
+                return;
+            }
+
+            // Create download URL using the new nested route
+            const exportUrl = `/data-exchange/api/cases/${caseId}/export-sessions?${filters.toString()}`;
 
             // Trigger download
             window.location.href = exportUrl;

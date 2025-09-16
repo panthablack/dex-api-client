@@ -95,7 +95,7 @@
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {{ request()->routeIs('data-exchange.retrieve-form', 'data-exchange.clients.index', 'data-exchange.cases.index', 'data-exchange.sessions.index') ? 'active' : '' }}"
+                        <a class="nav-link dropdown-toggle {{ request()->routeIs('data-exchange.retrieve-form', 'data-exchange.clients.index', 'data-exchange.cases.index', 'data-exchange.cases.sessions.index') ? 'active' : '' }}"
                             href="#" id="retrieveDropdown" role="button" data-bs-toggle="dropdown">
                             Retrieve Data
                         </a>
@@ -112,8 +112,10 @@
                                     <i class="fas fa-users"></i> View All Clients</a></li>
                             <li><a class="dropdown-item" href="{{ route('data-exchange.cases.index') }}">
                                     <i class="fas fa-folder-open"></i> View All Cases</a></li>
-                            <li><a class="dropdown-item" href="{{ route('data-exchange.sessions.index') }}">
-                                    <i class="fas fa-calendar-alt"></i> View All Sessions</a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><span class="dropdown-item-text text-muted small">
+                                <i class="fas fa-info-circle"></i> Sessions are now accessed via Cases
+                            </span></li>
                         </ul>
                     </li>
                     <li class="nav-item">

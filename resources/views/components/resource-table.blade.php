@@ -91,6 +91,13 @@
                                                 title="View Details">
                                                 <i class="fas fa-eye"></i>
                                             </button>
+                                            @if ($resourceType === 'case')
+                                                <button type="button" class="btn btn-outline-info btn-sm"
+                                                    x-on:click="viewCaseSessions('{{ $resourceType }}', {{ $index }})"
+                                                    title="View Sessions">
+                                                    <i class="fas fa-calendar-alt"></i>
+                                                </button>
+                                            @endif
                                             <button type="button" class="btn btn-outline-warning btn-sm"
                                                 x-on:click="showUpdateForm('{{ $resourceType }}', {{ $index }})"
                                                 title="Update">
@@ -227,6 +234,23 @@
                         });
                     },
 
+                    viewCaseSessions(resourceType, itemIndex) {
+                        const item = this.data[itemIndex];
+                        if (!item) {
+                            this.showNotification('Resource data not found. Please refresh the page and try again.', 'error');
+                            return;
+                        }
+
+                        const caseId = this.getResourceId('case', item);
+                        if (!caseId) {
+                            this.showNotification('Case ID not found. Unable to view sessions.', 'error');
+                            return;
+                        }
+
+                        // Navigate to the nested sessions page
+                        window.location.href = `/data-exchange/cases/${caseId}/sessions`;
+                    },
+
                     showUpdateForm(resourceType, itemIndex) {
                         const item = this.data[itemIndex];
                         if (!item) {
@@ -287,8 +311,23 @@
                         confirmBtn.disabled = true;
                         confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...';
 
+                        // Build API URL
+                        let deleteUrl;
+                        if (resourceType === 'session') {
+                            const caseId = this.data[itemIndex]?.CaseId;
+                            if (!caseId) {
+                                this.showNotification('Case ID is required for session deletion', 'error');
+                                confirmBtn.disabled = false;
+                                confirmBtn.innerHTML = originalHtml;
+                                return;
+                            }
+                            deleteUrl = `/data-exchange/api/cases/${caseId}/sessions/${resourceId}`;
+                        } else {
+                            deleteUrl = `/data-exchange/api/${resourceType}s/${resourceId}`;
+                        }
+
                         // Make API call
-                        fetch(`/data-exchange/api/${resourceType}s/${resourceId}`, {
+                        fetch(deleteUrl, {
                                 method: 'DELETE',
                                 headers: {
                                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
@@ -619,11 +658,18 @@
 
                     fetchResourceData(resourceType, resourceId, originalItem) {
                         return new Promise((resolve, reject) => {
-                            let url = `/data-exchange/api/${resourceType}s/${resourceId}`;
+                            let url;
 
-                            // Add case_id parameter for sessions
-                            if (resourceType === 'session' && originalItem.CaseId) {
-                                url += `?case_id=${originalItem.CaseId}`;
+                            // Use nested API routes for sessions
+                            if (resourceType === 'session') {
+                                const caseId = originalItem.CaseId;
+                                if (!caseId) {
+                                    reject('Case ID is required for session operations');
+                                    return;
+                                }
+                                url = `/data-exchange/api/cases/${caseId}/sessions/${resourceId}`;
+                            } else {
+                                url = `/data-exchange/api/${resourceType}s/${resourceId}`;
                             }
 
                             fetch(url, {
@@ -681,13 +727,24 @@
                             data[key] = value;
                         }
 
-                        // Add case_id for session updates
-                        if (resourceType === 'session' && this.data[itemIndex]) {
-                            data.case_id = this.data[itemIndex].CaseId;
+                        // Build API URL
+                        let updateUrl;
+                        if (resourceType === 'session') {
+                            const caseId = this.data[itemIndex]?.CaseId;
+                            if (!caseId) {
+                                this.showNotification('Case ID is required for session updates', 'error');
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalHtml;
+                                return;
+                            }
+                            updateUrl = `/data-exchange/api/cases/${caseId}/sessions/${resourceId}`;
+                            // No need to add case_id to data anymore since it's in the URL
+                        } else {
+                            updateUrl = `/data-exchange/api/${resourceType}s/${resourceId}`;
                         }
 
                         // Make API call
-                        fetch(`/data-exchange/api/${resourceType}s/${resourceId}`, {
+                        fetch(updateUrl, {
                                 method: 'PUT',
                                 headers: {
                                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
