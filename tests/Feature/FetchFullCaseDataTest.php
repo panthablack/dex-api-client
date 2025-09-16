@@ -82,18 +82,23 @@ class FetchFullCaseDataTest extends TestCase
         // Test fetchFullCaseData
         $result = $service->fetchFullCaseData(['case_status' => 'Any']);
 
-        // Verify structure - should be a simple array of case data
+        // Verify structure - should have pagination metadata and cases data
         $this->assertIsArray($result);
-        $this->assertCount(2, $result);
+        $this->assertArrayHasKey('pagination', $result);
+        $this->assertArrayHasKey('Cases', $result);
+        $this->assertArrayHasKey('Case', $result['Cases']);
+
+        $cases = $result['Cases']['Case'];
+        $this->assertCount(2, $cases);
 
         // Verify first case has detailed info
-        $case1 = $result[0];
+        $case1 = $cases[0];
         $this->assertEquals('CASE001', $case1['CaseId']);
         $this->assertEquals('CLIENT123', $case1['ClientId']);
         $this->assertArrayHasKey('DetailedInfo', $case1);
 
         // Verify second case has detailed info
-        $case2 = $result[1];
+        $case2 = $cases[1];
         $this->assertEquals('CASE002', $case2['CaseId']);
         $this->assertEquals('CLIENT456', $case2['ClientId']);
         $this->assertArrayHasKey('DetailedInfo', $case2);
@@ -142,11 +147,16 @@ class FetchFullCaseDataTest extends TestCase
         // Test fetchFullCaseData
         $result = $service->fetchFullCaseData(['case_id' => 'SINGLE001']);
 
-        // Verify single case handling
+        // Verify single case handling - should have pagination metadata and cases data
         $this->assertIsArray($result);
-        $this->assertCount(1, $result);
+        $this->assertArrayHasKey('pagination', $result);
+        $this->assertArrayHasKey('Cases', $result);
+        $this->assertArrayHasKey('Case', $result['Cases']);
 
-        $case = $result[0];
+        $cases = $result['Cases']['Case'];
+        $this->assertCount(1, $cases);
+
+        $case = $cases[0];
         $this->assertEquals('SINGLE001', $case['CaseId']);
         $this->assertEquals('CLIENT789', $case['ClientId']);
         $this->assertArrayHasKey('DetailedInfo', $case);
@@ -174,9 +184,11 @@ class FetchFullCaseDataTest extends TestCase
         // Test fetchFullCaseData
         $result = $service->fetchFullCaseData(['case_status' => 'NonExistent']);
 
-        // Verify no cases handling - should return empty array
+        // Verify no cases handling - should have pagination metadata but empty cases
         $this->assertIsArray($result);
-        $this->assertEmpty($result);
+        $this->assertArrayHasKey('pagination', $result);
+        $this->assertArrayHasKey('Cases', $result);
+        $this->assertEmpty($result['Cases']);
     }
 
     /**
@@ -232,17 +244,22 @@ class FetchFullCaseDataTest extends TestCase
         // Test fetchFullCaseData
         $result = $service->fetchFullCaseData([]);
 
-        // Verify error handling - only successful cases are returned
+        // Verify error handling - should have pagination metadata and only successful cases
         $this->assertIsArray($result);
-        $this->assertCount(1, $result); // Only successful case returned
+        $this->assertArrayHasKey('pagination', $result);
+        $this->assertArrayHasKey('Cases', $result);
+        $this->assertArrayHasKey('Case', $result['Cases']);
+
+        $cases = $result['Cases']['Case'];
+        $this->assertCount(1, $cases); // Only successful case returned
 
         // Verify only the successful case is returned
-        $successfulCase = $result[0];
+        $successfulCase = $cases[0];
         $this->assertEquals('GOOD001', $successfulCase['CaseId']);
         $this->assertArrayHasKey('DetailedInfo', $successfulCase);
 
         // Failed cases should not be in the result
-        foreach ($result as $case) {
+        foreach ($cases as $case) {
             $this->assertArrayNotHasKey('error', $case);
         }
     }
