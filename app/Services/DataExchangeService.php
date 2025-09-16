@@ -1394,7 +1394,17 @@ class DataExchangeService
                 'filters' => $filters
             ]);
 
-            $fullCaseData = $this->fetchFullCaseData($filters);
+            $fullCaseResult = $this->fetchFullCaseData($filters);
+
+            // Extract cases from the new pagination structure
+            $fullCaseData = [];
+            if (isset($fullCaseResult['Cases']['Case'])) {
+                $fullCaseData = $fullCaseResult['Cases']['Case'];
+                // Ensure it's an array (single case comes as object)
+                if (!is_array($fullCaseData) || (is_array($fullCaseData) && isset($fullCaseData['CaseId']))) {
+                    $fullCaseData = [$fullCaseData];
+                }
+            }
 
             if (empty($fullCaseData)) {
                 Log::info('No cases found, returning empty session array');
@@ -1604,7 +1614,17 @@ class DataExchangeService
                 $caseResult = json_decode(json_encode($caseResult), true);
             }
 
-            $sessions = $this->getSessionsFromCases($caseResult);
+            // Extract cases from the new pagination structure
+            $cases = [];
+            if (isset($caseResult['Cases']['Case'])) {
+                $cases = $caseResult['Cases']['Case'];
+                // Ensure it's an array (single case comes as object)
+                if (!is_array($cases) || (is_array($cases) && isset($cases['CaseId']))) {
+                    $cases = [$cases];
+                }
+            }
+
+            $sessions = $this->getSessionsFromCases($cases);
 
             if (!empty($sessions)) {
                 Log::info('Found session data in case result');
@@ -1630,13 +1650,22 @@ class DataExchangeService
      */
     public function getSessionsFromCase($case): array
     {
+        // Check if Sessions key exists
+        if (!isset($case['Sessions'])) {
+            Log::debug('getSessionsFromCase - no Sessions key found in case:', [
+                'case_keys' => is_array($case) ? array_keys($case) : 'not_array',
+                'case_sample' => array_slice($case, 0, 3) // Only show first 3 keys to avoid large logs
+            ]);
+            return [];
+        }
+
         $caseSessionId = $case['Sessions']['SessionId'];
         if (!($caseSessionId ?? null)) {
             Log::debug('getSessionsFromCase failing - case structure:', [
                 'case_keys' => is_array($case) ? array_keys($case) : 'not_array',
                 'has_sessions' => isset($case['Sessions']),
                 'sessions_structure' => $case['Sessions'] ?? 'null',
-                'case_sample' => $case
+                'case_sample' => array_slice($case, 0, 3) // Only show first 3 keys to avoid large logs
             ]);
             throw new \Exception('Cannot get Sessions from a Case without a Case.');
         }
