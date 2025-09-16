@@ -2310,8 +2310,8 @@ class DataExchangeController extends Controller
             // Build filters from request
             $filters = $this->buildFilters($request);
 
-            // Get all data (not paginated for export)
-            $rawData = $this->dataExchangeService->getCaseDataWithPagination($filters);
+            // Get all data with full case details (not paginated for export)
+            $rawData = $this->dataExchangeService->fetchFullCaseData($filters);
 
             // Extract cases data
             $cases = [];
