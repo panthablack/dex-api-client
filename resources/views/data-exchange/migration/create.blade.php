@@ -43,7 +43,7 @@
                 <div class="mb-4">
                     <label for="name" class="form-label">Migration Name</label>
                     <input type="text" name="name" id="name" value="{{ old('name') }}" class="form-control"
-                        placeholder="e.g., Client Data Migration - {{ date('Y-m-d') }}" required>
+                        placeholder="e.g., Clients, Cases Migration - {{ now()->format('Y-m-d H:i:s') }}" required>
                     <div class="form-text">Give your migration a descriptive name to help identify it later.</div>
                 </div>
 
@@ -220,16 +220,42 @@
             }
 
             // Update preview when inputs change
-            resourceCheckboxes.forEach(cb => cb.addEventListener('change', updatePreview));
+            resourceCheckboxes.forEach(cb => {
+                cb.addEventListener('change', updatePreview);
+                cb.addEventListener('change', updateDefaultName);
+            });
             dateFromInput.addEventListener('change', updatePreview);
             dateToInput.addEventListener('change', updatePreview);
             batchSizeSelect.addEventListener('change', updatePreview);
 
             // Set default name if empty
             const nameInput = document.getElementById('name');
+
+            function generateDefaultName() {
+                const selectedResources = Array.from(resourceCheckboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value.charAt(0).toUpperCase() + cb.value.slice(1));
+
+                const now = new Date();
+                const dateTime = now.toISOString().replace('T', ' ').split('.')[0];
+
+                let name = 'Data Migration';
+                if (selectedResources.length > 0) {
+                    name = `${selectedResources.join(', ')} Migration`;
+                }
+                name += ` - ${dateTime}`;
+
+                return name;
+            }
+
+            function updateDefaultName() {
+                if (!nameInput.value || nameInput.value.includes('Data Migration - ') || nameInput.value.includes(' Migration - ')) {
+                    nameInput.value = generateDefaultName();
+                }
+            }
+
             if (!nameInput.value) {
-                const today = new Date().toISOString().split('T')[0];
-                nameInput.value = `Data Migration - ${today}`;
+                nameInput.value = generateDefaultName();
             }
 
             // Initial preview update

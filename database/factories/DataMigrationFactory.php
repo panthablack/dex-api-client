@@ -20,7 +20,7 @@ class DataMigrationFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => 'Data Migration - ' . fake()->date('Y-m-d'),
+            'name' => 'Clients, Cases, Sessions Migration - ' . fake()->dateTimeThisMonth()->format('Y-m-d H:i:s'),
             'resource_types' => ['clients', 'cases', 'sessions'],
             'filters' => [
                 'date_from' => fake()->date('Y-m-d'),
