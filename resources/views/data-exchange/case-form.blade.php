@@ -387,10 +387,19 @@
                             });
                         }
                     } else {
+                        // Helper function to generate resource ID with 10 random digits
+                        function generateResourceId(resourceName) {
+                            let randomDigits = '';
+                            for (let i = 0; i < 10; i++) {
+                                randomDigits += Math.floor(Math.random() * 10);
+                            }
+                            return resourceName.toUpperCase() + '_' + randomDigits;
+                        }
+
                         // Load default sample data if not provided by controller
                         const defaultSample = {
-                            case_id: 'CASE_' + Math.floor(Math.random() * 9000 + 1000),
-                            client_id: 'CLIENT_' + Math.floor(Math.random() * 9000 + 1000),
+                            case_id: generateResourceId('CASE'),
+                            client_id: generateResourceId('CLIENT'),
                             outlet_activity_id: '61936',
                             referral_source_code: 'COMMUNITY',
                             total_unidentified_clients: '1', // Default to 1 unidentified client

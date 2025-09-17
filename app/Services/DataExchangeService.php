@@ -852,7 +852,7 @@ class DataExchangeService
 
         // Create the base client data
         $clientData = [
-            'client_id' => 'CLIENT_' . $fake->unique()->numberBetween(1000, 9999),
+            'client_id' => ReferenceData::generateResourceId('CLIENT'),
             'first_name' => $firstName,
             'last_name' => $lastName,
             'date_of_birth' => $dateOfBirth,
@@ -897,12 +897,12 @@ class DataExchangeService
                 $selectedClientId = $fake->randomElement($existingClientIds);
             } else {
                 // Fallback to fake client ID if no real ones available
-                $selectedClientId = 'CLIENT_' . $fake->numberBetween(1000, 9999);
+                $selectedClientId = ReferenceData::generateResourceId('CLIENT');
             }
         }
 
         $caseData = [
-            'case_id' => 'CASE_' . $fake->unique()->numberBetween(1000, 9999),
+            'case_id' => ReferenceData::generateResourceId('CASE'),
             'client_id' => $selectedClientId,
             'outlet_activity_id' => $fake->randomElement($outletActivityIds),
             'referral_source_code' => $this->getSafeReferralSourceForFakeData(),
@@ -981,12 +981,12 @@ class DataExchangeService
                 $selectedCaseId = $fake->randomElement($existingCaseIds);
             } else {
                 // Fallback to fake case ID if no real ones available
-                $selectedCaseId = 'CASE_' . $fake->numberBetween(1000, 9999);
+                $selectedCaseId = ReferenceData::generateResourceId('CASE');
             }
         }
 
         $sessionData = [
-            'session_id' => 'SESSION_' . $fake->unique()->numberBetween(1000, 9999),
+            'session_id' => ReferenceData::generateResourceId('SESSION'),
             'case_id' => $selectedCaseId,
             'session_date' => $fake->dateTimeBetween('-60 days', 'now')->format('Y-m-d'),
             // Get valid service type and use both ID and name
