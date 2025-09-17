@@ -23,9 +23,10 @@ class FetchFullCaseDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call (returns basic case info - using arrays for consistency)
+        // Note: fetchFullCaseData now uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => [
                     'Case' => [
@@ -113,9 +114,10 @@ class FetchFullCaseDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call (returns single case)
+        // Note: fetchFullCaseData now uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => [
                     'Case' => ['CaseId' => 'SINGLE001', 'Status' => 'Open']
@@ -171,9 +173,10 @@ class FetchFullCaseDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call (returns no cases)
+        // Note: fetchFullCaseData now uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => []
             ]);
@@ -188,7 +191,11 @@ class FetchFullCaseDataTest extends TestCase
         $this->assertIsArray($result);
         $this->assertArrayHasKey('pagination', $result);
         $this->assertArrayHasKey('Cases', $result);
-        $this->assertEmpty($result['Cases']);
+        // Cases may be an empty array or contain empty structure
+        $this->assertTrue(
+            empty($result['Cases']) ||
+            (isset($result['Cases']['Case']) && empty($result['Cases']['Case']))
+        );
     }
 
     /**
@@ -200,9 +207,10 @@ class FetchFullCaseDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call
+        // Note: fetchFullCaseData now uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => [
                     'Case' => [

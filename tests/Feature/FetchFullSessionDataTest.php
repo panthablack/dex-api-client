@@ -23,9 +23,10 @@ class FetchFullSessionDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call
+        // Note: fetchFullSessionData calls fetchFullCaseData which uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => [
                     'Case' => [
@@ -184,9 +185,10 @@ class FetchFullSessionDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call
+        // Note: fetchFullSessionData calls fetchFullCaseData which uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => [
                     'Case' => ['CaseId' => 'SINGLE001', 'Status' => 'Open']
@@ -262,9 +264,10 @@ class FetchFullSessionDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call (returns no cases)
+        // Note: fetchFullSessionData calls fetchFullCaseData which uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => []
             ]);
@@ -289,9 +292,10 @@ class FetchFullSessionDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call
+        // Note: fetchFullSessionData calls fetchFullCaseData which uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => [
                     'Case' => ['CaseId' => 'NO_SESSIONS', 'Status' => 'Open']
@@ -339,9 +343,10 @@ class FetchFullSessionDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call
+        // Note: fetchFullSessionData calls fetchFullCaseData which uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => [
                     'Case' => ['CaseId' => 'ERROR_CASE', 'Status' => 'Open']

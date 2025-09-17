@@ -132,9 +132,10 @@ class SessionRetrievalTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call (first call)
+        // Note: getSessionData calls fetchFullCaseData which uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->once()
+            ->times(3)
             ->andReturn([
                 'Cases' => [
                     'Case' => [
