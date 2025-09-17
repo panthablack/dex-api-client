@@ -33,14 +33,27 @@
                     <i class="fas fa-arrow-left me-1"></i> Back to Migration
                 </a>
                 @if ($migration->status === 'completed' || $migration->batches->where('status', 'completed')->count() > 0)
-                    <!-- Show different buttons based on verification status -->
-                    <template x-if="verification.status === 'starting' || verification.status === 'in_progress'">
-                        <button @click="stopVerification()" class="btn btn-outline-danger">
-                            <i class="fas fa-stop me-1"></i> Stop Verification
+                    <!-- Loading state - hide buttons -->
+                    <template x-if="verification.status === 'loading'">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span class="text-muted">Loading...</span>
+                        </div>
+                    </template>
+
+                    <!-- Show stop button during active verification -->
+                    <template x-if="verification.status === 'starting' || verification.status === 'in_progress' || verification.status === 'stopping'">
+                        <button @click="stopVerification()" class="btn btn-outline-danger"
+                                :disabled="verification.status === 'stopping'">
+                            <i :class="verification.status === 'stopping' ? 'fas fa-spinner fa-spin me-1' : 'fas fa-stop me-1'"></i>
+                            <span x-text="verification.status === 'stopping' ? 'Stopping...' : 'Stop Verification'"></span>
                         </button>
                     </template>
 
-                    <template x-if="verification.status !== 'starting' && verification.status !== 'in_progress'">
+                    <!-- Show action buttons when not loading or running -->
+                    <template x-if="!['loading', 'starting', 'in_progress', 'stopping'].includes(verification.status)">
                         <div class="btn-group">
                             <!-- Show different buttons based on verification history -->
                             <template x-if="hasNeverBeenVerified()">
@@ -124,8 +137,19 @@
             </div>
         @endif
 
+        <!-- Loading Card -->
+        <div x-show="verification.status === 'loading'" class="card mb-4" x-transition>
+            <div class="card-body text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5 class="text-muted">Loading verification status...</h5>
+                <p class="text-muted mb-0">Please wait while we check the current verification state.</p>
+            </div>
+        </div>
+
         <!-- Verification Status Card -->
-        <div x-show="verification.status !== 'idle' || verification.total > 0" class="card mb-4" x-transition>
+        <div x-show="verification.status !== 'loading' && (verification.status !== 'idle' || verification.total > 0)" class="card mb-4" x-transition>
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="fas fa-shield-alt me-2"></i>
@@ -133,7 +157,7 @@
                 </h5>
                 <div class="d-flex align-items-center gap-2">
                     <div class="badge" :class="getStatusBadgeClass()" x-text="getStatusText()"></div>
-                    <div x-show="verification.status === 'starting' || verification.status === 'in_progress'">
+                    <div x-show="verification.status === 'starting' || verification.status === 'in_progress' || verification.status === 'stopping'">
                         <div class="spinner-border spinner-border-sm text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
@@ -413,15 +437,14 @@
         function verificationApp() {
             return {
                 verification: {
-                    status: 'idle', // 'idle', 'starting', 'in_progress', 'completed', 'failed'
+                    status: 'loading', // 'loading', 'idle', 'starting', 'in_progress', 'completed', 'failed', 'partial'
                     progress: 0,
                     total: 0,
                     processed: 0,
                     verified: 0,
                     currentActivity: '',
                     resourceProgress: {},
-                    results: {},
-                    verificationId: null
+                    results: {}
                 },
                 pollInterval: null,
                 errorModal: {
@@ -431,29 +454,11 @@
                 },
 
                 async init() {
-                    // Load initial verification status
-                    await this.loadInitialStatus();
-                },
-
-                async loadInitialStatus() {
-                    try {
-                        const response = await fetch(
-                            `{{ route('data-migration.api.verification-status', $migration) }}`);
-                        const data = await response.json();
-
-                        if (data.success) {
-                            this.updateVerification(data.data);
-                        }
-                    } catch (error) {
-                        console.error('Error loading initial verification status:', error);
-                    }
+                    // Start polling immediately to load status
+                    this.startPolling();
                 },
 
                 async startVerification() {
-                    this.verification.status = 'starting';
-                    this.verification.progress = 0;
-                    this.verification.currentActivity = 'Initializing verification process...';
-
                     try {
                         const response = await fetch(`{{ route('data-migration.api.full-verify', $migration) }}`, {
                             method: 'POST',
@@ -464,15 +469,11 @@
                         });
 
                         const data = await response.json();
-                        if (data.success) {
-                            this.verification.verificationId = data.data.verification_id;
-                            this.startPolling();
-                        } else {
-                            this.verification.status = 'idle';
+                        if (!data.success) {
                             alert('Error starting verification: ' + data.error);
                         }
+                        // Polling will automatically pick up the new status
                     } catch (error) {
-                        this.verification.status = 'idle';
                         console.error('Error:', error);
                         alert('Failed to start verification');
                     }
@@ -480,22 +481,20 @@
 
                 startPolling() {
                     this.pollInterval = setInterval(() => this.checkStatus(), 1500);
+                    // Load status immediately
+                    this.checkStatus();
                 },
 
                 async checkStatus() {
                     try {
-                        const url = new URL(`{{ route('data-migration.api.verification-status', $migration) }}`);
-                        if (this.verification.verificationId) {
-                            url.searchParams.append('verification_id', this.verification.verificationId);
-                        }
-
-                        const response = await fetch(url);
+                        const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`);
                         const data = await response.json();
 
                         if (data.success) {
                             this.updateVerification(data.data);
 
-                            if (data.data.status === 'completed' || data.data.status === 'failed') {
+                            // Stop polling if verification is completed
+                            if (['completed', 'failed', 'stopped'].includes(data.data.status)) {
                                 clearInterval(this.pollInterval);
                             }
                         } else {
@@ -524,6 +523,8 @@
 
                 getStatusText() {
                     switch (this.verification.status) {
+                        case 'loading':
+                            return 'Loading...';
                         case 'starting':
                             return 'Starting...';
                         case 'in_progress':
@@ -534,6 +535,10 @@
                             return 'Partially Verified';
                         case 'failed':
                             return 'Failed';
+                        case 'stopping':
+                            return 'Stopping...';
+                        case 'stopped':
+                            return 'Stopped';
                         case 'idle':
                             return 'Ready to Start';
                         default:
@@ -543,6 +548,8 @@
 
                 getStatusBadgeClass() {
                     switch (this.verification.status) {
+                        case 'loading':
+                            return 'bg-info';
                         case 'starting':
                             return 'bg-info';
                         case 'in_progress':
@@ -553,6 +560,10 @@
                             return 'bg-warning';
                         case 'failed':
                             return 'bg-danger';
+                        case 'stopping':
+                            return 'bg-warning';
+                        case 'stopped':
+                            return 'bg-secondary';
                         case 'idle':
                             return 'bg-secondary';
                         default:
@@ -679,10 +690,6 @@
                 },
 
                 async continueVerification() {
-                    this.verification.status = 'starting';
-                    this.verification.progress = 0;
-                    this.verification.currentActivity = 'Continuing verification of failed and pending records...';
-
                     try {
                         const response = await fetch(`{{ route('data-migration.api.continue-verification', $migration) }}`, {
                             method: 'POST',
@@ -694,17 +701,13 @@
 
                         const result = await response.json();
 
-                        if (result.success) {
-                            this.verification.verificationId = result.data.verification_id;
-                            this.startPolling();
-                        } else {
+                        if (!result.success) {
                             alert('Error: ' + result.error);
-                            this.verification.status = 'idle';
                         }
+                        // Polling will automatically pick up the new status
                     } catch (error) {
                         console.error('Continue verification failed:', error);
                         alert('Continue verification failed: ' + error.message);
-                        this.verification.status = 'idle';
                     }
                 },
 

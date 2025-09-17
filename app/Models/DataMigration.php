@@ -38,6 +38,21 @@ class DataMigration extends Model
         return $this->hasMany(DataMigrationBatch::class);
     }
 
+    public function verificationSessions(): HasMany
+    {
+        return $this->hasMany(VerificationSession::class, 'migration_id');
+    }
+
+    public function latestVerificationSession(): HasMany
+    {
+        return $this->verificationSessions()->latest();
+    }
+
+    public function activeVerificationSession(): HasMany
+    {
+        return $this->verificationSessions()->whereIn('status', ['starting', 'in_progress']);
+    }
+
     public function scopeActive($query)
     {
         return $query->whereIn('status', ['pending', 'in_progress']);
