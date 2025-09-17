@@ -133,24 +133,70 @@ class VerifyMigrationJob implements ShouldQueue
                 }
             }
 
-            // Mark as completed
+            // Check if all records were actually processed - PREVENTION MEASURE
+            $actualPendingCount = 0;
+            foreach ($this->migration->resource_types as $resourceType) {
+                $modelClass = $this->getModelClass($resourceType);
+                if ($modelClass) {
+                    $batchIds = $this->migration->batches()
+                        ->where('resource_type', $resourceType)
+                        ->where('status', 'completed')
+                        ->pluck('batch_id')
+                        ->toArray();
+
+                    if (!empty($batchIds)) {
+                        $pending = $modelClass::whereIn('migration_batch_id', $batchIds)
+                            ->where('verification_status', VerificationStatus::PENDING)
+                            ->count();
+                        $actualPendingCount += $pending;
+                    }
+                }
+            }
+
+            // Determine final status based on actual completion
+            $finalStatus = 'completed';
+            $finalActivity = 'Verification completed';
+
+            if ($actualPendingCount > 0) {
+                $finalStatus = 'partial';
+                $finalActivity = "Verification partially completed. {$actualPendingCount} records still pending due to API issues. Use 'Continue Verification' to retry.";
+
+                Log::warning("VerifyMigrationJob completed with pending records", [
+                    'migration_id' => $this->migration->id,
+                    'verification_id' => $this->verificationId,
+                    'pending_count' => $actualPendingCount,
+                    'processed_count' => $processedRecords,
+                    'total_count' => $totalRecords
+                ]);
+            }
+
+            // Mark with appropriate status
             Cache::put("verification_status_{$this->verificationId}", [
-                'status' => 'completed',
+                'status' => $finalStatus,
                 'total' => $totalRecords,
                 'processed' => $processedRecords,
                 'verified' => $verifiedRecords,
-                'current_activity' => 'Verification completed',
+                'pending_count' => $actualPendingCount,
+                'current_activity' => $finalActivity,
                 'resource_progress' => $resourceProgress,
                 'results' => $finalResults['results'] ?? []
             ], 3600);
 
-            Log::info("VerifyMigrationJob COMPLETED SUCCESSFULLY", [
+            // Log with appropriate status based on actual completion
+            $logMessage = $finalStatus === 'completed'
+                ? "VerifyMigrationJob COMPLETED SUCCESSFULLY"
+                : "VerifyMigrationJob COMPLETED PARTIALLY";
+
+            Log::info($logMessage, [
                 'migration_id' => $this->migration->id,
                 'verification_id' => $this->verificationId,
+                'final_status' => $finalStatus,
                 'total_records' => $totalRecords,
                 'processed_records' => $processedRecords,
                 'verified_records' => $verifiedRecords,
+                'pending_records' => $actualPendingCount,
                 'success_rate' => $totalRecords > 0 ? round(($verifiedRecords / $totalRecords) * 100, 2) : 0,
+                'completion_rate' => $totalRecords > 0 ? round((($processedRecords) / $totalRecords) * 100, 2) : 0,
                 'duration_seconds' => microtime(true) - ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)),
                 'memory_peak' => memory_get_peak_usage(true)
             ]);
@@ -242,27 +288,42 @@ class VerifyMigrationJob implements ShouldQueue
 
         $query->chunk(50, function ($records) use ($resourceType, $verificationService, $totalRecords, &$processedRecords, &$verifiedRecords, &$resourceProgress, &$allErrors) {
                 foreach ($records as $record) {
-                    // Count ALL records as processed (attempted)
-                    $processedRecords++;
-                    $resourceProgress[$resourceType]['processed']++;
-
                     // In full mode, records should only be PENDING (due to reset)
                     // In continue mode, we only loaded FAILED and PENDING records
                     // So we can verify all loaded records
                     try {
                         $success = $verificationService->verifyRecord($resourceType, $record);
 
-                        // VerificationService handles all database updates
-                        if ($success) {
-                            $verifiedRecords++;
-                        } else {
-                            // Record was updated with verification_error by VerificationService
-                            $record->refresh(); // Get updated verification_error
-                            if ($record->verification_error) {
-                                $allErrors[$resourceType][] = $record->verification_error;
+                        // Only count as processed if verification was actually attempted
+                        // (circuit breaker might skip some records)
+                        $record->refresh(); // Get current verification status
+
+                        if ($record->verification_status !== VerificationStatus::PENDING) {
+                            // Record status changed, so it was processed (either verified or failed)
+                            $processedRecords++;
+                            $resourceProgress[$resourceType]['processed']++;
+
+                            if ($success) {
+                                $verifiedRecords++;
+                            } else {
+                                // Record was updated with verification_error by VerificationService
+                                if ($record->verification_error) {
+                                    $allErrors[$resourceType][] = $record->verification_error;
+                                }
                             }
+                        } else {
+                            // Record is still pending - circuit breaker likely skipped it
+                            Log::debug("Record skipped due to circuit breaker", [
+                                'migration_id' => $this->migration->id,
+                                'resource_type' => $resourceType,
+                                'record_id' => $this->getRecordId($resourceType, $record)
+                            ]);
                         }
                     } catch (\Exception $e) {
+                        // Count exceptions as processed since we attempted verification
+                        $processedRecords++;
+                        $resourceProgress[$resourceType]['processed']++;
+
                         // Log exception but VerificationService should have handled DB update
                         Log::warning("Exception during verification", [
                             'migration_id' => $this->migration->id,
@@ -273,9 +334,22 @@ class VerifyMigrationJob implements ShouldQueue
                         $allErrors[$resourceType][] = "Error verifying record: " . $e->getMessage();
                     }
 
-                    // Update progress every 10 records
+                    // Update progress every 10 records + heartbeat
                     if ($processedRecords % 10 === 0) {
                         $this->updateStatus($totalRecords, $processedRecords, $verifiedRecords, "Processing {$resourceType}... ({$processedRecords}/{$totalRecords})", $resourceProgress);
+
+                        // Heartbeat mechanism - check if job should be stopped
+                        $this->updateHeartbeat();
+                        if ($this->shouldStop()) {
+                            Log::info("VerifyMigrationJob stopping due to external request", [
+                                'migration_id' => $this->migration->id,
+                                'verification_id' => $this->verificationId,
+                                'processed_so_far' => $processedRecords
+                            ]);
+
+                            $this->updateStatus($totalRecords, $processedRecords, $verifiedRecords, "Verification stopped by user request", $resourceProgress);
+                            return; // Exit the processing
+                        }
                     }
                 }
             });
@@ -289,8 +363,32 @@ class VerifyMigrationJob implements ShouldQueue
             'processed' => $processed,
             'verified' => $verified,
             'current_activity' => $activity,
-            'resource_progress' => $resourceProgress
+            'resource_progress' => $resourceProgress,
+            'last_heartbeat' => time() // Heartbeat timestamp
         ], 3600);
+    }
+
+    /**
+     * Update heartbeat to show job is still alive - PREVENTION MEASURE
+     */
+    private function updateHeartbeat(): void
+    {
+        $heartbeatKey = "verification_heartbeat_{$this->verificationId}";
+        Cache::put($heartbeatKey, [
+            'timestamp' => time(),
+            'migration_id' => $this->migration->id,
+            'verification_id' => $this->verificationId,
+            'status' => 'running'
+        ], 1800); // 30 minutes TTL
+    }
+
+    /**
+     * Check if job should be stopped based on external signals
+     */
+    private function shouldStop(): bool
+    {
+        $stopKey = "verification_stop_{$this->verificationId}";
+        return Cache::has($stopKey);
     }
 
     private function getModelClass(string $resourceType): ?string
@@ -300,6 +398,19 @@ class VerifyMigrationJob implements ShouldQueue
             'cases' => MigratedCase::class,
             'sessions' => MigratedSession::class,
             default => null
+        };
+    }
+
+    /**
+     * Get record ID for logging purposes
+     */
+    private function getRecordId(string $resourceType, $record): string
+    {
+        return match ($resourceType) {
+            'clients' => $record->client_id ?? $record->id,
+            'cases' => $record->case_id ?? $record->id,
+            'sessions' => $record->session_id ?? $record->id,
+            default => $record->id ?? 'unknown'
         };
     }
 }

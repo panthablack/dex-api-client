@@ -42,18 +42,29 @@
 
                     <template x-if="verification.status !== 'starting' && verification.status !== 'in_progress'">
                         <div class="btn-group">
-                            <!-- Full Verification (Reset + Start) -->
-                            <button @click="startVerification()" class="btn btn-primary"
-                                title="Reset all verification states and start fresh verification">
-                                <i class="fas fa-redo me-1"></i> Run Verification Again
-                            </button>
+                            <!-- Show different buttons based on verification history -->
+                            <template x-if="hasNeverBeenVerified()">
+                                <!-- First time verification -->
+                                <button @click="startVerification()" class="btn btn-primary"
+                                    title="Start data verification for the first time">
+                                    <i class="fas fa-play me-1"></i> Start Verification
+                                </button>
+                            </template>
 
-                            <!-- Continue Verification (Only failed/pending) -->
-                            <button @click="continueVerification()" class="btn btn-outline-primary"
-                                :disabled="!hasUnverifiedRecords()"
-                                :title="hasUnverifiedRecords() ? 'Continue verification of failed and pending records only' : 'No failed or pending records to continue with'">
-                                <i class="fas fa-play me-1"></i> Continue Verification
-                            </button>
+                            <template x-if="!hasNeverBeenVerified()">
+                                <!-- Verification has been run before -->
+                                <button @click="startVerification()" class="btn btn-primary"
+                                    title="Reset all verification states and start fresh verification">
+                                    <i class="fas fa-redo me-1"></i> Run Verification Again
+                                </button>
+
+                                <!-- Continue Verification (Only failed/pending) -->
+                                <button @click="continueVerification()" class="btn btn-outline-primary"
+                                    :disabled="!hasUnverifiedRecords()"
+                                    :title="hasUnverifiedRecords() ? 'Continue verification of failed and pending records only' : 'No failed or pending records to continue with'">
+                                    <i class="fas fa-play me-1"></i> Continue Verification
+                                </button>
+                            </template>
                         </div>
                     </template>
                 @else
@@ -736,6 +747,31 @@
                         }
                     }
                     return false;
+                },
+
+                hasNeverBeenVerified() {
+                    // Check if verification has never been started
+                    // This is true when:
+                    // 1. No verification results exist, OR
+                    // 2. All records are still in pending state (never attempted)
+
+                    if (!this.verification.results || Object.keys(this.verification.results).length === 0) {
+                        return true;
+                    }
+
+                    // Check if any records have been processed (verified or failed)
+                    for (const [resourceType, result] of Object.entries(this.verification.results)) {
+                        const verified = result.verified || 0;
+                        const failed = result.failed || 0;
+
+                        // If any records have been verified or failed, verification has been attempted
+                        if (verified > 0 || failed > 0) {
+                            return false;
+                        }
+                    }
+
+                    // All records are still pending - verification never started
+                    return true;
                 }
             };
         }

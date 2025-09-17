@@ -10,6 +10,7 @@ use App\Models\MigratedSession;
 use App\Services\DataExchangeService;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class VerificationService
 {
@@ -25,38 +26,11 @@ class VerificationService
      */
     public function verifyClient(MigratedClient $client): bool
     {
-        try {
-            // Use the client_id to retrieve the record from DSS
-            $response = $this->dataExchangeService->getClientById($client->client_id);
-
-            if ($response && $this->validateClientData($client, $response)) {
-                $client->update([
-                    'verification_status' => VerificationStatus::VERIFIED,
-                    'verified_at' => now(),
-                    'verification_error' => null
-                ]);
-                return true;
-            } else {
-                $client->update([
-                    'verification_status' => VerificationStatus::FAILED,
-                    'verified_at' => now(),
-                    'verification_error' => 'Client data validation failed or record not found in DSS'
-                ]);
-                return false;
-            }
-        } catch (Exception $e) {
-            Log::error('Client verification failed', [
-                'client_id' => $client->client_id,
-                'error' => $e->getMessage()
-            ]);
-
-            $client->update([
-                'verification_status' => VerificationStatus::FAILED,
-                'verified_at' => now(),
-                'verification_error' => 'API Error: ' . $e->getMessage()
-            ]);
-            return false;
-        }
+        return $this->verifyWithRetry('client', $client, function() use ($client) {
+            return $this->dataExchangeService->getClientById($client->client_id);
+        }, function($response) use ($client) {
+            return $this->validateClientData($client, $response);
+        });
     }
 
     /**
@@ -64,38 +38,11 @@ class VerificationService
      */
     public function verifyCase(MigratedCase $case): bool
     {
-        try {
-            // Use the case_id to retrieve the record from DSS
-            $response = $this->dataExchangeService->getCaseById($case->case_id);
-
-            if ($response && $this->validateCaseData($case, $response)) {
-                $case->update([
-                    'verification_status' => VerificationStatus::VERIFIED,
-                    'verified_at' => now(),
-                    'verification_error' => null
-                ]);
-                return true;
-            } else {
-                $case->update([
-                    'verification_status' => VerificationStatus::FAILED,
-                    'verified_at' => now(),
-                    'verification_error' => 'Case data validation failed or record not found in DSS'
-                ]);
-                return false;
-            }
-        } catch (Exception $e) {
-            Log::error('Case verification failed', [
-                'case_id' => $case->case_id,
-                'error' => $e->getMessage()
-            ]);
-
-            $case->update([
-                'verification_status' => VerificationStatus::FAILED,
-                'verified_at' => now(),
-                'verification_error' => 'API Error: ' . $e->getMessage()
-            ]);
-            return false;
-        }
+        return $this->verifyWithRetry('case', $case, function() use ($case) {
+            return $this->dataExchangeService->getCaseById($case->case_id);
+        }, function($response) use ($case) {
+            return $this->validateCaseData($case, $response);
+        });
     }
 
     /**
@@ -103,38 +50,155 @@ class VerificationService
      */
     public function verifySession(MigratedSession $session): bool
     {
-        try {
-            // Use the session_id to retrieve the record from DSS
-            $response = $this->dataExchangeService->getSessionById($session->session_id, $session->case_id);
+        return $this->verifyWithRetry('session', $session, function() use ($session) {
+            return $this->dataExchangeService->getSessionById($session->session_id, $session->case_id);
+        }, function($response) use ($session) {
+            return $this->validateSessionData($session, $response);
+        });
+    }
 
-            if ($response && $this->validateSessionData($session, $response)) {
-                $session->update([
-                    'verification_status' => VerificationStatus::VERIFIED,
-                    'verified_at' => now(),
-                    'verification_error' => null
-                ]);
-                return true;
-            } else {
-                $session->update([
-                    'verification_status' => VerificationStatus::FAILED,
-                    'verified_at' => now(),
-                    'verification_error' => 'Session data validation failed or record not found in DSS'
-                ]);
-                return false;
-            }
-        } catch (Exception $e) {
-            Log::error('Session verification failed', [
-                'session_id' => $session->session_id,
-                'error' => $e->getMessage()
-            ]);
+    /**
+     * Verify with retry logic and circuit breaker pattern - PREVENTION MEASURE
+     */
+    protected function verifyWithRetry(string $type, $record, callable $apiCall, callable $validator): bool
+    {
+        $circuitBreakerKey = 'verification_circuit_breaker';
+        $failureThreshold = 10; // Number of consecutive failures before opening circuit
+        $timeoutPeriod = 300; // 5 minutes before retrying
 
-            $session->update([
-                'verification_status' => VerificationStatus::FAILED,
-                'verified_at' => now(),
-                'verification_error' => 'API Error: ' . $e->getMessage()
+        // Check circuit breaker status
+        $circuitState = Cache::get($circuitBreakerKey, ['failures' => 0, 'last_failure' => null]);
+
+        if ($circuitState['failures'] >= $failureThreshold &&
+            $circuitState['last_failure'] &&
+            (time() - $circuitState['last_failure']) < $timeoutPeriod) {
+
+            // Circuit is open - don't make API calls, leave record as pending
+            Log::warning('Circuit breaker open, skipping verification', [
+                'type' => $type,
+                'record_id' => $this->getRecordId($record),
+                'failures' => $circuitState['failures'],
+                'last_failure' => $circuitState['last_failure']
             ]);
-            return false;
+            return false; // Don't update record status - leave as pending for retry
         }
+
+        $maxRetries = 3;
+        $retryCount = 0;
+
+        while ($retryCount <= $maxRetries) {
+            try {
+                $response = $apiCall();
+
+                if ($response && $validator($response)) {
+                    // Success - reset circuit breaker
+                    if ($circuitState['failures'] > 0) {
+                        Cache::forget($circuitBreakerKey);
+                        Log::info('Circuit breaker reset after successful verification', [
+                            'type' => $type,
+                            'record_id' => $this->getRecordId($record)
+                        ]);
+                    }
+
+                    $record->update([
+                        'verification_status' => VerificationStatus::VERIFIED,
+                        'verified_at' => now(),
+                        'verification_error' => null
+                    ]);
+                    return true;
+                } else {
+                    // Validation failed
+                    $record->update([
+                        'verification_status' => VerificationStatus::FAILED,
+                        'verified_at' => now(),
+                        'verification_error' => ucfirst($type) . ' data validation failed or record not found in DSS'
+                    ]);
+                    return false;
+                }
+            } catch (Exception $e) {
+                $retryCount++;
+                $isConnectionError = $this->isConnectionError($e);
+
+                Log::warning(ucfirst($type) . ' verification attempt failed', [
+                    'record_id' => $this->getRecordId($record),
+                    'error' => $e->getMessage(),
+                    'retry_count' => $retryCount,
+                    'max_retries' => $maxRetries,
+                    'is_connection_error' => $isConnectionError
+                ]);
+
+                // If it's a connection error and we've exhausted retries
+                if ($isConnectionError && $retryCount > $maxRetries) {
+                    // Update circuit breaker
+                    $circuitState['failures']++;
+                    $circuitState['last_failure'] = time();
+                    Cache::put($circuitBreakerKey, $circuitState, 3600);
+
+                    // Don't mark as failed - leave as pending for later retry
+                    Log::error('Verification failed after retries, leaving as pending', [
+                        'type' => $type,
+                        'record_id' => $this->getRecordId($record),
+                        'circuit_failures' => $circuitState['failures']
+                    ]);
+                    return false;
+                }
+
+                // For non-connection errors, mark as failed immediately
+                if (!$isConnectionError) {
+                    $record->update([
+                        'verification_status' => VerificationStatus::FAILED,
+                        'verified_at' => now(),
+                        'verification_error' => 'API Error: ' . $e->getMessage()
+                    ]);
+                    return false;
+                }
+
+                // Wait before retry (exponential backoff)
+                if ($retryCount <= $maxRetries) {
+                    sleep(pow(2, $retryCount)); // 2, 4, 8 seconds
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if the exception is a connection-related error
+     */
+    protected function isConnectionError(Exception $e): bool
+    {
+        $connectionErrors = [
+            'Could not connect to host',
+            'Connection timed out',
+            'Connection refused',
+            'Network is unreachable',
+            'No route to host',
+            'SOAP call failed'
+        ];
+
+        foreach ($connectionErrors as $error) {
+            if (stripos($e->getMessage(), $error) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get record ID for logging purposes
+     */
+    protected function getRecordId($record): string
+    {
+        if ($record instanceof MigratedClient) {
+            return $record->client_id;
+        } elseif ($record instanceof MigratedCase) {
+            return $record->case_id;
+        } elseif ($record instanceof MigratedSession) {
+            return $record->session_id;
+        }
+        return 'unknown';
     }
 
     /**
