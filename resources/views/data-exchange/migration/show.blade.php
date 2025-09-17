@@ -39,6 +39,12 @@
                     Retry Failed Batches
                 </button>
 
+                <button x-show="migration.status === 'in_progress' && migration.batches.every(b => b.status === 'pending')"
+                    @click="restartStuckMigration()" class="btn btn-warning btn-sm">
+                    <i class="fas fa-redo me-1"></i>
+                    Restart Stuck Migration
+                </button>
+
                 <button x-show="isVerificationAvailable()" @click="quickVerifyData()" class="btn btn-success btn-sm">
                     Quick Verify
                 </button>
@@ -639,16 +645,16 @@
                             if (data.success) {
                                 location.reload();
                             } else {
-                                alert('Error: ' + data.error);
+                                this.showToast('Error: ' + data.error, 'error');
                             }
                         } catch (error) {
                             console.error('Error:', error);
-                            alert('Failed to cancel migration');
+                            this.showToast('Failed to cancel migration', 'error');
                         }
                     },
 
                     async retryMigration() {
-                        if (!confirm('Are you sure you want to retry failed batches?')) return;
+                        if (!confirm('Are you sure you want to retry failed batches? This includes any batches with partial storage failures.')) return;
                         try {
                             const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
                                 method: 'POST',
@@ -661,11 +667,34 @@
                             if (data.success) {
                                 location.reload();
                             } else {
-                                alert('Error: ' + data.error);
+                                this.showToast('Error: ' + data.error, 'error');
                             }
                         } catch (error) {
                             console.error('Error:', error);
-                            alert('Failed to retry migration');
+                            this.showToast('Failed to retry migration', 'error');
+                        }
+                    },
+
+                    async restartStuckMigration() {
+                        if (!confirm('Are you sure you want to restart this stuck migration? This will attempt to process the pending batches.')) return;
+                        try {
+                            const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                this.showToast('Migration restarted: ' + data.message, 'success');
+                                setTimeout(() => location.reload(), 1500); // Delay reload to show toast
+                            } else {
+                                this.showToast('Error: ' + data.error, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            this.showToast('Failed to restart migration', 'error');
                         }
                     },
 
@@ -735,6 +764,51 @@
                         } catch (error) {
                             console.error('Error loading verification status:', error);
                         }
+                    },
+
+                    // Helper function to show toast notifications
+                    showToast(message, type = 'info') {
+                        const toastId = 'toast-' + Date.now();
+                        const typeClasses = {
+                            'success': 'bg-success text-white',
+                            'error': 'bg-danger text-white',
+                            'warning': 'bg-warning text-dark',
+                            'info': 'bg-info text-white'
+                        };
+                        const typeClass = typeClasses[type] || typeClasses['info'];
+
+                        const toastHtml = `
+                            <div id="${toastId}" class="toast align-items-center border-0 ${typeClass}" role="alert"
+                                aria-live="assertive" aria-atomic="true" style="min-width: 300px;">
+                                <div class="d-flex">
+                                    <div class="toast-body">${message}</div>
+                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                                        aria-label="Close"></button>
+                                </div>
+                            </div>
+                        `;
+
+                        // Add toast to container
+                        let container = document.getElementById('toast-container');
+                        if (!container) {
+                            container = document.createElement('div');
+                            container.id = 'toast-container';
+                            container.className = 'toast-container position-fixed top-0 end-0 p-3';
+                            container.style.zIndex = '1060';
+                            document.body.appendChild(container);
+                        }
+
+                        container.insertAdjacentHTML('beforeend', toastHtml);
+
+                        // Show the toast
+                        const toastElement = document.getElementById(toastId);
+                        const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+                        toast.show();
+
+                        // Remove from DOM after hiding
+                        toastElement.addEventListener('hidden.bs.toast', function() {
+                            toastElement.remove();
+                        });
                     }
                 };
             }

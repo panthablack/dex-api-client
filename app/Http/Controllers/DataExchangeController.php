@@ -194,12 +194,12 @@ class DataExchangeController extends Controller
             // Required DSS fields
             'case_id' => 'required|string|max:50',
             'outlet_activity_id' => 'required|integer',
-            'client_id' => 'required|string|max:50',
             'referral_source_code' => 'required|string|max:50',
             'reasons_for_assistance' => 'required|array|min:1',
             'reasons_for_assistance.*' => 'string|in:PHYSICAL,EMOTIONAL,FINANCIAL,HOUSING,LEGAL',
 
-            // Optional DSS fields
+            // Optional DSS fields - Client ID is now optional
+            'client_id' => 'nullable|string|max:50',
             'total_unidentified_clients' => 'nullable|integer|min:0|max:100',
             'client_attendance_profile_code' => 'nullable|string|in:PSGROUP,INDIVIDUAL,FAMILY',
             'end_date' => 'nullable|date|before:today|after:' . now()->subDays(60)->format('Y-m-d'),
@@ -214,7 +214,15 @@ class DataExchangeController extends Controller
         }
 
         try {
-            $result = $this->dataExchangeService->submitCaseData($request->all());
+            // Prepare case data with defaults for unidentified clients
+            $caseData = $request->all();
+
+            // If no client_id provided, default to unidentified clients
+            if (empty($caseData['client_id']) && empty($caseData['total_unidentified_clients'])) {
+                $caseData['total_unidentified_clients'] = 1;
+            }
+
+            $result = $this->dataExchangeService->submitCaseData($caseData);
 
             // Check transaction status in the response
             $transactionStatus = $this->extractTransactionStatus($result);
@@ -1053,10 +1061,10 @@ class DataExchangeController extends Controller
 
     protected function cleanCaseData($rowData)
     {
-        return [
+        $caseData = [
             'case_id' => $rowData['case_id'] ?? null,
             'client_id' => $rowData['client_id'] ?? null,
-            'outlet_activity_id' => intval($rowData['outlet_activity_id'] ?? 61932),
+            'outlet_activity_id' => intval($rowData['outlet_activity_id'] ?? 61936),
             'referral_source_code' => $rowData['referral_source_code'] ?? 'COMMUNITY',
             'reasons_for_assistance' => isset($rowData['reasons_for_assistance']) ?
                 (is_string($rowData['reasons_for_assistance']) ? explode(',', $rowData['reasons_for_assistance']) : $rowData['reasons_for_assistance']) :
@@ -1067,6 +1075,13 @@ class DataExchangeController extends Controller
             'exit_reason_code' => $rowData['exit_reason_code'] ?? null,
             'ag_business_type_code' => $rowData['ag_business_type_code'] ?? null,
         ];
+
+        // If no client_id provided and no total_unidentified_clients specified, default to unidentified clients
+        if (empty($caseData['client_id']) && empty($caseData['total_unidentified_clients'])) {
+            $caseData['total_unidentified_clients'] = 1;
+        }
+
+        return $caseData;
     }
 
     protected function cleanSessionData($rowData)
@@ -1806,8 +1821,14 @@ class DataExchangeController extends Controller
             $debugInfo['view_debug'] = config('app.debug', false);
 
             return view('data-exchange.sessions.index', compact(
-                'sessions', 'loading', 'debugInfo', 'pagination', 'serviceTypes',
-                'errorToast', 'caseId', 'caseInfo'
+                'sessions',
+                'loading',
+                'debugInfo',
+                'pagination',
+                'serviceTypes',
+                'errorToast',
+                'caseId',
+                'caseInfo'
             ));
         } catch (\Exception $e) {
             $errorToast = [
@@ -2573,7 +2594,6 @@ class DataExchangeController extends Controller
             } else {
                 return $this->exportLiveDataToJson($clients, $filename);
             }
-
         } catch (\Exception $e) {
             Log::error('Failed to export clients: ' . $e->getMessage());
             return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
@@ -2621,7 +2641,6 @@ class DataExchangeController extends Controller
             } else {
                 return $this->exportLiveDataToJson($cases, $filename);
             }
-
         } catch (\Exception $e) {
             Log::error('Failed to export cases: ' . $e->getMessage());
             return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
@@ -2674,7 +2693,6 @@ class DataExchangeController extends Controller
             } else {
                 return $this->exportLiveDataToJson($sessions, $filename);
             }
-
         } catch (\Exception $e) {
             Log::error('Failed to export sessions: ' . $e->getMessage());
             return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);

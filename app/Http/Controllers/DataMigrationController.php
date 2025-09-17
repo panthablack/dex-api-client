@@ -164,7 +164,26 @@ class DataMigrationController extends Controller
     {
         try {
             $failedBatches = $migration->batches()->where('status', 'failed')->count();
+            $pendingBatches = $migration->batches()->where('status', 'pending')->count();
 
+            // Handle stuck/pending migrations
+            if ($migration->status === 'pending' || ($failedBatches === 0 && $pendingBatches > 0)) {
+                // First try to restart normally
+                $this->migrationService->restartMigration($migration);
+
+                // If still stuck, try synchronous processing
+                if ($pendingBatches > 0) {
+                    Log::info("Attempting synchronous processing for stuck migration {$migration->id}");
+                    $this->migrationService->processMigrationSynchronously($migration);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "Restarted stuck migration with {$pendingBatches} pending batches"
+                ]);
+            }
+
+            // Handle failed batches
             if ($failedBatches === 0) {
                 return response()->json([
                     'success' => false,

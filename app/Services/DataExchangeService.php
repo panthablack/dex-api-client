@@ -432,7 +432,7 @@ class DataExchangeService
     {
         $caseData = [
             'CaseId' => $data['case_id'] ?? null,
-            'OutletActivityId' => (int)($data['outlet_activity_id'] ?? 61932), // Default to first outlet activity
+            'OutletActivityId' => (int)($data['outlet_activity_id'] ?? 61936), // Default to first outlet activity
         ];
 
         // Optional fields
@@ -711,7 +711,16 @@ class DataExchangeService
      */
     public function bulkSubmitCaseData($caseDataArray)
     {
+        Log::info('Starting bulk AddCase submission', [
+            'total_cases' => count($caseDataArray),
+            'case_ids' => array_map(function ($case) {
+                return $case['case_id'] ?? 'unknown';
+            }, $caseDataArray)
+        ]);
+
         $results = [];
+        $successCount = 0;
+        $errorCount = 0;
 
         foreach ($caseDataArray as $index => $caseData) {
             try {
@@ -728,12 +737,14 @@ class DataExchangeService
                         'result' => $result,
                         'case_data' => $caseData
                     ];
+                    $errorCount++;
                 } else {
                     $results[$index] = [
                         'status' => 'success',
                         'result' => $result,
                         'case_data' => $caseData
                     ];
+                    $successCount++;
                 }
             } catch (\Exception $e) {
                 $results[$index] = [
@@ -741,8 +752,16 @@ class DataExchangeService
                     'error' => $e->getMessage(),
                     'case_data' => $caseData
                 ];
+                $errorCount++;
             }
         }
+
+        Log::info('Bulk AddCase submission completed', [
+            'total_cases' => count($caseDataArray),
+            'successful_cases' => $successCount,
+            'failed_cases' => $errorCount,
+            'success_rate' => count($caseDataArray) > 0 ? round(($successCount / count($caseDataArray)) * 100, 2) . '%' : '0%'
+        ]);
 
         return $results;
     }
@@ -1196,6 +1215,228 @@ class DataExchangeService
     }
 
     /**
+     * Get exploratory data landscape for dual SearchCase strategy
+     *
+     * Makes two quick calls to understand the data distribution:
+     * 1. Cases without end dates (Call A)
+     * 2. Cases with end dates (Call B)
+     */
+    protected function getDataLandscape($filters = [])
+    {
+        $exploratoryFilters = array_merge($filters, [
+            'page_index' => 1,
+            'page_size' => 1  // We only need the total count, not the actual data
+        ]);
+
+        $withoutEndDateCount = 0;
+        $withEndDateCount = 0;
+
+        try {
+            // Call A: No EndDateTo (cases without end dates)
+            $resultA = $this->getCaseData($exploratoryFilters);
+            if (is_object($resultA)) {
+                $resultA = json_decode(json_encode($resultA), true);
+            }
+            $withoutEndDateCount = (int)($resultA['TotalCount'] ?? 0);
+        } catch (\Exception $e) {
+            Log::error('Error in exploratory Call A (no EndDate)', ['error' => $e->getMessage()]);
+        }
+
+        try {
+            // Call B: With EndDateTo (cases with end dates)
+            $farFuture = (new \DateTime())->add(new \DateInterval('P10Y'))->format('Y-m-d');
+            $filtersB = array_merge($exploratoryFilters, ['end_date_to' => $farFuture]);
+            $resultB = $this->getCaseData($filtersB);
+            if (is_object($resultB)) {
+                $resultB = json_decode(json_encode($resultB), true);
+            }
+            $withEndDateCount = (int)($resultB['TotalCount'] ?? 0);
+        } catch (\Exception $e) {
+            Log::error('Error in exploratory Call B (with EndDate)', ['error' => $e->getMessage()]);
+        }
+
+        $totalCount = $withoutEndDateCount + $withEndDateCount;
+
+        Log::info('Data landscape explored', [
+            'without_end_date_count' => $withoutEndDateCount,
+            'with_end_date_count' => $withEndDateCount,
+            'total_count' => $totalCount
+        ]);
+
+        return [
+            'without_end_date_count' => $withoutEndDateCount,
+            'with_end_date_count' => $withEndDateCount,
+            'total_count' => $totalCount
+        ];
+    }
+
+    /**
+     * Get case data using dual SearchCase strategy to fetch ALL cases
+     *
+     * This method makes two SearchCase calls:
+     * 1. Without EndDate filtering (gets cases without end dates)
+     * 2. With EndDateTo=today (gets cases with end dates)
+     *
+     * Then merges the results to ensure we get all cases from DSS
+     */
+    public function getCaseDataDual($filters = [])
+    {
+        Log::info('Starting smart dual SearchCase strategy', ['filters' => $filters]);
+
+        $requestedPage = $filters['page_index'] ?? 1;
+        $requestedPerPage = $filters['page_size'] ?? 10;
+
+        // Step 1: Get data landscape to understand distribution
+        $landscape = $this->getDataLandscape($filters);
+        $withoutEndDateCount = $landscape['without_end_date_count'];
+        $withEndDateCount = $landscape['with_end_date_count'];
+        $totalCount = $landscape['total_count'];
+
+        // Step 2: Calculate pagination boundaries
+        $startPosition = ($requestedPage - 1) * $requestedPerPage + 1; // 1-based position
+        $endPosition = $startPosition + $requestedPerPage - 1;
+
+        Log::info('Pagination calculation', [
+            'requested_page' => $requestedPage,
+            'requested_per_page' => $requestedPerPage,
+            'start_position' => $startPosition,
+            'end_position' => $endPosition,
+            'without_end_date_count' => $withoutEndDateCount,
+            'with_end_date_count' => $withEndDateCount,
+            'total_count' => $totalCount
+        ]);
+
+        // Step 3: Determine which calls are needed
+        $needCallA = false; // Cases without end dates (positions 1 to $withoutEndDateCount)
+        $needCallB = false; // Cases with end dates (positions $withoutEndDateCount+1 to $totalCount)
+
+        $casesFromA = [];
+        $casesFromB = [];
+
+        // Check if we need Call A (cases without end dates)
+        if ($startPosition <= $withoutEndDateCount) {
+            $needCallA = true;
+            $aStartPosition = $startPosition;
+            $aEndPosition = min($endPosition, $withoutEndDateCount);
+            $aPageSize = $aEndPosition - $aStartPosition + 1;
+            $aPageIndex = ceil($aStartPosition / 100); // DSS API page index (1-based)
+            $aOffsetInPage = (($aStartPosition - 1) % 100) + 1;
+
+            // Adjust for API pagination - get enough to cover our range
+            $aApiPageSize = min(100, $aOffsetInPage + $aPageSize - 1);
+
+            Log::info('Call A needed', [
+                'a_start_position' => $aStartPosition,
+                'a_end_position' => $aEndPosition,
+                'a_page_index' => $aPageIndex,
+                'a_api_page_size' => $aApiPageSize,
+                'a_offset_in_page' => $aOffsetInPage
+            ]);
+
+            try {
+                $filtersA = array_merge($filters, [
+                    'page_index' => $aPageIndex,
+                    'page_size' => $aApiPageSize
+                ]);
+                $resultA = $this->getCaseData($filtersA);
+                if (is_object($resultA)) {
+                    $resultA = json_decode(json_encode($resultA), true);
+                }
+
+                if (isset($resultA['Cases']['Case'])) {
+                    $allCasesA = $resultA['Cases']['Case'];
+                    if (!is_array($allCasesA) || (is_array($allCasesA) && isset($allCasesA['CaseId']))) {
+                        $allCasesA = [$allCasesA];
+                    }
+
+                    // Extract only the cases we need from this page
+                    $neededFromA = $aEndPosition - $aStartPosition + 1;
+                    $startIdx = $aOffsetInPage - 1; // Convert to 0-based
+                    $casesFromA = array_slice($allCasesA, $startIdx, $neededFromA);
+                }
+            } catch (\Exception $e) {
+                Log::error('Error in Call A', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // Check if we need Call B (cases with end dates)
+        if ($endPosition > $withoutEndDateCount) {
+            $needCallB = true;
+            $bStartPosition = max(1, $startPosition - $withoutEndDateCount);
+            $bEndPosition = $endPosition - $withoutEndDateCount;
+            $bPageSize = $bEndPosition - $bStartPosition + 1;
+            $bPageIndex = ceil($bStartPosition / 100);
+            $bOffsetInPage = (($bStartPosition - 1) % 100) + 1;
+
+            $bApiPageSize = min(100, $bOffsetInPage + $bPageSize - 1);
+
+            Log::info('Call B needed', [
+                'b_start_position' => $bStartPosition,
+                'b_end_position' => $bEndPosition,
+                'b_page_index' => $bPageIndex,
+                'b_api_page_size' => $bApiPageSize,
+                'b_offset_in_page' => $bOffsetInPage
+            ]);
+
+            try {
+                $farFuture = (new \DateTime())->add(new \DateInterval('P10Y'))->format('Y-m-d');
+                $filtersB = array_merge($filters, [
+                    'page_index' => $bPageIndex,
+                    'page_size' => $bApiPageSize,
+                    'end_date_to' => $farFuture
+                ]);
+                $resultB = $this->getCaseData($filtersB);
+                if (is_object($resultB)) {
+                    $resultB = json_decode(json_encode($resultB), true);
+                }
+
+                if (isset($resultB['Cases']['Case'])) {
+                    $allCasesB = $resultB['Cases']['Case'];
+                    if (!is_array($allCasesB) || (is_array($allCasesB) && isset($allCasesB['CaseId']))) {
+                        $allCasesB = [$allCasesB];
+                    }
+
+                    // Extract only the cases we need from this page
+                    $neededFromB = $bEndPosition - $bStartPosition + 1;
+                    $startIdx = $bOffsetInPage - 1;
+                    $casesFromB = array_slice($allCasesB, $startIdx, $neededFromB);
+                }
+            } catch (\Exception $e) {
+                Log::error('Error in Call B', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // Step 4: Combine results in correct order (A first, then B)
+        $finalCases = array_merge($casesFromA, $casesFromB);
+
+        Log::info('Smart dual SearchCase completed', [
+            'need_call_a' => $needCallA,
+            'need_call_b' => $needCallB,
+            'cases_from_a' => count($casesFromA),
+            'cases_from_b' => count($casesFromB),
+            'final_cases' => count($finalCases),
+            'total_count' => $totalCount
+        ]);
+
+        return [
+            'TransactionStatus' => 'Success',
+            'Cases' => [
+                'Case' => $finalCases
+            ],
+            'TotalCount' => $totalCount,
+            'DualSearchInfo' => [
+                'without_end_date_count' => $withoutEndDateCount,
+                'with_end_date_count' => $withEndDateCount,
+                'need_call_a' => $needCallA,
+                'need_call_b' => $needCallB,
+                'cases_from_a' => count($casesFromA),
+                'cases_from_b' => count($casesFromB),
+                'final_cases' => count($finalCases)
+            ]
+        ];
+    }
+
+    /**
      * Get case data with pagination metadata - for controllers
      */
     public function getCaseDataWithPagination($filters = [])
@@ -1233,13 +1474,16 @@ class DataExchangeService
     public function fetchFullCaseData($filters = [])
     {
         try {
-            // First, search for cases using the basic SearchCase functionality
-            Log::info('Fetching full case data - starting with SearchCase', [
+            // Use dual SearchCase strategy to get ALL cases (with and without end dates)
+            Log::info('Fetching full case data - starting with dual SearchCase strategy', [
                 'filters' => $filters
             ]);
 
-            // Get the basic search result with pagination metadata
-            $searchResult = $this->getCaseData($filters);
+            // Get the search result using dual strategy
+            $searchResult = $this->getCaseDataDual($filters);
+
+            // Add pagination metadata to the dual result
+            $searchResult = $this->addPaginationMetadata($searchResult, $filters);
 
             // Convert objects to arrays for consistent handling
             if (is_object($searchResult)) {
@@ -1421,7 +1665,7 @@ class DataExchangeService
             $successfulSessions = 0;
             $errors = [];
 
-            foreach ($fullCaseData as $caseIndex => $caseData) {
+            foreach ($fullCaseData as $caseData) {
                 $caseId = $caseData['CaseDetail']['CaseId'] ?? $caseData['CaseId'] ?? null;
 
                 if (!$caseId) {
@@ -1992,6 +2236,12 @@ class DataExchangeService
         if (!empty($filters['service_end_date'])) {
             $criteria['ServiceEndDateTo'] = $filters['service_end_date'] . 'T23:59:59';
         }
+
+        // EndDateTo filter for dual SearchCase strategy
+        if (!empty($filters['end_date_to'])) {
+            $criteria['EndDateTo'] = $filters['end_date_to'] . 'T23:59:59';
+        }
+
 
         return $criteria;
     }
@@ -2810,12 +3060,66 @@ class DataExchangeService
      */
     public function submitCaseData($caseData)
     {
-        $parameters = [
-            'Case' => $this->formatCaseData($caseData),
-            'Clients' => $this->formatCaseClients($caseData)
-        ];
+        Log::info('Starting AddCase request', [
+            'case_id' => $caseData['case_id'] ?? 'unknown',
+            'input_data_keys' => array_keys($caseData),
+            'clients_count' => isset($caseData['clients']) ? count($caseData['clients']) : 0
+        ]);
 
-        return $this->soapClient->call('AddCase', $parameters);
+        try {
+            $formattedCase = $this->formatCaseData($caseData);
+            $formattedClients = $this->formatCaseClients($caseData);
+
+            $parameters = [
+                'Case' => $formattedCase,
+                'Clients' => $formattedClients
+            ];
+
+            Log::info('AddCase formatted parameters', [
+                'case_id' => $caseData['case_id'] ?? 'unknown',
+                'formatted_case_keys' => array_keys($formattedCase),
+                'formatted_clients_count' => count($formattedClients),
+                'full_parameters' => $parameters
+            ]);
+
+            $result = $this->soapClient->call('AddCase', $parameters);
+
+            // Log the response
+            if (is_object($result)) {
+                $resultArray = json_decode(json_encode($result), true);
+            } else {
+                $resultArray = $result;
+            }
+
+            $success = isset($resultArray['TransactionStatus']['TransactionStatusCode']) &&
+                $resultArray['TransactionStatus']['TransactionStatusCode'] === 'Success';
+
+            Log::info('AddCase response received', [
+                'case_id' => $caseData['case_id'] ?? 'unknown',
+                'success' => $success,
+                'status_code' => $resultArray['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
+                'messages' => $resultArray['TransactionStatus']['Messages'] ?? null,
+                'full_response' => $resultArray
+            ]);
+
+            if (!$success) {
+                Log::error('AddCase failed', [
+                    'case_id' => $caseData['case_id'] ?? 'unknown',
+                    'error_details' => $resultArray['TransactionStatus'] ?? 'unknown_error',
+                    'input_data' => $caseData
+                ]);
+            }
+
+            return $result;
+        } catch (\Exception $e) {
+            Log::error('AddCase exception occurred', [
+                'case_id' => $caseData['case_id'] ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input_data' => $caseData
+            ]);
+            throw $e;
+        }
     }
 
     /**

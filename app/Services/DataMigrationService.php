@@ -67,7 +67,11 @@ class DataMigrationService
             }
         });
 
+        // Refresh the migration to ensure we have the latest batch data
+        $migration->refresh();
+
         // Dispatch first batch of independent resource types only
+        Log::info("Starting to dispatch independent batches for migration {$migration->id}");
         $this->dispatchIndependentBatches($migration);
     }
 
@@ -219,8 +223,8 @@ class DataMigrationService
     {
         $dependencies = [
             'clients' => [],
-            'cases' => ['clients'], // Cases depend on clients
-            'sessions' => ['clients', 'cases'] // Sessions depend on both clients and cases
+            'cases' => [], // Cases are independent (many-to-many with clients)
+            'sessions' => ['cases'] // Sessions depend only on cases
         ];
 
         $ordered = [];
@@ -254,7 +258,7 @@ class DataMigrationService
      */
     protected function dispatchIndependentBatches(DataMigration $migration, int $limit = 3): void
     {
-        $independentTypes = ['clients']; // Only clients have no dependencies
+        $independentTypes = ['clients', 'cases']; // Both clients and cases are independent
 
         $pendingBatches = $migration->batches()
             ->whereIn('resource_type', $independentTypes)
@@ -264,9 +268,31 @@ class DataMigrationService
             ->limit($limit)
             ->get();
 
+        Log::info("Found {$pendingBatches->count()} pending batches for independent types: " . implode(', ', $independentTypes));
+
         foreach ($pendingBatches as $batch) {
-            ProcessDataMigrationBatch::dispatch($batch);
-            $batch->update(['status' => 'processing']);
+            Log::info("Dispatching independent batch: {$batch->resource_type} batch {$batch->batch_number} (ID: {$batch->id})");
+
+            try {
+                // For debugging, try synchronous processing if dispatch fails
+                ProcessDataMigrationBatch::dispatch($batch);
+                $batch->update(['status' => 'processing']);
+                Log::info("Successfully dispatched and marked batch {$batch->id} as processing");
+            } catch (\Exception $e) {
+                Log::error("Failed to dispatch batch {$batch->id}: " . $e->getMessage());
+                Log::info("Attempting synchronous processing as fallback for batch {$batch->id}");
+
+                try {
+                    $this->processBatch($batch);
+                    Log::info("Successfully processed batch {$batch->id} synchronously");
+                } catch (\Exception $syncError) {
+                    Log::error("Synchronous processing also failed for batch {$batch->id}: " . $syncError->getMessage());
+                }
+            }
+        }
+
+        if (count($pendingBatches) === 0) {
+            Log::warning("No independent batches found to dispatch for migration {$migration->id}. Available resource types in migration: " . implode(', ', $migration->resource_types));
         }
     }
 
@@ -277,7 +303,7 @@ class DataMigrationService
     {
         $dependencies = [
             'clients' => [],
-            'cases' => ['clients'],
+            'cases' => [], // Cases are independent (many-to-many with clients)
             'sessions' => ['cases'] // Sessions only depend on cases being completed
         ];
 
@@ -287,7 +313,7 @@ class DataMigrationService
             // Check if all batches for this dependency are completed
             $incompleteBatches = $migration->batches()
                 ->where('resource_type', $dependency)
-                ->whereNotIn('status', ['completed'])
+                ->where('status', '!=', 'completed')
                 ->count();
 
             if ($incompleteBatches > 0) {
@@ -296,6 +322,57 @@ class DataMigrationService
         }
 
         return true;
+    }
+
+    /**
+     * Process migration synchronously for testing (bypasses queue)
+     */
+    public function processMigrationSynchronously(DataMigration $migration): void
+    {
+        Log::info("Processing migration {$migration->id} synchronously (bypassing queue)");
+
+        $independentTypes = ['clients', 'cases'];
+        $pendingBatches = $migration->batches()
+            ->whereIn('resource_type', $independentTypes)
+            ->where('status', 'pending')
+            ->orderBy('resource_type')
+            ->orderBy('batch_number')
+            ->limit(1) // Process just one batch for testing
+            ->get();
+
+        Log::info("Found {$pendingBatches->count()} pending batches to process synchronously");
+
+        foreach ($pendingBatches as $batch) {
+            Log::info("Processing batch {$batch->id} synchronously");
+            try {
+                $this->processBatch($batch);
+                Log::info("Successfully processed batch {$batch->id}");
+            } catch (\Exception $e) {
+                Log::error("Failed to process batch {$batch->id}: " . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Restart a stuck migration by re-dispatching pending batches
+     */
+    public function restartMigration(DataMigration $migration): void
+    {
+        Log::info("Restarting migration {$migration->id}");
+
+        // Update status if it's stuck
+        if ($migration->status === 'pending') {
+            $migration->update([
+                'status' => 'in_progress',
+                'started_at' => now()
+            ]);
+        }
+
+        // Check if there are any pending batches for independent resource types
+        $this->dispatchIndependentBatches($migration);
+
+        // Also check if any dependent batches can now be dispatched
+        $this->dispatchNextBatches($migration, 5);
     }
 
     /**
@@ -349,11 +426,26 @@ class DataMigrationService
 
             $data = $this->fetchDataForBatch($batch);
             $storedCount = $this->storeData($batch, $data);
+            $receivedCount = count($data);
+
+            // Determine batch status based on storage success
+            $errorMessage = null;
+
+            if ($receivedCount === 0) {
+                $status = 'failed';
+                $errorMessage = "No data received from API";
+            } elseif ($storedCount < $receivedCount) {
+                $status = 'failed';
+                $errorMessage = "Only stored {$storedCount} out of {$receivedCount} items - partial storage not allowed";
+            } else {
+                $status = 'completed';
+            }
 
             $batch->update([
-                'status' => 'completed',
-                'items_received' => count($data),
+                'status' => $status,
+                'items_received' => $receivedCount,
                 'items_stored' => $storedCount,
+                'error_message' => $errorMessage,
                 'completed_at' => now()
             ]);
 
@@ -425,7 +517,13 @@ class DataMigrationService
                 }
                 $storedCount++;
             } catch (\Exception $e) {
-                Log::warning("Failed to store {$batch->resource_type} item: " . $e->getMessage());
+                Log::error("Failed to store {$batch->resource_type} item: " . $e->getMessage(), [
+                    'batch_id' => $batchId,
+                    'resource_type' => $batch->resource_type,
+                    'item_data' => $itemArray ?? 'failed_to_convert',
+                    'exception' => $e->getTraceAsString()
+                ]);
+                // Continue processing other items instead of failing the entire batch
             }
         }
 
@@ -460,18 +558,67 @@ class DataMigrationService
      */
     protected function storeCase(array $caseData, string $batchId): void
     {
+        // Extract case ID from various possible locations
+        $caseId = $this->extractCaseId($caseData);
+        if (!$caseId) {
+            throw new \Exception("Could not extract case ID from case data: " . json_encode($caseData));
+        }
+
+        // Extract client ID from various possible locations
+        $clientId = $this->extractClientId($caseData);
+
+        // Extract other fields with robust fallbacks
+        $outletActivityId = $caseData['outlet_activity_id']
+            ?? $caseData['OutletActivityId']
+            ?? data_get($caseData, 'CaseDetail.OutletActivityId')
+            ?? 0;
+
+        $referralSourceCode = $caseData['referral_source_code']
+            ?? $caseData['ReferralSourceCode']
+            ?? data_get($caseData, 'Clients.CaseClient.ReferralSourceCode')
+            ?? '';
+
+        $reasonsForAssistance = $caseData['reasons_for_assistance']
+            ?? $caseData['ReasonsForAssistance']
+            ?? data_get($caseData, 'CaseDetail.ReasonsForAssistance')
+            ?? [];
+
+        Log::info("Storing case: {$caseId} with client: {$clientId}");
+
         MigratedCase::updateOrCreate(
-            ['case_id' => $caseData['case_id'] ?? $caseData['CaseId']],
+            ['case_id' => $caseId],
             [
-                'client_id' => $caseData['client_id'] ?? $caseData['ClientId'],
-                'outlet_activity_id' => $caseData['outlet_activity_id'] ?? $caseData['OutletActivityId'] ?? 0,
-                'referral_source_code' => $caseData['referral_source_code'] ?? $caseData['ReferralSourceCode'] ?? '',
-                'reasons_for_assistance' => $caseData['reasons_for_assistance'] ?? $caseData['ReasonsForAssistance'] ?? [],
+                'client_id' => $clientId,
+                'outlet_activity_id' => $outletActivityId,
+                'referral_source_code' => $referralSourceCode,
+                'reasons_for_assistance' => $reasonsForAssistance,
                 'api_response' => $caseData,
                 'migration_batch_id' => $batchId,
                 'migrated_at' => now()
             ]
         );
+    }
+
+    /**
+     * Extract case ID from various data structures
+     */
+    protected function extractCaseId(array $caseData): ?string
+    {
+        return $caseData['case_id']
+            ?? $caseData['CaseId']
+            ?? data_get($caseData, 'CaseDetail.CaseId')
+            ?? null;
+    }
+
+    /**
+     * Extract client ID from various data structures
+     */
+    protected function extractClientId(array $caseData): ?string
+    {
+        return $caseData['client_id']
+            ?? $caseData['ClientId']
+            ?? data_get($caseData, 'Clients.CaseClient.ClientId')
+            ?? null;
     }
 
     /**
