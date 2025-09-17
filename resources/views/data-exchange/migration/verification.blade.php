@@ -55,29 +55,26 @@
                     <!-- Show action buttons when not loading or running -->
                     <template x-if="!['loading', 'starting', 'in_progress', 'stopping'].includes(verification.status)">
                         <div class="btn-group">
-                            <!-- Show different buttons based on verification history -->
-                            <template x-if="hasNeverBeenVerified()">
-                                <!-- First time verification -->
-                                <button @click="startVerification()" class="btn btn-primary"
-                                    title="Start data verification for the first time">
-                                    <i class="fas fa-play me-1"></i> Start Verification
-                                </button>
-                            </template>
+                            <!-- First time verification button -->
+                            <button x-show="hasNeverBeenVerified()" @click="startVerification()" class="btn btn-primary"
+                                title="Start data verification for the first time">
+                                <i class="fas fa-play me-1"></i> Start Verification
+                            </button>
 
+                            <!-- Verification has been run before - always show these buttons -->
                             <template x-if="!hasNeverBeenVerified()">
-                                <!-- Verification has been run before -->
                                 <button @click="startVerification()" class="btn btn-primary"
                                     title="Reset all verification states and start fresh verification">
                                     <i class="fas fa-redo me-1"></i> Run Verification Again
                                 </button>
-
-                                <!-- Continue Verification (Only failed/pending) -->
-                                <button @click="continueVerification()" class="btn btn-outline-primary"
-                                    :disabled="!hasUnverifiedRecords()"
-                                    :title="hasUnverifiedRecords() ? 'Continue verification of failed and pending records only' : 'No failed or pending records to continue with'">
-                                    <i class="fas fa-play me-1"></i> Continue Verification
-                                </button>
                             </template>
+
+                            <!-- Continue Verification - show when verification has been attempted -->
+                            <button x-show="!hasNeverBeenVerified()" @click="continueVerification()" class="btn btn-outline-primary"
+                                :disabled="!hasUnverifiedRecords()"
+                                :title="hasUnverifiedRecords() ? 'Continue verification of failed and pending records only' : 'No failed or pending records to continue with'">
+                                <i class="fas fa-play me-1"></i> Continue Verification
+                            </button>
                         </div>
                     </template>
                 @else
