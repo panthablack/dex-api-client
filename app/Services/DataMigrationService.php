@@ -498,6 +498,7 @@ class DataMigrationService
     {
         $storedCount = 0;
         $batchId = $batch->batch_id;
+        $migrationId = $batch->data_migration_id;
 
         foreach ($data as $item) {
             try {
@@ -506,13 +507,13 @@ class DataMigrationService
 
                 switch ($batch->resource_type) {
                     case 'clients':
-                        $this->storeClient($itemArray, $batchId);
+                        $this->storeClient($itemArray, $batchId, $migrationId);
                         break;
                     case 'cases':
-                        $this->storeCase($itemArray, $batchId);
+                        $this->storeCase($itemArray, $batchId, $migrationId);
                         break;
                     case 'sessions':
-                        $this->storeSession($itemArray, $batchId);
+                        $this->storeSession($itemArray, $batchId, $migrationId);
                         break;
                 }
                 $storedCount++;
@@ -533,11 +534,12 @@ class DataMigrationService
     /**
      * Store a client record
      */
-    protected function storeClient(array $clientData, string $batchId)
+    protected function storeClient(array $clientData, string $batchId, int $migrationId)
     {
         $res = MigratedClient::updateOrCreate(
             ['client_id' => $clientData['client_id'] ?? $clientData['ClientId']],
             [
+                'migration_id' => $migrationId,
                 'first_name' => $clientData['first_name'] ?? $clientData['GivenName'] ?? null,
                 'last_name' => $clientData['last_name'] ?? $clientData['FamilyName'] ?? null,
                 'date_of_birth' => $clientData['date_of_birth'] ?? $clientData['BirthDate'] ?? null,
@@ -556,7 +558,7 @@ class DataMigrationService
     /**
      * Store a case record
      */
-    protected function storeCase(array $caseData, string $batchId): void
+    protected function storeCase(array $caseData, string $batchId, int $migrationId): void
     {
         // Extract case ID from various possible locations
         $caseId = $this->extractCaseId($caseData);
@@ -588,6 +590,7 @@ class DataMigrationService
         MigratedCase::updateOrCreate(
             ['case_id' => $caseId],
             [
+                'migration_id' => $migrationId,
                 'client_id' => $clientId,
                 'outlet_activity_id' => $outletActivityId,
                 'referral_source_code' => $referralSourceCode,
@@ -624,11 +627,12 @@ class DataMigrationService
     /**
      * Store a session record
      */
-    protected function storeSession(array $sessionData, string $batchId): void
+    protected function storeSession(array $sessionData, string $batchId, int $migrationId): void
     {
         MigratedSession::updateOrCreate(
             ['session_id' => $sessionData['session_id'] ?? $sessionData['SessionId']],
             [
+                'migration_id' => $migrationId,
                 'case_id' => $sessionData['case_id'] ?? $sessionData['CaseId'],
                 'service_type_id' => $sessionData['service_type_id'] ?? $sessionData['ServiceTypeId'] ?? 0,
                 'session_date' => $sessionData['session_date'] ?? $sessionData['SessionDate'] ?? null,

@@ -38,19 +38,20 @@ class DataMigration extends Model
         return $this->hasMany(DataMigrationBatch::class);
     }
 
-    public function verificationSessions(): HasMany
+    // Direct relationships to migrated records
+    public function clients(): HasMany
     {
-        return $this->hasMany(VerificationSession::class, 'migration_id');
+        return $this->hasMany(MigratedClient::class, 'migration_id');
     }
 
-    public function latestVerificationSession(): HasMany
+    public function cases(): HasMany
     {
-        return $this->verificationSessions()->latest();
+        return $this->hasMany(MigratedCase::class, 'migration_id');
     }
 
-    public function activeVerificationSession(): HasMany
+    public function sessions(): HasMany
     {
-        return $this->verificationSessions()->whereIn('status', ['starting', 'in_progress']);
+        return $this->hasMany(MigratedSession::class, 'migration_id');
     }
 
     public function scopeActive($query)

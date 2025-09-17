@@ -5,10 +5,12 @@ namespace App\Models;
 use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MigratedClient extends Model
 {
     protected $fillable = [
+        'migration_id',
         'client_id',
         'first_name',
         'last_name',
@@ -48,6 +50,11 @@ class MigratedClient extends Model
         'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'
     ];
+
+    public function migration(): BelongsTo
+    {
+        return $this->belongsTo(DataMigration::class);
+    }
 
     public function cases(): HasMany
     {

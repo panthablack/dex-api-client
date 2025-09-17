@@ -457,6 +457,10 @@
 
                 async startVerification() {
                     try {
+                        // Immediately set status to starting to show stop button
+                        this.verification.status = 'starting';
+                        this.verification.currentActivity = 'Starting full verification...';
+
                         const response = await fetch(`{{ route('data-migration.api.full-verify', $migration) }}`, {
                             method: 'POST',
                             headers: {
@@ -468,11 +472,19 @@
                         const data = await response.json();
                         if (!data.success) {
                             alert('Error starting verification: ' + data.error);
+                            // Reset status on error
+                            this.checkStatus();
+                        } else {
+                            // Change to in_progress to show stop button and activity
+                            this.verification.status = 'in_progress';
+                            this.verification.currentActivity = 'Verification in progress...';
                         }
                         // Polling will automatically pick up the new status
                     } catch (error) {
                         console.error('Error:', error);
                         alert('Failed to start verification');
+                        // Reset status on error
+                        this.checkStatus();
                     }
                 },
 
@@ -491,7 +503,7 @@
                             this.updateVerification(data.data);
 
                             // Stop polling if verification is completed
-                            if (['completed', 'failed', 'stopped'].includes(data.data.status)) {
+                            if (['completed', 'completed_with_failures', 'failed', 'stopped', 'no_data'].includes(data.data.status)) {
                                 clearInterval(this.pollInterval);
                             }
                         } else {
@@ -504,13 +516,26 @@
                 },
 
                 updateVerification(data) {
+                    // Map new API response format to frontend expectations
                     this.verification.status = data.status;
-                    this.verification.total = data.total || 0;
-                    this.verification.processed = data.processed || 0;
-                    this.verification.verified = data.verified || 0;
-                    this.verification.currentActivity = data.current_activity || '';
+                    this.verification.total = data.total_records || 0;
+                    this.verification.processed = data.processed_records || 0;
+                    this.verification.verified = data.verified_records || 0;
+                    this.verification.currentActivity = data.message || '';
                     this.verification.resourceProgress = data.resource_progress || {};
-                    this.verification.results = data.results || {};
+
+                    // Convert resource_progress to results format for button logic
+                    this.verification.results = {};
+                    if (data.resource_progress) {
+                        for (const [resourceType, progress] of Object.entries(data.resource_progress)) {
+                            this.verification.results[resourceType] = {
+                                total: progress.total || 0,
+                                verified: progress.verified || 0,
+                                failed: progress.failed || 0,
+                                pending: progress.pending || 0
+                            };
+                        }
+                    }
 
                     if (this.verification.total > 0) {
                         this.verification.progress = Math.min(Math.round((this.verification.processed / this.verification
@@ -528,6 +553,8 @@
                             return 'In Progress';
                         case 'completed':
                             return 'Completed';
+                        case 'completed_with_failures':
+                            return 'Completed with Failures';
                         case 'partial':
                             return 'Partially Verified';
                         case 'failed':
@@ -538,6 +565,8 @@
                             return 'Stopped';
                         case 'idle':
                             return 'Ready to Start';
+                        case 'no_data':
+                            return 'No Data Available';
                         default:
                             return 'Initializing...';
                     }
@@ -553,6 +582,8 @@
                             return 'bg-warning';
                         case 'completed':
                             return 'bg-success';
+                        case 'completed_with_failures':
+                            return 'bg-warning';
                         case 'partial':
                             return 'bg-warning';
                         case 'failed':
@@ -563,6 +594,8 @@
                             return 'bg-secondary';
                         case 'idle':
                             return 'bg-secondary';
+                        case 'no_data':
+                            return 'bg-light text-dark';
                         default:
                             return 'bg-info';
                     }
@@ -572,12 +605,16 @@
                     switch (this.verification.status) {
                         case 'completed':
                             return 'bg-success';
+                        case 'completed_with_failures':
+                            return 'bg-warning';
                         case 'partial':
                             return 'bg-warning';
                         case 'failed':
                             return 'bg-danger';
                         case 'in_progress':
                             return 'progress-bar-striped progress-bar-animated bg-warning';
+                        case 'no_data':
+                            return 'bg-light';
                         default:
                             return 'progress-bar-striped progress-bar-animated';
                     }
@@ -688,6 +725,10 @@
 
                 async continueVerification() {
                     try {
+                        // Immediately set status to starting to show stop button
+                        this.verification.status = 'starting';
+                        this.verification.currentActivity = 'Starting continue verification...';
+
                         const response = await fetch(`{{ route('data-migration.api.continue-verification', $migration) }}`, {
                             method: 'POST',
                             headers: {
@@ -700,11 +741,19 @@
 
                         if (!result.success) {
                             alert('Error: ' + result.error);
+                            // Reset status on error
+                            this.checkStatus();
+                        } else {
+                            // Change to in_progress to show stop button and activity
+                            this.verification.status = 'in_progress';
+                            this.verification.currentActivity = 'Continue verification in progress...';
                         }
                         // Polling will automatically pick up the new status
                     } catch (error) {
                         console.error('Continue verification failed:', error);
                         alert('Continue verification failed: ' + error.message);
+                        // Reset status on error
+                        this.checkStatus();
                     }
                 },
 

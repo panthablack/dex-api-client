@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MigratedSession extends Model
 {
     protected $fillable = [
+        'migration_id',
         'session_id',
         'case_id',
         'service_type_id',
@@ -34,6 +35,11 @@ class MigratedSession extends Model
         'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'
     ];
+
+    public function migration(): BelongsTo
+    {
+        return $this->belongsTo(DataMigration::class);
+    }
 
     public function case(): BelongsTo
     {

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MigratedCase extends Model
 {
     protected $fillable = [
+        'migration_id',
         'case_id',
         'client_id',
         'outlet_activity_id',
@@ -36,6 +37,11 @@ class MigratedCase extends Model
         'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'
     ];
+
+    public function migration(): BelongsTo
+    {
+        return $this->belongsTo(DataMigration::class);
+    }
 
     public function client(): BelongsTo
     {

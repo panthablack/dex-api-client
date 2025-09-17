@@ -743,22 +743,19 @@
                             const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`);
                             const data = await response.json();
 
-                            if (data.success && data.data.results) {
-                                let totalRecords = 0;
-                                let verifiedRecords = 0;
-                                let failedRecords = 0;
-
-                                // Sum up all resource types
-                                for (const [resourceType, result] of Object.entries(data.data.results)) {
-                                    totalRecords += result.total || 0;
-                                    verifiedRecords += result.verified || 0;
-                                    failedRecords += result.failed || 0;
-                                }
-
+                            if (data.success && data.data) {
+                                // New simplified API response format
                                 this.verificationStatus = {
-                                    total: totalRecords,
-                                    verified: verifiedRecords,
-                                    failed: failedRecords
+                                    total: data.data.total_records || 0,
+                                    verified: data.data.verified_records || 0,
+                                    failed: data.data.failed_records || 0,
+                                    pending: data.data.pending_records || 0,
+                                    status: data.data.status || 'idle',
+                                    message: data.data.message || '',
+                                    progress_percentage: data.data.progress_percentage || 0,
+                                    success_rate: data.data.success_rate || 0,
+                                    available_actions: data.data.available_actions || [],
+                                    resource_progress: data.data.resource_progress || {}
                                 };
                             }
                         } catch (error) {
