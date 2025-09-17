@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Enums\VerificationStatus;
-use App\Models\DataMigration;
 use App\Models\MigratedClient;
 use App\Models\MigratedCase;
 use App\Models\MigratedSession;
@@ -57,10 +56,12 @@ class VerifyMigrationJob implements ShouldQueue
             $totalRecords = 0;
             $processedRecords = 0;
             $verifiedRecords = 0;
+            $alreadyProcessedRecords = 0;
+            $recordsToProcess = 0;
             $resourceProgress = [];
             $allErrors = [];
 
-            // Count total records to process
+            // Count total records and already processed records
             foreach ($migration->resource_types as $resourceType) {
                 $modelClass = $this->getModelClass($resourceType);
                 if ($modelClass) {
@@ -72,27 +73,49 @@ class VerifyMigrationJob implements ShouldQueue
                         ->toArray();
 
                     if (!empty($batchIds)) {
-                        $query = $modelClass::whereIn('migration_batch_id', $batchIds);
+                        // Always count ALL records for total
+                        $totalCount = $modelClass::whereIn('migration_batch_id', $batchIds)->count();
 
-                        // In continue mode, only count failed and pending records
+                        // Count already processed records (verified + failed)
+                        $alreadyProcessed = $modelClass::whereIn('migration_batch_id', $batchIds)
+                            ->whereIn('verification_status', [VerificationStatus::VERIFIED, VerificationStatus::FAILED])
+                            ->count();
+
+                        // Count verified records
+                        $alreadyVerified = $modelClass::whereIn('migration_batch_id', $batchIds)
+                            ->where('verification_status', VerificationStatus::VERIFIED)
+                            ->count();
+
+                        // In continue mode, only process failed and pending records
                         if ($this->verificationSession->type === 'continue') {
-                            $query->whereIn('verification_status', [VerificationStatus::FAILED, VerificationStatus::PENDING]);
+                            $toProcess = $modelClass::whereIn('migration_batch_id', $batchIds)
+                                ->whereIn('verification_status', [VerificationStatus::FAILED, VerificationStatus::PENDING])
+                                ->count();
+                        } else {
+                            $toProcess = $totalCount;
+                            $alreadyProcessed = 0;
+                            $alreadyVerified = 0;
                         }
-
-                        $count = $query->count();
 
                         Log::info("Resource count for verification", [
                             'migration_id' => $migration->id,
                             'resource_type' => $resourceType,
                             'verification_type' => $this->verificationSession->type,
-                            'total_records_query' => $count,
+                            'total_records' => $totalCount,
+                            'already_processed' => $alreadyProcessed,
+                            'already_verified' => $alreadyVerified,
+                            'to_process' => $toProcess,
                             'batch_ids' => $batchIds
                         ]);
 
-                        $totalRecords += $count;
+                        $totalRecords += $totalCount;
+                        $alreadyProcessedRecords += $alreadyProcessed;
+                        $verifiedRecords += $alreadyVerified;
+                        $recordsToProcess += $toProcess;
+
                         $resourceProgress[$resourceType] = [
-                            'total' => $count,
-                            'processed' => 0
+                            'total' => $totalCount,
+                            'processed' => $alreadyProcessed
                         ];
                     } else {
                         $resourceProgress[$resourceType] = [
@@ -103,15 +126,18 @@ class VerifyMigrationJob implements ShouldQueue
                 }
             }
 
-            // Update session with total count
+            // Update session with correct totals (total records in migration, not just records to process)
             $this->verificationSession->updateProgress(
-                $totalRecords,
-                0,
-                0,
-                0,
+                $totalRecords,  // Total records in the migration
+                $alreadyProcessedRecords,  // Already processed records
+                $verifiedRecords,  // Already verified records
+                $alreadyProcessedRecords - $verifiedRecords,  // Already failed records
                 $resourceProgress
             );
             $this->verificationSession->updateActivity('Processing records...');
+
+            // Track the running counts for the job processing loop
+            $processedRecords = $alreadyProcessedRecords;
 
             // Process each resource type
             foreach ($migration->resource_types as $resourceType) {
