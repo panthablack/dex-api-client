@@ -766,49 +766,9 @@
                         }
                     },
 
-                    // Helper function to show toast notifications
+                    // Helper function to show toast notifications - now uses global toast system
                     showToast(message, type = 'info') {
-                        const toastId = 'toast-' + Date.now();
-                        const typeClasses = {
-                            'success': 'bg-success text-white',
-                            'error': 'bg-danger text-white',
-                            'warning': 'bg-warning text-dark',
-                            'info': 'bg-info text-white'
-                        };
-                        const typeClass = typeClasses[type] || typeClasses['info'];
-
-                        const toastHtml = `
-                            <div id="${toastId}" class="toast align-items-center border-0 ${typeClass}" role="alert"
-                                aria-live="assertive" aria-atomic="true" style="min-width: 300px;">
-                                <div class="d-flex">
-                                    <div class="toast-body">${message}</div>
-                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
-                                        aria-label="Close"></button>
-                                </div>
-                            </div>
-                        `;
-
-                        // Add toast to container
-                        let container = document.getElementById('toast-container');
-                        if (!container) {
-                            container = document.createElement('div');
-                            container.id = 'toast-container';
-                            container.className = 'toast-container position-fixed top-0 end-0 p-3';
-                            container.style.zIndex = '1060';
-                            document.body.appendChild(container);
-                        }
-
-                        container.insertAdjacentHTML('beforeend', toastHtml);
-
-                        // Show the toast
-                        const toastElement = document.getElementById(toastId);
-                        const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
-                        toast.show();
-
-                        // Remove from DOM after hiding
-                        toastElement.addEventListener('hidden.bs.toast', function() {
-                            toastElement.remove();
-                        });
+                        return window.showToast(message, type);
                     }
                 };
             }

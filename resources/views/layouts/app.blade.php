@@ -20,6 +20,57 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>
+        // Global Alpine.js Toast Store
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('toast', {
+                toasts: [],
+
+                add(message, type = 'info', timeout = 5000) {
+                    const id = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                    const toast = { id, message, type, timeout };
+                    this.toasts.push(toast);
+
+                    // Auto-remove after timeout
+                    setTimeout(() => {
+                        this.remove(id);
+                    }, timeout);
+
+                    return id;
+                },
+
+                remove(id) {
+                    this.toasts = this.toasts.filter(toast => toast.id !== id);
+                },
+
+                clear() {
+                    this.toasts = [];
+                },
+
+                // Convenience methods
+                success(message, timeout = 5000) {
+                    return this.add(message, 'success', timeout);
+                },
+
+                error(message, timeout = 8000) {
+                    return this.add(message, 'error', timeout);
+                },
+
+                warning(message, timeout = 6000) {
+                    return this.add(message, 'warning', timeout);
+                },
+
+                info(message, timeout = 5000) {
+                    return this.add(message, 'info', timeout);
+                }
+            });
+        });
+
+        // Global helper function for easy access
+        window.showToast = function(message, type = 'info', timeout = 5000) {
+            return Alpine.store('toast').add(message, type, timeout);
+        };
+    </script>
     <style>
         [x-cloak] {
             display: none !important;
@@ -138,9 +189,38 @@
     </div>
 
     <!-- Toast Container -->
-    <x-toast-container>
-        <!-- Toasts will be dynamically added here -->
-    </x-toast-container>
+    <div x-data class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1060;" x-cloak>
+        <template x-for="toast in $store.toast.toasts" :key="toast.id">
+            <div :id="toast.id"
+                 class="toast align-items-center border-0 mb-2"
+                 :class="{
+                     'bg-success text-white': toast.type === 'success',
+                     'bg-danger text-white': toast.type === 'error',
+                     'bg-warning text-dark': toast.type === 'warning',
+                     'bg-info text-white': toast.type === 'info',
+                     'bg-primary text-white': toast.type === 'primary',
+                     'bg-secondary text-white': toast.type === 'secondary'
+                 }"
+                 role="alert"
+                 aria-live="assertive"
+                 aria-atomic="true"
+                 style="min-width: 300px;"
+                 x-init="
+                     const toastEl = $el;
+                     const bsToast = new bootstrap.Toast(toastEl, { autohide: false });
+                     bsToast.show();
+                 ">
+                <div class="d-flex">
+                    <div class="toast-body" x-text="toast.message"></div>
+                    <button type="button"
+                            class="btn-close me-2 m-auto"
+                            :class="{ 'btn-close-white': toast.type !== 'warning' }"
+                            @click="$store.toast.remove(toast.id)"
+                            aria-label="Close"></button>
+                </div>
+            </div>
+        </template>
+    </div>
 
     <!-- Alert Component -->
     <x-alert></x-alert>
