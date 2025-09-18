@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\VerificationStatus;
+use App\Models\DataMigrationBatch;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -24,8 +26,14 @@ return new class extends Migration
             $table->text('outcome')->nullable();
             $table->text('notes')->nullable();
             $table->json('api_response')->nullable(); // Store full API response
-            $table->string('migration_batch_id')->nullable()->index();
-            $table->timestamp('migrated_at')->nullable();
+            $table->foreignIdFor(DataMigrationBatch::class);
+            $table->enum('verification_status', [
+                VerificationStatus::PENDING,
+                VerificationStatus::VERIFIED,
+                VerificationStatus::FAILED
+            ])->default('pending');
+            $table->timestamp('verified_at')->nullable();
+            $table->text('verification_error')->nullable();
             $table->timestamps();
 
             // Foreign key to migrated cases

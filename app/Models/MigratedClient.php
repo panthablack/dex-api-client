@@ -31,7 +31,6 @@ class MigratedClient extends Model
         'client_type',
         'api_response',
         'migration_batch_id',
-        'migrated_at',
         'verification_status',
         'verified_at',
         'verification_error'
@@ -46,7 +45,6 @@ class MigratedClient extends Model
         'consent_to_provide_details' => 'boolean',
         'consent_to_be_contacted' => 'boolean',
         'api_response' => 'array',
-        'migrated_at' => 'datetime',
         'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'
     ];

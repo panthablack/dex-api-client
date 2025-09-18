@@ -5,11 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\VerificationStatus;
 use App\Models\DataMigration;
 use App\Services\DataMigrationService;
-use App\Services\DataVerificationService;
 use App\Services\VerificationService;
-use App\Services\VerificationStatusService;
 use App\Jobs\InitiateDataMigration;
-use App\Jobs\SimpleVerifyMigrationJob;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -18,20 +15,14 @@ use Illuminate\Support\Facades\Log;
 class DataMigrationController extends Controller
 {
     protected DataMigrationService $migrationService;
-    protected DataVerificationService $verificationService;
     protected VerificationService $newVerificationService;
-    protected VerificationStatusService $verificationStatusService;
 
     public function __construct(
         DataMigrationService $migrationService,
-        DataVerificationService $verificationService,
         VerificationService $newVerificationService,
-        VerificationStatusService $verificationStatusService
     ) {
         $this->migrationService = $migrationService;
-        $this->verificationService = $verificationService;
         $this->newVerificationService = $newVerificationService;
-        $this->verificationStatusService = $verificationStatusService;
     }
 
     /**
@@ -440,7 +431,7 @@ class DataMigrationController extends Controller
                     // Transform specific types for JSON
                     $value = match (true) {
                         // VerificationStatus enum
-                        $value instanceof \App\Enums\VerificationStatus => $value->value,
+                        $value instanceof VerificationStatus => $value->value,
 
                         // Keep dates as ISO strings for JSON
                         $value instanceof \Carbon\Carbon => $value->toISOString(),
@@ -502,142 +493,11 @@ class DataMigrationController extends Controller
     }
 
     /**
-     * Perform full verification of migrated data
-     */
-    public function fullVerify(DataMigration $migration): JsonResponse
-    {
-        try {
-            if (!$this->verificationStatusService->canStartVerification($migration)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Cannot verify this migration. It must be completed or failed and have migrated data.'
-                ], 400);
-            }
-
-            Log::info("Starting full verification for migration {$migration->id}", [
-                'migration_id' => $migration->id,
-                'migration_name' => $migration->name,
-                'resource_types' => $migration->resource_types
-            ]);
-
-            // Dispatch simplified verification job
-            SimpleVerifyMigrationJob::dispatch($migration, 'full');
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'status' => 'started',
-                    'message' => 'Full verification started. All records will be re-verified.'
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Full verification failed: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Show verification results for a migration
      */
     public function showVerification(DataMigration $migration)
     {
         return view('data-exchange.migration.verification', compact('migration'));
-    }
-
-    /**
-     * Continue verification of failed and pending records only
-     */
-    public function continueVerification(DataMigration $migration): JsonResponse
-    {
-        try {
-            if (!$this->verificationStatusService->canStartVerification($migration)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Cannot verify this migration. It must be completed or failed and have migrated data.'
-                ], 400);
-            }
-
-            // Check if there are failed or pending records
-            $status = $this->verificationStatusService->getVerificationStatus($migration);
-
-            if ($status['failed_records'] === 0 && $status['pending_records'] === 0) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No failed or pending records to continue verification with'
-                ], 400);
-            }
-
-            Log::info("Continuing verification for migration {$migration->id}", [
-                'migration_id' => $migration->id,
-                'migration_name' => $migration->name,
-                'resource_types' => $migration->resource_types,
-                'failed_records' => $status['failed_records'],
-                'pending_records' => $status['pending_records']
-            ]);
-
-            // Dispatch simplified verification job in continue mode
-            SimpleVerifyMigrationJob::dispatch($migration, 'continue');
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'status' => 'started',
-                    'message' => 'Continue verification started. Only failed and pending records will be re-verified.'
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Continue verification failed: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Stop an in-progress verification
-     * Note: In the simplified system, we can't stop jobs mid-execution
-     */
-    public function stopVerification(DataMigration $migration): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'error' => 'Verification cannot be stopped in the simplified system. Jobs will complete naturally.'
-        ], 400);
-    }
-
-    /**
-     * Get verification status for a migration
-     */
-    public function verificationStatus(DataMigration $migration, Request $request): JsonResponse
-    {
-        try {
-            // Get current verification status directly from the database
-            $status = $this->verificationStatusService->getVerificationStatus($migration);
-
-            Log::debug("Returning verification status", [
-                'migration_id' => $migration->id,
-                'status' => $status['status'],
-                'total_records' => $status['total_records'],
-                'verified_records' => $status['verified_records'],
-                'failed_records' => $status['failed_records'],
-                'pending_records' => $status['pending_records']
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'data' => $status
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Verification status check failed: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
     }
 
 
@@ -666,7 +526,6 @@ class DataMigrationController extends Controller
                 'consent_to_provide_details' => 'Consent to Provide Details',
                 'consent_to_be_contacted' => 'Consent to be Contacted',
                 'client_type' => 'Client Type',
-                'migrated_at' => 'Migration Date',
                 'verification_status' => 'Verification Status',
                 'verified_at' => 'Verified Date'
             ],
@@ -681,7 +540,6 @@ class DataMigrationController extends Controller
                 'end_date' => 'End Date',
                 'exit_reason_code' => 'Exit Reason Code',
                 'ag_business_type_code' => 'AG Business Type Code',
-                'migrated_at' => 'Migration Date',
                 'verification_status' => 'Verification Status',
                 'verified_at' => 'Verified Date'
             ],
@@ -696,7 +554,6 @@ class DataMigrationController extends Controller
                 'attendees' => 'Attendees',
                 'outcome' => 'Outcome',
                 'notes' => 'Notes',
-                'migrated_at' => 'Migration Date',
                 'verification_status' => 'Verification Status',
                 'verified_at' => 'Verified Date'
             ],
@@ -720,7 +577,7 @@ class DataMigrationController extends Controller
                 is_bool($value) => $value ? 'Yes' : 'No',
 
                 // VerificationStatus enum
-                $value instanceof \App\Enums\VerificationStatus => $value->value,
+                $value instanceof VerificationStatus => $value->value,
 
                 // Dates
                 $value instanceof \Carbon\Carbon => $value->format('Y-m-d H:i:s'),
@@ -751,19 +608,6 @@ class DataMigrationController extends Controller
             \App\Models\MigratedCase::class => 'cases',
             \App\Models\MigratedSession::class => 'sessions',
             default => 'unknown'
-        };
-    }
-
-    /**
-     * Get the model class for a resource type
-     */
-    private function getModelClass(string $resourceType): ?string
-    {
-        return match ($resourceType) {
-            'clients' => \App\Models\MigratedClient::class,
-            'cases' => \App\Models\MigratedCase::class,
-            'sessions' => \App\Models\MigratedSession::class,
-            default => null
         };
     }
 }

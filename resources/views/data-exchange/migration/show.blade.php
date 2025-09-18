@@ -149,7 +149,7 @@
                             <h6 class="card-title text-muted mb-1">Verification</h6>
                             <h4 class="mb-0">
                                 <span x-show="verificationStatus.total > 0"
-                                      x-text="Math.round((verificationStatus.verified / verificationStatus.total) * 100) + '%'">
+                                    x-text="Math.round((verificationStatus.verified / verificationStatus.total) * 100) + '%'">
                                     {{ $migration->verification_percentage ?? 0 }}%
                                 </span>
                                 <span x-show="verificationStatus.total === 0" class="text-muted">—</span>
@@ -253,14 +253,12 @@
                 <h5 class="card-title mb-0">Batch Details</h5>
                 <div class="btn-group btn-group-sm" role="group">
                     @foreach ($migration->resource_types as $type)
-                        <button @click="setResourceFilter('{{ $type }}')"
-                            class="btn"
+                        <button @click="setResourceFilter('{{ $type }}')" class="btn"
                             :class="resourceFilter === '{{ $type }}' ? 'btn-secondary' : 'btn-outline-secondary'">
                             {{ ucfirst($type) }}
                         </button>
                     @endforeach
-                    <button @click="setResourceFilter('all')"
-                        class="btn"
+                    <button @click="setResourceFilter('all')" class="btn"
                         :class="resourceFilter === 'all' ? 'btn-secondary' : 'btn-outline-secondary'">
                         All
                     </button>
@@ -411,7 +409,8 @@
                         <div class="modal-body">
                             <!-- Loading State -->
                             <div x-show="verifyModal.state === 'loading'" class="text-center py-5">
-                                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                                <div class="spinner-border text-primary mb-3" role="status"
+                                    style="width: 3rem; height: 3rem;">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
                                 <h5>Verifying Data...</h5>
@@ -431,30 +430,41 @@
                             <!-- Results State -->
                             <div x-show="verifyModal.state === 'results'">
                                 <div class="mb-3">
-                                    <h6 class="text-muted">Sample Size: <span x-text="verifyModal.results?.sample_size || 10"></span> records per resource type</h6>
+                                    <h6 class="text-muted">Sample Size: <span
+                                            x-text="verifyModal.results?.sample_size || 10"></span> records per resource
+                                        type</h6>
                                 </div>
 
                                 <!-- No Results -->
-                                <div x-show="verifyModal.results && Object.keys(verifyModal.results.results || {}).length === 0" class="text-center py-5">
+                                <div x-show="verifyModal.results && Object.keys(verifyModal.results.results || {}).length === 0"
+                                    class="text-center py-5">
                                     <i class="fas fa-info-circle text-muted fa-3x mb-3"></i>
                                     <h5 class="text-muted">No verification results available</h5>
                                     <p class="text-muted">No data was found to verify for this migration.</p>
                                 </div>
 
                                 <!-- Results Grid -->
-                                <div x-show="verifyModal.results && Object.keys(verifyModal.results.results || {}).length > 0" class="row">
-                                    <template x-for="[resourceType, result] in Object.entries(verifyModal.results?.results || {})" :key="resourceType">
+                                <div x-show="verifyModal.results && Object.keys(verifyModal.results.results || {}).length > 0"
+                                    class="row">
+                                    <template
+                                        x-for="[resourceType, result] in Object.entries(verifyModal.results?.results || {})"
+                                        :key="resourceType">
                                         <div class="col-md-4 mb-3">
                                             <div class="card h-100">
                                                 <div class="card-body text-center">
                                                     <h5 class="card-title text-capitalize" x-text="resourceType"></h5>
                                                     <div class="mb-2" style="font-size: 2rem;"
                                                         :class="{
-                                                            'text-success': result.status === 'completed' && (result.success_rate || 0) >= 95,
-                                                            'text-warning': result.status === 'completed' && (result.success_rate || 0) >= 80 && (result.success_rate || 0) < 95,
-                                                            'text-danger': result.status === 'completed' && (result.success_rate || 0) < 80,
+                                                            'text-success': result.status === 'completed' && (result
+                                                                .success_rate || 0) >= 95,
+                                                            'text-warning': result.status === 'completed' && (result
+                                                                .success_rate || 0) >= 80 && (result.success_rate ||
+                                                                0) < 95,
+                                                            'text-danger': result.status === 'completed' && (result
+                                                                .success_rate || 0) < 80,
                                                             'text-muted': result.status === 'no_data',
-                                                            'text-danger': result.status !== 'completed' && result.status !== 'no_data'
+                                                            'text-danger': result.status !== 'completed' && result
+                                                                .status !== 'no_data'
                                                         }"
                                                         x-text="result.status === 'completed' ?
                                                             ((result.success_rate || 0) >= 95 ? '✓' :
@@ -463,11 +473,16 @@
                                                     </div>
                                                     <p class="card-text"
                                                         :class="{
-                                                            'text-success': result.status === 'completed' && (result.success_rate || 0) >= 95,
-                                                            'text-warning': result.status === 'completed' && (result.success_rate || 0) >= 80 && (result.success_rate || 0) < 95,
-                                                            'text-danger': result.status === 'completed' && (result.success_rate || 0) < 80,
+                                                            'text-success': result.status === 'completed' && (result
+                                                                .success_rate || 0) >= 95,
+                                                            'text-warning': result.status === 'completed' && (result
+                                                                .success_rate || 0) >= 80 && (result.success_rate ||
+                                                                0) < 95,
+                                                            'text-danger': result.status === 'completed' && (result
+                                                                .success_rate || 0) < 80,
                                                             'text-muted': result.status === 'no_data',
-                                                            'text-danger': result.status !== 'completed' && result.status !== 'no_data'
+                                                            'text-danger': result.status !== 'completed' && result
+                                                                .status !== 'no_data'
                                                         }"
                                                         x-text="result.status === 'completed' ?
                                                             `${result.verified || 0}/${result.total_checked || 0} verified (${result.success_rate || 0}%)` :
@@ -490,286 +505,256 @@
                 </div>
             </div>
 
-        <script>
-            function migrationApp() {
-                return {
-                    migration: {
-                        id: {{ $migration->id }},
-                        name: @json($migration->name),
-                        status: @json($migration->status),
-                        progress_percentage: {{ $migration->progress_percentage }},
-                        success_rate: {{ $migration->success_rate }},
-                        total_items: {{ $migration->total_items }},
-                        processed_items: {{ $migration->processed_items }},
-                        successful_items: {{ $migration->successful_items }},
-                        failed_items: {{ $migration->failed_items }},
-                        batches: @json($migration->batches->toArray())
-                    },
-                    refreshInterval: null,
-                    resourceFilter: 'all',
-                    verifyModal: {
-                        state: 'loading', // 'loading', 'error', 'results'
-                        errorMessage: '',
-                        results: null
-                    },
-                    verificationStatus: {
-                        total: 0,
-                        verified: 0,
-                        failed: 0
-                    },
+            <script>
+                function migrationApp() {
+                    return {
+                        migration: {
+                            id: {{ $migration->id }},
+                            name: @json($migration->name),
+                            status: @json($migration->status),
+                            progress_percentage: {{ $migration->progress_percentage }},
+                            success_rate: {{ $migration->success_rate }},
+                            total_items: {{ $migration->total_items }},
+                            processed_items: {{ $migration->processed_items }},
+                            successful_items: {{ $migration->successful_items }},
+                            failed_items: {{ $migration->failed_items }},
+                            batches: @json($migration->batches->toArray())
+                        },
+                        refreshInterval: null,
+                        resourceFilter: 'all',
+                        verifyModal: {
+                            state: 'loading', // 'loading', 'error', 'results'
+                            errorMessage: '',
+                            results: null
+                        },
+                        verificationStatus: {
+                            total: 0,
+                            verified: 0,
+                            failed: 0
+                        },
 
-                    get filteredBatches() {
-                        if (this.resourceFilter === 'all') {
-                            return this.migration.batches;
-                        }
-                        return this.migration.batches.filter(batch => batch.resource_type === this.resourceFilter);
-                    },
+                        get filteredBatches() {
+                            if (this.resourceFilter === 'all') {
+                                return this.migration.batches;
+                            }
+                            return this.migration.batches.filter(batch => batch.resource_type === this.resourceFilter);
+                        },
 
-                    init() {
-                        // Load verification status if migration is completed
-                        if (this.isVerificationAvailable()) {
-                            this.loadVerificationStatus();
-                        }
-
-                        if (this.migration.status === 'in_progress' || this.migration.status === 'pending') {
-                            this.startAutoRefresh();
-                        }
-
-                        document.addEventListener('visibilitychange', () => {
-                            if (document.hidden) {
-                                if (this.refreshInterval) clearInterval(this.refreshInterval);
-                            } else if (this.migration.status === 'in_progress') {
+                        init() {
+                            if (this.migration.status === 'in_progress' || this.migration.status === 'pending') {
                                 this.startAutoRefresh();
                             }
-                        });
-                    },
 
-                    setResourceFilter(type) {
-                        this.resourceFilter = type;
-                    },
-
-                    startAutoRefresh() {
-                        this.refreshInterval = setInterval(() => this.refreshStatus(), 10000);
-                    },
-
-                    async refreshStatus() {
-                        try {
-                            const response = await fetch(`{{ route('data-migration.api.status', $migration) }}`);
-                            const data = await response.json();
-
-                            if (data.success) {
-                                const oldStatus = this.migration.status;
-                                this.migration = data.data;
-
-                                // Reload verification status if migration just completed
-                                if (oldStatus !== 'completed' && data.data.status === 'completed' && this.isVerificationAvailable()) {
-                                    this.loadVerificationStatus();
+                            document.addEventListener('visibilitychange', () => {
+                                if (document.hidden) {
+                                    if (this.refreshInterval) clearInterval(this.refreshInterval);
+                                } else if (this.migration.status === 'in_progress') {
+                                    this.startAutoRefresh();
                                 }
+                            });
+                        },
 
-                                if ((oldStatus === 'in_progress' || oldStatus === 'pending') &&
-                                    (data.data.status === 'completed' || data.data.status === 'failed')) {
-                                    if (this.refreshInterval) {
-                                        clearInterval(this.refreshInterval);
-                                        this.refreshInterval = null;
+                        setResourceFilter(type) {
+                            this.resourceFilter = type;
+                        },
+
+                        startAutoRefresh() {
+                            this.refreshInterval = setInterval(() => this.refreshStatus(), 10000);
+                        },
+
+                        async refreshStatus() {
+                            try {
+                                const response = await fetch(`{{ route('data-migration.api.status', $migration) }}`);
+                                const data = await response.json();
+
+                                if (data.success) {
+                                    const oldStatus = this.migration.status;
+                                    this.migration = data.data;
+
+                                    if ((oldStatus === 'in_progress' || oldStatus === 'pending') &&
+                                        (data.data.status === 'completed' || data.data.status === 'failed')) {
+                                        if (this.refreshInterval) {
+                                            clearInterval(this.refreshInterval);
+                                            this.refreshInterval = null;
+                                        }
+                                        window.location.reload();
+                                        return;
                                     }
-                                    window.location.reload();
-                                    return;
-                                }
 
-                                if (data.data.status === 'completed' || data.data.status === 'failed' || data.data.status === 'cancelled') {
-                                    if (this.refreshInterval) {
-                                        clearInterval(this.refreshInterval);
-                                        this.refreshInterval = null;
+                                    if (data.data.status === 'completed' || data.data.status === 'failed' || data.data
+                                        .status === 'cancelled') {
+                                        if (this.refreshInterval) {
+                                            clearInterval(this.refreshInterval);
+                                            this.refreshInterval = null;
+                                        }
                                     }
                                 }
+                            } catch (error) {
+                                console.error('Error fetching migration status:', error);
                             }
-                        } catch (error) {
-                            console.error('Error fetching migration status:', error);
-                        }
-                    },
+                        },
 
-                    isVerificationAvailable() {
-                        return (this.migration.status === 'completed' &&
-                            this.migration.batches &&
-                            this.migration.batches.some(b => b.status === 'completed'));
-                    },
+                        isVerificationAvailable() {
+                            return (this.migration.status === 'completed' &&
+                                this.migration.batches &&
+                                this.migration.batches.some(b => b.status === 'completed'));
+                        },
 
-                    getStatusClass(status) {
-                        const classes = {
-                            'completed': 'bg-success',
-                            'processing': 'bg-warning',
-                            'in_progress': 'bg-warning',
-                            'failed': 'bg-danger',
-                            'pending': 'bg-secondary',
-                            'cancelled': 'bg-danger'
-                        };
-                        return classes[status] || 'bg-secondary';
-                    },
+                        getStatusClass(status) {
+                            const classes = {
+                                'completed': 'bg-success',
+                                'processing': 'bg-warning',
+                                'in_progress': 'bg-warning',
+                                'failed': 'bg-danger',
+                                'pending': 'bg-secondary',
+                                'cancelled': 'bg-danger'
+                            };
+                            return classes[status] || 'bg-secondary';
+                        },
 
-                    formatTimestamp(timestamp) {
-                        if (!timestamp) return '-';
-                        return new Date(timestamp).toLocaleString();
-                    },
+                        formatTimestamp(timestamp) {
+                            if (!timestamp) return '-';
+                            return new Date(timestamp).toLocaleString();
+                        },
 
-                    formatDuration(startedAt, completedAt) {
-                        if (!startedAt) return '-';
-                        const start = new Date(startedAt);
-                        if (completedAt) {
-                            const end = new Date(completedAt);
-                            const durationSeconds = Math.round((end - start) / 1000);
-                            return `${durationSeconds}s`;
-                        } else {
-                            const now = new Date();
-                            const elapsed = Math.round((now - start) / 1000);
-                            return `${elapsed}s ago`;
-                        }
-                    },
-
-                    showError(message) {
-                        document.getElementById('error-message').textContent = message;
-                        const modal = new bootstrap.Modal(document.getElementById('error-modal'));
-                        modal.show();
-                    },
-
-                    async cancelMigration() {
-                        if (!confirm('Are you sure you want to cancel this migration?')) return;
-                        try {
-                            const response = await fetch(`{{ route('data-migration.api.cancel', $migration) }}`, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Content-Type': 'application/json'
-                                }
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                                location.reload();
+                        formatDuration(startedAt, completedAt) {
+                            if (!startedAt) return '-';
+                            const start = new Date(startedAt);
+                            if (completedAt) {
+                                const end = new Date(completedAt);
+                                const durationSeconds = Math.round((end - start) / 1000);
+                                return `${durationSeconds}s`;
                             } else {
-                                this.showToast('Error: ' + data.error, 'error');
+                                const now = new Date();
+                                const elapsed = Math.round((now - start) / 1000);
+                                return `${elapsed}s ago`;
                             }
-                        } catch (error) {
-                            console.error('Error:', error);
-                            this.showToast('Failed to cancel migration', 'error');
-                        }
-                    },
+                        },
 
-                    async retryMigration() {
-                        if (!confirm('Are you sure you want to retry failed batches? This includes any batches with partial storage failures.')) return;
-                        try {
-                            const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Content-Type': 'application/json'
+                        showError(message) {
+                            document.getElementById('error-message').textContent = message;
+                            const modal = new bootstrap.Modal(document.getElementById('error-modal'));
+                            modal.show();
+                        },
+
+                        async cancelMigration() {
+                            if (!confirm('Are you sure you want to cancel this migration?')) return;
+                            try {
+                                const response = await fetch(`{{ route('data-migration.api.cancel', $migration) }}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                const data = await response.json();
+                                if (data.success) {
+                                    location.reload();
+                                } else {
+                                    this.showToast('Error: ' + data.error, 'error');
                                 }
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                                location.reload();
-                            } else {
-                                this.showToast('Error: ' + data.error, 'error');
+                            } catch (error) {
+                                console.error('Error:', error);
+                                this.showToast('Failed to cancel migration', 'error');
                             }
-                        } catch (error) {
-                            console.error('Error:', error);
-                            this.showToast('Failed to retry migration', 'error');
-                        }
-                    },
+                        },
 
-                    async restartStuckMigration() {
-                        if (!confirm('Are you sure you want to restart this stuck migration? This will attempt to process the pending batches.')) return;
-                        try {
-                            const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Content-Type': 'application/json'
+                        async retryMigration() {
+                            if (!confirm(
+                                    'Are you sure you want to retry failed batches? This includes any batches with partial storage failures.'
+                                    )) return;
+                            try {
+                                const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                const data = await response.json();
+                                if (data.success) {
+                                    location.reload();
+                                } else {
+                                    this.showToast('Error: ' + data.error, 'error');
                                 }
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                                this.showToast('Migration restarted: ' + data.message, 'success');
-                                setTimeout(() => location.reload(), 1500); // Delay reload to show toast
-                            } else {
-                                this.showToast('Error: ' + data.error, 'error');
+                            } catch (error) {
+                                console.error('Error:', error);
+                                this.showToast('Failed to retry migration', 'error');
                             }
-                        } catch (error) {
-                            console.error('Error:', error);
-                            this.showToast('Failed to restart migration', 'error');
-                        }
-                    },
+                        },
 
-                    async quickVerifyData() {
-                        this.verifyModal.state = 'loading';
-                        this.showModal();
-
-                        try {
-                            const response = await fetch(`{{ route('data-migration.api.quick-verify', $migration) }}`, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Content-Type': 'application/json'
+                        async restartStuckMigration() {
+                            if (!confirm(
+                                    'Are you sure you want to restart this stuck migration? This will attempt to process the pending batches.'
+                                    )) return;
+                            try {
+                                const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                const data = await response.json();
+                                if (data.success) {
+                                    this.showToast('Migration restarted: ' + data.message, 'success');
+                                    setTimeout(() => location.reload(), 1500); // Delay reload to show toast
+                                } else {
+                                    this.showToast('Error: ' + data.error, 'error');
                                 }
-                            });
-                            const data = await response.json();
+                            } catch (error) {
+                                console.error('Error:', error);
+                                this.showToast('Failed to restart migration', 'error');
+                            }
+                        },
 
-                            if (data.success) {
-                                this.verifyModal.results = data.data;
-                                this.verifyModal.state = 'results';
-                            } else {
-                                this.verifyModal.errorMessage = 'Error: ' + data.error;
+                        async quickVerifyData() {
+                            this.verifyModal.state = 'loading';
+                            this.showModal();
+
+                            try {
+                                const response = await fetch(`{{ route('data-migration.api.quick-verify', $migration) }}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                const data = await response.json();
+
+                                if (data.success) {
+                                    this.verifyModal.results = data.data;
+                                    this.verifyModal.state = 'results';
+                                } else {
+                                    this.verifyModal.errorMessage = 'Error: ' + data.error;
+                                    this.verifyModal.state = 'error';
+                                }
+                            } catch (error) {
+                                console.error('Error:', error);
+                                this.verifyModal.errorMessage = 'Network error: Failed to verify data';
                                 this.verifyModal.state = 'error';
                             }
-                        } catch (error) {
-                            console.error('Error:', error);
-                            this.verifyModal.errorMessage = 'Network error: Failed to verify data';
-                            this.verifyModal.state = 'error';
+                        },
+
+                        showModal() {
+                            const modalElement = document.getElementById('quick-verify-modal');
+                            const existingModal = bootstrap.Modal.getInstance(modalElement);
+                            if (existingModal) existingModal.dispose();
+
+                            const modal = new bootstrap.Modal(modalElement, {
+                                backdrop: 'static',
+                                keyboard: false
+                            });
+                            modal.show();
+                        },
+
+                        // Helper function to show toast notifications - now uses global toast system
+                        showToast(message, type = 'info') {
+                            return window.showToast(message, type);
                         }
-                    },
-
-                    showModal() {
-                        const modalElement = document.getElementById('quick-verify-modal');
-                        const existingModal = bootstrap.Modal.getInstance(modalElement);
-                        if (existingModal) existingModal.dispose();
-
-                        const modal = new bootstrap.Modal(modalElement, {
-                            backdrop: 'static',
-                            keyboard: false
-                        });
-                        modal.show();
-                    },
-
-                    async loadVerificationStatus() {
-                        try {
-                            const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`);
-                            const data = await response.json();
-
-                            if (data.success && data.data) {
-                                // New simplified API response format
-                                this.verificationStatus = {
-                                    total: data.data.total_records || 0,
-                                    verified: data.data.verified_records || 0,
-                                    failed: data.data.failed_records || 0,
-                                    pending: data.data.pending_records || 0,
-                                    status: data.data.status || 'idle',
-                                    message: data.data.message || '',
-                                    progress_percentage: data.data.progress_percentage || 0,
-                                    success_rate: data.data.success_rate || 0,
-                                    available_actions: data.data.available_actions || [],
-                                    resource_progress: data.data.resource_progress || {}
-                                };
-                            }
-                        } catch (error) {
-                            console.error('Error loading verification status:', error);
-                        }
-                    },
-
-                    // Helper function to show toast notifications - now uses global toast system
-                    showToast(message, type = 'info') {
-                        return window.showToast(message, type);
-                    }
-                };
-            }
-        </script>
+                    };
+                }
+            </script>
 
         </div>
     @endsection

@@ -22,7 +22,6 @@ class MigratedSession extends Model
         'notes',
         'api_response',
         'migration_batch_id',
-        'migrated_at',
         'verification_status',
         'verified_at',
         'verification_error'
@@ -31,7 +30,6 @@ class MigratedSession extends Model
     protected $casts = [
         'session_date' => 'date',
         'api_response' => 'array',
-        'migrated_at' => 'datetime',
         'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'
     ];

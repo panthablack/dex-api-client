@@ -118,9 +118,5 @@ Route::prefix('data-migration')->name('data-migration.')->group(function () {
         Route::post('/{migration}/retry', [DataMigrationController::class, 'retry'])->name('retry');
         Route::get('/{migration}/export', [DataMigrationController::class, 'export'])->name('export');
         Route::post('/{migration}/quick-verify', [DataMigrationController::class, 'quickVerify'])->name('quick-verify');
-        Route::post('/{migration}/full-verify', [DataMigrationController::class, 'fullVerify'])->name('full-verify');
-        Route::post('/{migration}/continue-verification', [DataMigrationController::class, 'continueVerification'])->name('continue-verification');
-        Route::post('/{migration}/stop-verification', [DataMigrationController::class, 'stopVerification'])->name('stop-verification');
-        Route::get('/{migration}/verification-status', [DataMigrationController::class, 'verificationStatus'])->name('verification-status');
     });
 });

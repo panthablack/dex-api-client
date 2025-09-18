@@ -44,10 +44,12 @@
                     </template>
 
                     <!-- Show stop button during active verification -->
-                    <template x-if="verification.status === 'starting' || verification.status === 'in_progress' || verification.status === 'stopping'">
+                    <template
+                        x-if="verification.status === 'starting' || verification.status === 'in_progress' || verification.status === 'stopping'">
                         <button @click="stopVerification()" class="btn btn-outline-danger"
-                                :disabled="verification.status === 'stopping'">
-                            <i :class="verification.status === 'stopping' ? 'fas fa-spinner fa-spin me-1' : 'fas fa-stop me-1'"></i>
+                            :disabled="verification.status === 'stopping'">
+                            <i
+                                :class="verification.status === 'stopping' ? 'fas fa-spinner fa-spin me-1' : 'fas fa-stop me-1'"></i>
                             <span x-text="verification.status === 'stopping' ? 'Stopping...' : 'Stop Verification'"></span>
                         </button>
                     </template>
@@ -70,9 +72,10 @@
                             </template>
 
                             <!-- Continue Verification - show when verification has been attempted -->
-                            <button x-show="!hasNeverBeenVerified()" @click="continueVerification()" class="btn btn-outline-primary"
-                                :disabled="!hasUnverifiedRecords()"
-                                :title="hasUnverifiedRecords() ? 'Continue verification of failed and pending records only' : 'No failed or pending records to continue with'">
+                            <button x-show="!hasNeverBeenVerified()" @click="continueVerification()"
+                                class="btn btn-outline-primary" :disabled="!hasUnverifiedRecords()"
+                                :title="hasUnverifiedRecords() ? 'Continue verification of failed and pending records only' :
+                                    'No failed or pending records to continue with'">
                                 <i class="fas fa-play me-1"></i> Continue Verification
                             </button>
                         </div>
@@ -146,7 +149,8 @@
         </div>
 
         <!-- Verification Status Card -->
-        <div x-show="verification.status !== 'loading' && (verification.status !== 'idle' || verification.total > 0)" class="card mb-4" x-transition>
+        <div x-show="verification.status !== 'loading' && (verification.status !== 'idle' || verification.total > 0)"
+            class="card mb-4" x-transition>
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="fas fa-shield-alt me-2"></i>
@@ -154,7 +158,8 @@
                 </h5>
                 <div class="d-flex align-items-center gap-2">
                     <div class="badge" :class="getStatusBadgeClass()" x-text="getStatusText()"></div>
-                    <div x-show="verification.status === 'starting' || verification.status === 'in_progress' || verification.status === 'stopping'">
+                    <div
+                        x-show="verification.status === 'starting' || verification.status === 'in_progress' || verification.status === 'stopping'">
                         <div class="spinner-border spinner-border-sm text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
@@ -206,11 +211,13 @@
                             <div class="mb-2">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <small class="text-muted">Processing</small>
-                                    <small class="text-muted" x-text="`${progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0}%`"></small>
+                                    <small class="text-muted"
+                                        x-text="`${progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0}%`"></small>
                                 </div>
                                 <div class="progress" style="height: 6px;">
                                     <div class="progress-bar"
-                                        :class="(progress.total > 0 && progress.processed === progress.total) ? 'bg-success' : 'bg-info'"
+                                        :class="(progress.total > 0 && progress.processed === progress.total) ? 'bg-success' :
+                                        'bg-info'"
                                         role="progressbar"
                                         :style="`width: ${progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0}%`">
                                     </div>
@@ -221,11 +228,11 @@
                             <div class="mb-1">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <small class="text-muted">Success Rate</small>
-                                    <small class="text-muted" x-text="getResourceSuccessText(resourceType, progress)"></small>
+                                    <small class="text-muted"
+                                        x-text="getResourceSuccessText(resourceType, progress)"></small>
                                 </div>
                                 <div class="progress" style="height: 6px;">
-                                    <div class="progress-bar"
-                                        :class="getResourceSuccessBarClass(resourceType, progress)"
+                                    <div class="progress-bar" :class="getResourceSuccessBarClass(resourceType, progress)"
                                         role="progressbar"
                                         :style="`width: ${getResourceSuccessRate(resourceType, progress)}%`">
                                     </div>
@@ -451,8 +458,7 @@
                 },
 
                 async init() {
-                    // Start polling immediately to load status
-                    this.startPolling();
+                    // Do nothing
                 },
 
                 async startVerification() {
@@ -472,8 +478,6 @@
                         const data = await response.json();
                         if (!data.success) {
                             alert('Error starting verification: ' + data.error);
-                            // Reset status on error
-                            this.checkStatus();
                         } else {
                             // Change to in_progress to show stop button and activity
                             this.verification.status = 'in_progress';
@@ -483,35 +487,6 @@
                     } catch (error) {
                         console.error('Error:', error);
                         alert('Failed to start verification');
-                        // Reset status on error
-                        this.checkStatus();
-                    }
-                },
-
-                startPolling() {
-                    this.pollInterval = setInterval(() => this.checkStatus(), 1500);
-                    // Load status immediately
-                    this.checkStatus();
-                },
-
-                async checkStatus() {
-                    try {
-                        const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`);
-                        const data = await response.json();
-
-                        if (data.success) {
-                            this.updateVerification(data.data);
-
-                            // Stop polling if verification is completed
-                            if (['completed', 'completed_with_failures', 'failed', 'stopped', 'no_data'].includes(data.data.status)) {
-                                clearInterval(this.pollInterval);
-                            }
-                        } else {
-                            this.verification.currentActivity = 'Temporary connection issue, retrying...';
-                        }
-                    } catch (error) {
-                        console.error('Error checking verification status:', error);
-                        this.verification.currentActivity = 'Connection issue, retrying...';
                     }
                 },
 
@@ -686,13 +661,19 @@
 
                 getResourceProgressRate(resourceType, progress) {
                     const resourceProgress = progress.resource_progress || {};
-                    const resource = resourceProgress[resourceType] || { total: 0, processed: 0 };
+                    const resource = resourceProgress[resourceType] || {
+                        total: 0,
+                        processed: 0
+                    };
                     return resource.total > 0 ? Math.round((resource.processed / resource.total) * 100) : 0;
                 },
 
                 getResourceProgressText(resourceType, progress) {
                     const resourceProgress = progress.resource_progress || {};
-                    const resource = resourceProgress[resourceType] || { total: 0, processed: 0 };
+                    const resource = resourceProgress[resourceType] || {
+                        total: 0,
+                        processed: 0
+                    };
                     return `${resource.processed?.toLocaleString() || 0} of ${resource.total?.toLocaleString() || 0} processed`;
                 },
 
@@ -706,13 +687,19 @@
 
                 getResourceSuccessRate(resourceType, progress) {
                     const results = this.verification.results || {};
-                    const result = results[resourceType] || { total: 0, verified: 0 };
+                    const result = results[resourceType] || {
+                        total: 0,
+                        verified: 0
+                    };
                     return result.total > 0 ? Math.round((result.verified / result.total) * 100) : 0;
                 },
 
                 getResourceSuccessText(resourceType, progress) {
                     const results = this.verification.results || {};
-                    const result = results[resourceType] || { total: 0, verified: 0 };
+                    const result = results[resourceType] || {
+                        total: 0,
+                        verified: 0
+                    };
                     return `${result.verified?.toLocaleString() || 0} of ${result.total?.toLocaleString() || 0} verified`;
                 },
 
@@ -729,41 +716,40 @@
                         this.verification.status = 'starting';
                         this.verification.currentActivity = 'Starting continue verification...';
 
-                        const response = await fetch(`{{ route('data-migration.api.continue-verification', $migration) }}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                            }
-                        });
+                        const response = await fetch(
+                            `{{ route('data-migration.api.continue-verification', $migration) }}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                                        'content')
+                                }
+                            });
 
                         const result = await response.json();
 
                         if (!result.success) {
                             alert('Error: ' + result.error);
-                            // Reset status on error
-                            this.checkStatus();
                         } else {
                             // Change to in_progress to show stop button and activity
                             this.verification.status = 'in_progress';
                             this.verification.currentActivity = 'Continue verification in progress...';
                         }
-                        // Polling will automatically pick up the new status
                     } catch (error) {
                         console.error('Continue verification failed:', error);
                         alert('Continue verification failed: ' + error.message);
-                        // Reset status on error
-                        this.checkStatus();
                     }
                 },
 
                 async stopVerification() {
                     try {
-                        const response = await fetch(`{{ route('data-migration.api.stop-verification', $migration) }}`, {
+                        const response = await fetch(
+                        `{{ route('data-migration.api.stop-verification', $migration) }}`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                                    'content')
                             }
                         });
 

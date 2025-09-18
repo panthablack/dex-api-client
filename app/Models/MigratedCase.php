@@ -23,7 +23,6 @@ class MigratedCase extends Model
         'ag_business_type_code',
         'api_response',
         'migration_batch_id',
-        'migrated_at',
         'verification_status',
         'verified_at',
         'verification_error'
@@ -33,7 +32,6 @@ class MigratedCase extends Model
         'reasons_for_assistance' => 'array',
         'end_date' => 'date',
         'api_response' => 'array',
-        'migrated_at' => 'datetime',
         'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'
     ];

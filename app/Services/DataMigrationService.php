@@ -231,7 +231,7 @@ class DataMigrationService
         $processed = [];
 
         // Function to add a resource type and its dependencies
-        $addResourceType = function($resourceType) use (&$addResourceType, $dependencies, &$ordered, &$processed, $resourceTypes) {
+        $addResourceType = function ($resourceType) use (&$addResourceType, $dependencies, &$ordered, &$processed, $resourceTypes) {
             if (in_array($resourceType, $processed) || !in_array($resourceType, $resourceTypes)) {
                 return;
             }
@@ -549,7 +549,6 @@ class DataMigrationService
                 'postal_code' => $clientData['postal_code'] ?? $clientData['ResidentialAddress']['Postcode'] ?? null,
                 'api_response' => $clientData,
                 'migration_batch_id' => $batchId,
-                'migrated_at' => now()
             ]
         );
         return $res;
@@ -597,7 +596,6 @@ class DataMigrationService
                 'reasons_for_assistance' => $reasonsForAssistance,
                 'api_response' => $caseData,
                 'migration_batch_id' => $batchId,
-                'migrated_at' => now()
             ]
         );
     }
@@ -640,7 +638,6 @@ class DataMigrationService
                 'location' => $sessionData['location'] ?? $sessionData['Location'] ?? null,
                 'api_response' => $sessionData,
                 'migration_batch_id' => $batchId,
-                'migrated_at' => now()
             ]
         );
     }
@@ -767,7 +764,6 @@ class DataMigrationService
                     $allSessions = array_merge($allSessions, $caseSessions);
                     Log::info("Found " . count($caseSessions) . " sessions for case {$migratedCase->case_id}");
                 }
-
             } catch (\Exception $e) {
                 Log::warning("Failed to fetch sessions for case {$migratedCase->case_id}: " . $e->getMessage());
                 // Continue with other cases instead of failing the entire batch
