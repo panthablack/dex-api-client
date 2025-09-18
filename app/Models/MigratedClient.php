@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MigratedClient extends Model
 {
     protected $fillable = [
-        'migration_id',
         'client_id',
         'first_name',
         'last_name',

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ResourceType;
 use App\Models\DataMigration;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -21,7 +22,11 @@ class DataMigrationFactory extends Factory
     {
         return [
             'name' => 'Clients, Cases, Sessions Migration - ' . fake()->dateTimeThisMonth()->format('Y-m-d H:i:s'),
-            'resource_types' => ['clients', 'cases', 'sessions'],
+            'resource_types' => [
+                ResourceType::CLIENT,
+                ResourceType::CASE,
+                ResourceType::SESSION
+            ],
             'filters' => [
                 'date_from' => fake()->date('Y-m-d'),
                 'date_to' => fake()->date('Y-m-d'),

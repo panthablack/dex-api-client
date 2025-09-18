@@ -188,9 +188,9 @@
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span
                                     class="badge
-                            {{ $type === 'clients' ? 'bg-primary' : '' }}
-                            {{ $type === 'cases' ? 'bg-success' : '' }}
-                            {{ $type === 'sessions' ? 'bg-info' : '' }}">
+                            {{ $type === ResourceType::CLIENT ? 'bg-primary' : '' }}
+                            {{ $type === ResourceType::CASE ? 'bg-success' : '' }}
+                            {{ $type === ResourceType::SESSION ? 'bg-info' : '' }}">
                                     {{ ucfirst($type) }}
                                 </span>
                                 @php
@@ -289,9 +289,9 @@
                                     <td>
                                         <span class="badge text-capitalize"
                                             :class="{
-                                                'bg-primary': batch.resource_type === 'clients',
-                                                'bg-success': batch.resource_type === 'cases',
-                                                'bg-info': batch.resource_type === 'sessions'
+                                                'bg-primary': batch.resource_type === ResourceType::CLIENT,
+                                                'bg-success': batch.resource_type === ResourceType::CASE,
+                                                'bg-info': batch.resource_type === ResourceType::SESSION
                                             }"
                                             x-text="batch.resource_type">
                                         </span>
@@ -662,7 +662,7 @@
                         async retryMigration() {
                             if (!confirm(
                                     'Are you sure you want to retry failed batches? This includes any batches with partial storage failures.'
-                                    )) return;
+                                )) return;
                             try {
                                 const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
                                     method: 'POST',
@@ -686,7 +686,7 @@
                         async restartStuckMigration() {
                             if (!confirm(
                                     'Are you sure you want to restart this stuck migration? This will attempt to process the pending batches.'
-                                    )) return;
+                                )) return;
                             try {
                                 const response = await fetch(`{{ route('data-migration.api.retry', $migration) }}`, {
                                     method: 'POST',

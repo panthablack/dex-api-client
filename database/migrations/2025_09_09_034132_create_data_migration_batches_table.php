@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('data_migration_batches', function (Blueprint $table) {
             $table->id();
-            $table->string('batch_id')->unique()->index(); // UUID for the batch
             $table->foreignId('data_migration_id')->constrained('data_migrations')->onDelete('cascade');
             $table->string('resource_type'); // 'clients', 'cases', or 'sessions'
             $table->integer('batch_number'); // Sequential batch number
@@ -29,7 +28,6 @@ return new class extends Migration
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
-
             $table->index(['data_migration_id', 'resource_type', 'batch_number'], 'migration_batch_lookup');
         });
     }

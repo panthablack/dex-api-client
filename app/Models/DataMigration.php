@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class DataMigration extends Model
 {
@@ -39,34 +40,19 @@ class DataMigration extends Model
     }
 
     // Direct relationships to migrated records
-    public function clients(): HasMany
+    public function clients(): HasManyThrough
     {
-        return $this->hasMany(MigratedClient::class, 'migration_id');
+        return $this->hasManyThrough(MigratedClient::class, DataMigrationBatch::class);
     }
 
-    public function cases(): HasMany
+    public function cases(): HasManyThrough
     {
-        return $this->hasMany(MigratedCase::class, 'migration_id');
+        return $this->hasManyThrough(MigratedCase::class, DataMigrationBatch::class);
     }
 
-    public function sessions(): HasMany
+    public function sessions(): HasManyThrough
     {
-        return $this->hasMany(MigratedSession::class, 'migration_id');
-    }
-
-    public function scopeActive($query)
-    {
-        return $query->whereIn('status', ['pending', 'in_progress']);
-    }
-
-    public function scopeCompleted($query)
-    {
-        return $query->where('status', 'completed');
-    }
-
-    public function scopeFailed($query)
-    {
-        return $query->where('status', 'failed');
+        return $this->hasManyThrough(MigratedSession::class, DataMigrationBatch::class);
     }
 
     public function getProgressPercentageAttribute()

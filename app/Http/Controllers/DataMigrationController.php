@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ResourceType;
 use App\Enums\VerificationStatus;
 use App\Models\DataMigration;
 use App\Services\DataMigrationService;
 use App\Services\VerificationService;
 use App\Jobs\InitiateDataMigration;
+use App\Models\MigratedCase;
+use App\Models\MigratedClient;
+use App\Models\MigratedSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -212,7 +216,7 @@ class DataMigrationController extends Controller
             }
 
             // Delete related migrated data based on batch IDs
-            $batchIds = $migration->batches()->pluck('batch_id');
+            $batchIds = $migration->batches()->pluck('id');
 
             if ($batchIds->isNotEmpty()) {
                 // Delete migrated records
@@ -333,7 +337,7 @@ class DataMigrationController extends Controller
             $batchIds = $migration->batches()
                 ->where('resource_type', $resourceType)
                 ->where('status', 'completed')
-                ->pluck('batch_id');
+                ->pluck('id');
 
             if ($batchIds->isEmpty()) {
                 return response()->json([
@@ -344,13 +348,13 @@ class DataMigrationController extends Controller
 
             // Get the data based on resource type
             switch ($resourceType) {
-                case 'clients':
+                case ResourceType::CLIENT:
                     $data = \App\Models\MigratedClient::whereIn('migration_batch_id', $batchIds)->get();
                     break;
-                case 'cases':
+                case ResourceType::CASE:
                     $data = \App\Models\MigratedCase::whereIn('migration_batch_id', $batchIds)->get();
                     break;
-                case 'sessions':
+                case ResourceType::SESSION:
                     $data = \App\Models\MigratedSession::whereIn('migration_batch_id', $batchIds)->get();
                     break;
             }
@@ -504,10 +508,10 @@ class DataMigrationController extends Controller
     /**
      * Get header mappings for CSV export
      */
-    private function getHeaderMapping(string $resourceType): array
+    private function getHeaderMapping(ResourceType $resourceType): array
     {
         return match ($resourceType) {
-            'clients' => [
+            ResourceType::CLIENT => [
                 'client_id' => 'Client ID',
                 'first_name' => 'First Name',
                 'last_name' => 'Last Name',
@@ -529,7 +533,7 @@ class DataMigrationController extends Controller
                 'verification_status' => 'Verification Status',
                 'verified_at' => 'Verified Date'
             ],
-            'cases' => [
+            ResourceType::CASE => [
                 'case_id' => 'Case ID',
                 'client_id' => 'Client ID',
                 'outlet_activity_id' => 'Outlet Activity ID',
@@ -543,7 +547,7 @@ class DataMigrationController extends Controller
                 'verification_status' => 'Verification Status',
                 'verified_at' => 'Verified Date'
             ],
-            'sessions' => [
+            ResourceType::SESSION => [
                 'session_id' => 'Session ID',
                 'case_id' => 'Case ID',
                 'service_type_id' => 'Service Type ID',
@@ -604,10 +608,10 @@ class DataMigrationController extends Controller
     private function getResourceTypeFromModel(string $modelClass): string
     {
         return match ($modelClass) {
-            \App\Models\MigratedClient::class => 'clients',
-            \App\Models\MigratedCase::class => 'cases',
-            \App\Models\MigratedSession::class => 'sessions',
-            default => 'unknown'
+            MigratedClient::class => ResourceType::CLIENT,
+            MigratedCase::class => ResourceType::CASE,
+            MigratedSession::class => ResourceType::SESSION,
+            default => ResourceType::UNKNOWN
         };
     }
 }

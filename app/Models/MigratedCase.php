@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MigratedCase extends Model
 {
     protected $fillable = [
-        'migration_id',
         'case_id',
         'client_id',
         'outlet_activity_id',

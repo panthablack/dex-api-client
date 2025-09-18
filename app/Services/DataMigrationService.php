@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ResourceType;
 use App\Models\DataMigration;
 use App\Models\DataMigrationBatch;
 use App\Models\MigratedClient;
@@ -72,7 +73,39 @@ class DataMigrationService
 
         // Dispatch first batch of independent resource types only
         Log::info("Starting to dispatch independent batches for migration {$migration->id}");
-        $this->dispatchIndependentBatches($migration);
+
+        // get independent batches
+        $independentBatches = $this->getIndependentBatches($migration);
+        // if independent batches are found incomplete, process them
+        if (!empty($independentBatches)) {
+            $this->dispatchIndependentBatches($migration);
+        } else {
+            // else get dependent batches
+            $dependentBatches = $this->getDependentBatches($migration);
+            if (!empty($dependentBatches)) {
+                // if dependent batches are found incomplete, process them
+                $this->dispatchDependentBatches($migration);
+            } else {
+                // else, set migration status completed and return
+                $migration->update(['status' => 'completed']);
+            }
+        }
+    }
+
+    /**
+     * Get dependent batches for a migration
+     */
+    public function getDependentBatches(DataMigration $migration): array
+    {
+        return [];
+    }
+
+    /**
+     * Get independent batches for a migration
+     */
+    public function getIndependentBatches(DataMigration $migration): array
+    {
+        return [];
     }
 
     /**
@@ -96,7 +129,6 @@ class DataMigrationService
             $pageIndex = $batchNumber; // DSS API uses 1-based indexing
 
             DataMigrationBatch::create([
-                'batch_id' => Str::uuid(),
                 'data_migration_id' => $migration->id,
                 'resource_type' => $resourceType,
                 'batch_number' => $batchNumber,
@@ -116,7 +148,7 @@ class DataMigrationService
     /**
      * Calculate total items to be processed for a resource type using Search APIs
      */
-    protected function getTotalItemsForResource(string $resourceType, array $filters): int
+    protected function getTotalItemsForResource(ResourceType $resourceType, array $filters): int
     {
         try {
             // Use Search APIs with PageSize=1 to get accurate TotalCount metadata
@@ -128,15 +160,15 @@ class DataMigrationService
             Log::info("Getting total items count for {$resourceType}", ['filters' => $searchFilters]);
 
             switch ($resourceType) {
-                case 'clients':
+                case ResourceType::CLIENT:
                     // Use SearchClient API directly for accurate count
                     $response = $this->dataExchangeService->getClientData($searchFilters);
                     break;
-                case 'cases':
+                case ResourceType::CASE:
                     // Use SearchCase API directly for accurate count
                     $response = $this->dataExchangeService->getCaseData($searchFilters);
                     break;
-                case 'sessions':
+                case ResourceType::SESSION:
                     // Sessions require case_id filtering via SearchCase
                     $response = $this->dataExchangeService->getSessionData($searchFilters);
                     break;
@@ -222,9 +254,9 @@ class DataMigrationService
     protected function getOrderedResourceTypes(array $resourceTypes): array
     {
         $dependencies = [
-            'clients' => [],
-            'cases' => [], // Cases are independent (many-to-many with clients)
-            'sessions' => ['cases'] // Sessions depend only on cases
+            ResourceType::CLIENT => [],
+            ResourceType::CASE => [],
+            ResourceType::SESSION => [ResourceType::CASE] // Sessions depend on cases
         ];
 
         $ordered = [];
@@ -256,9 +288,56 @@ class DataMigrationService
     /**
      * Dispatch batches for independent resource types (no dependencies)
      */
+    protected function dispatchDependentBatches(DataMigration $migration, int $limit = 3): void
+    {
+        $dependentTypes = ['sessions' => 'cases'];
+
+        Log::debug("Dispatching batches for " . implode(', ', $dependentTypes));
+
+        // $pendingBatches = $migration->batches()
+        //     ->whereIn('resource_type', $independentTypes)
+        //     ->where('status', 'pending')
+        //     ->orderBy('resource_type')
+        //     ->orderBy('batch_number')
+        //     ->limit($limit)
+        //     ->get();
+
+        // Log::info("Found {$pendingBatches->count()} pending batches for independent types: " . implode(', ', $independentTypes));
+
+        // foreach ($pendingBatches as $batch) {
+        //     Log::info("Dispatching independent batch: {$batch->resource_type} batch {$batch->batch_number} (ID: {$batch->id})");
+
+        //     try {
+        //         // For debugging, try synchronous processing if dispatch fails
+        //         ProcessDataMigrationBatch::dispatch($batch);
+        //         $batch->update(['status' => 'processing']);
+        //         Log::info("Successfully dispatched and marked batch {$batch->id} as processing");
+        //     } catch (\Exception $e) {
+        //         Log::error("Failed to dispatch batch {$batch->id}: " . $e->getMessage());
+        //         Log::info("Attempting synchronous processing as fallback for batch {$batch->id}");
+
+        //         try {
+        //             $this->processBatch($batch);
+        //             Log::info("Successfully processed batch {$batch->id} synchronously");
+        //         } catch (\Exception $syncError) {
+        //             Log::error("Synchronous processing also failed for batch {$batch->id}: " . $syncError->getMessage());
+        //         }
+        //     }
+        // }
+
+        // if (count($pendingBatches) === 0) {
+        //     Log::warning("No independent batches found to dispatch for migration {$migration->id}. Available resource types in migration: " . implode(', ', $migration->resource_types));
+        // }
+    }
+
+    /**
+     * Dispatch batches for independent resource types (no dependencies)
+     */
     protected function dispatchIndependentBatches(DataMigration $migration, int $limit = 3): void
     {
-        $independentTypes = ['clients', 'cases']; // Both clients and cases are independent
+        $independentTypes = [ResourceType::CLIENT, ResourceType::CASE];
+
+        Log::debug("Dispatching batches for " . implode(', ', $independentTypes));
 
         $pendingBatches = $migration->batches()
             ->whereIn('resource_type', $independentTypes)
@@ -302,9 +381,9 @@ class DataMigrationService
     protected function canProcessResourceType(DataMigration $migration, string $resourceType): bool
     {
         $dependencies = [
-            'clients' => [],
-            'cases' => [], // Cases are independent (many-to-many with clients)
-            'sessions' => ['cases'] // Sessions only depend on cases being completed
+            ResourceType::CLIENT => [],
+            ResourceType::CASE => [],
+            ResourceType::SESSION => [ResourceType::CASE] // Sessions depend on cases
         ];
 
         $requiredDependencies = $dependencies[$resourceType] ?? [];
@@ -331,7 +410,7 @@ class DataMigrationService
     {
         Log::info("Processing migration {$migration->id} synchronously (bypassing queue)");
 
-        $independentTypes = ['clients', 'cases'];
+        $independentTypes = [ResourceType::CLIENT, ResourceType::CASE];
         $pendingBatches = $migration->batches()
             ->whereIn('resource_type', $independentTypes)
             ->where('status', 'pending')
@@ -360,19 +439,26 @@ class DataMigrationService
     {
         Log::info("Restarting migration {$migration->id}");
 
-        // Update status if it's stuck
-        if ($migration->status === 'pending') {
-            $migration->update([
-                'status' => 'in_progress',
-                'started_at' => now()
-            ]);
-        }
+        $migration->update([
+            'status' => 'in_progress',
+            'started_at' => now()
+        ]);
+
+        // *****************************************************************************************
+        // TODO: Steps below
+        // get independent batches
+        // get dependent batches
+        // if independent batches are found incomplete, process them
+        // else, if dependent batches are found incomplete, process them
+        // else, set migration status completed and return
+        // *****************************************************************************************
+
 
         // Check if there are any pending batches for independent resource types
-        $this->dispatchIndependentBatches($migration);
+        // $this->dispatchIndependentBatches($migration);
 
         // Also check if any dependent batches can now be dispatched
-        $this->dispatchNextBatches($migration, 5);
+        // $this->dispatchNextBatches($migration, 5);
     }
 
     /**
@@ -475,15 +561,15 @@ class DataMigrationService
         $filters = $batch->api_filters;
 
         switch ($batch->resource_type) {
-            case 'clients':
+            case ResourceType::CLIENT:
                 $response = $this->dataExchangeService->getClientDataWithPagination($filters);
                 return $this->extractClientsFromResponse($response);
 
-            case 'cases':
+            case ResourceType::CASE:
                 $response = $this->dataExchangeService->fetchFullCaseData($filters);
                 return $this->extractCasesFromResponse($response);
 
-            case 'sessions':
+            case ResourceType::SESSION:
                 return $this->fetchSessionsForMigratedCases($batch);
 
             default:
@@ -497,7 +583,7 @@ class DataMigrationService
     protected function storeData(DataMigrationBatch $batch, array $data): int
     {
         $storedCount = 0;
-        $batchId = $batch->batch_id;
+        $batchId = $batch->id;
         $migrationId = $batch->data_migration_id;
 
         foreach ($data as $item) {
@@ -506,20 +592,20 @@ class DataMigrationService
                 $itemArray = is_object($item) ? json_decode(json_encode($item), true) : $item;
 
                 switch ($batch->resource_type) {
-                    case 'clients':
+                    case ResourceType::CLIENT:
                         $this->storeClient($itemArray, $batchId, $migrationId);
                         break;
-                    case 'cases':
+                    case ResourceType::CASE:
                         $this->storeCase($itemArray, $batchId, $migrationId);
                         break;
-                    case 'sessions':
+                    case ResourceType::SESSION:
                         $this->storeSession($itemArray, $batchId, $migrationId);
                         break;
                 }
                 $storedCount++;
             } catch (\Exception $e) {
                 Log::error("Failed to store {$batch->resource_type} item: " . $e->getMessage(), [
-                    'batch_id' => $batchId,
+                    'id' => $batchId,
                     'resource_type' => $batch->resource_type,
                     'item_data' => $itemArray ?? 'failed_to_convert',
                     'exception' => $e->getTraceAsString()
@@ -539,7 +625,6 @@ class DataMigrationService
         $res = MigratedClient::updateOrCreate(
             ['client_id' => $clientData['client_id'] ?? $clientData['ClientId']],
             [
-                'migration_id' => $migrationId,
                 'first_name' => $clientData['first_name'] ?? $clientData['GivenName'] ?? null,
                 'last_name' => $clientData['last_name'] ?? $clientData['FamilyName'] ?? null,
                 'date_of_birth' => $clientData['date_of_birth'] ?? $clientData['BirthDate'] ?? null,
@@ -589,7 +674,6 @@ class DataMigrationService
         MigratedCase::updateOrCreate(
             ['case_id' => $caseId],
             [
-                'migration_id' => $migrationId,
                 'client_id' => $clientId,
                 'outlet_activity_id' => $outletActivityId,
                 'referral_source_code' => $referralSourceCode,
@@ -630,7 +714,6 @@ class DataMigrationService
         MigratedSession::updateOrCreate(
             ['session_id' => $sessionData['session_id'] ?? $sessionData['SessionId']],
             [
-                'migration_id' => $migrationId,
                 'case_id' => $sessionData['case_id'] ?? $sessionData['CaseId'],
                 'service_type_id' => $sessionData['service_type_id'] ?? $sessionData['ServiceTypeId'] ?? 0,
                 'session_date' => $sessionData['session_date'] ?? $sessionData['SessionDate'] ?? null,

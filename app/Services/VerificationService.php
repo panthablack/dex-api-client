@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ResourceType;
 use App\Enums\VerificationStatus;
 use App\Models\DataMigration;
 use App\Models\MigratedClient;
@@ -26,9 +27,9 @@ class VerificationService
      */
     public function verifyClient(MigratedClient $client): bool
     {
-        return $this->verifyWithRetry('client', $client, function() use ($client) {
+        return $this->verifyWithRetry('client', $client, function () use ($client) {
             return $this->dataExchangeService->getClientById($client->client_id);
-        }, function($response) use ($client) {
+        }, function ($response) use ($client) {
             return $this->validateClientData($client, $response);
         });
     }
@@ -38,9 +39,9 @@ class VerificationService
      */
     public function verifyCase(MigratedCase $case): bool
     {
-        return $this->verifyWithRetry('case', $case, function() use ($case) {
+        return $this->verifyWithRetry('case', $case, function () use ($case) {
             return $this->dataExchangeService->getCaseById($case->case_id);
-        }, function($response) use ($case) {
+        }, function ($response) use ($case) {
             return $this->validateCaseData($case, $response);
         });
     }
@@ -50,9 +51,9 @@ class VerificationService
      */
     public function verifySession(MigratedSession $session): bool
     {
-        return $this->verifyWithRetry('session', $session, function() use ($session) {
+        return $this->verifyWithRetry('session', $session, function () use ($session) {
             return $this->dataExchangeService->getSessionById($session->session_id, $session->case_id);
-        }, function($response) use ($session) {
+        }, function ($response) use ($session) {
             return $this->validateSessionData($session, $response);
         });
     }
@@ -69,9 +70,11 @@ class VerificationService
         // Check circuit breaker status
         $circuitState = Cache::get($circuitBreakerKey, ['failures' => 0, 'last_failure' => null]);
 
-        if ($circuitState['failures'] >= $failureThreshold &&
+        if (
+            $circuitState['failures'] >= $failureThreshold &&
             $circuitState['last_failure'] &&
-            (time() - $circuitState['last_failure']) < $timeoutPeriod) {
+            (time() - $circuitState['last_failure']) < $timeoutPeriod
+        ) {
 
             // Circuit is open - don't make API calls, leave record as pending
             Log::warning('Circuit breaker open, skipping verification', [
@@ -223,7 +226,7 @@ class VerificationService
                 $batchIds = $migration->batches()
                     ->where('resource_type', $resourceType)
                     ->where('status', 'completed')
-                    ->pluck('batch_id')
+                    ->pluck('id')
                     ->toArray();
 
                 $query = $modelClass::whereIn('migration_batch_id', $batchIds);
@@ -265,7 +268,7 @@ class VerificationService
                 $batchIds = $migration->batches()
                     ->where('resource_type', $resourceType)
                     ->where('status', 'completed')
-                    ->pluck('batch_id')
+                    ->pluck('id')
                     ->toArray();
 
                 $records = $modelClass::whereIn('migration_batch_id', $batchIds)
@@ -299,14 +302,14 @@ class VerificationService
     /**
      * Verify a record based on its type
      */
-    public function verifyRecord(string $resourceType, $record): bool
+    public function verifyRecord(ResourceType $resourceType, $record): bool
     {
         switch ($resourceType) {
-            case 'clients':
+            case ResourceType::CLIENT:
                 return $this->verifyClient($record);
-            case 'cases':
+            case ResourceType::CASE:
                 return $this->verifyCase($record);
-            case 'sessions':
+            case ResourceType::SESSION:
                 return $this->verifySession($record);
             default:
                 return false;
@@ -319,9 +322,9 @@ class VerificationService
     private function getModelClass(string $resourceType): ?string
     {
         return match ($resourceType) {
-            'clients' => MigratedClient::class,
-            'cases' => MigratedCase::class,
-            'sessions' => MigratedSession::class,
+            ResourceType::CLIENT => MigratedClient::class,
+            ResourceType::CASE => MigratedCase::class,
+            ResourceType::SESSION => MigratedSession::class,
             default => null
         };
     }

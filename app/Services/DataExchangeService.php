@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ResourceType;
 use App\Helpers\ReferenceData;
 use App\Services\SoapClientService;
 use Illuminate\Support\Facades\Log;
@@ -2038,10 +2039,10 @@ class DataExchangeService
     /**
      * Provide default schema information when SOAP schema methods don't exist
      */
-    protected function getDefaultSchemaInfo($resourceType)
+    protected function getDefaultSchemaInfo(ResourceType $resourceType)
     {
         $schemas = [
-            'clients' => [
+            ResourceType::CLIENT => [
                 'method' => 'SearchClient',
                 'description' => 'Search for client records in the DSS system',
                 'required_parameters' => [
@@ -2058,7 +2059,7 @@ class DataExchangeService
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ]
             ],
-            'cases' => [
+            ResourceType::CASE => [
                 'method' => 'SearchCase',
                 'description' => 'Search for case records in the DSS system',
                 'required_parameters' => [
@@ -2076,7 +2077,7 @@ class DataExchangeService
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ]
             ],
-            'full_cases' => [
+            ResourceType::FULL_CASE => [
                 'method' => 'SearchCase + GetCase combination',
                 'description' => 'First searches for cases using SearchCase, then fetches detailed data for each case using GetCase. This provides richer case information than SearchCase alone.',
                 'required_parameters' => [
@@ -2095,7 +2096,7 @@ class DataExchangeService
                 ],
                 'note' => 'This method performs multiple SOAP calls and may take longer than standard SearchCase'
             ],
-            'full_sessions' => [
+            ResourceType::FULL_SESSION => [
                 'method' => 'SearchCase + GetCase + GetSession combination',
                 'description' => 'First searches for cases using SearchCase, then fetches detailed data for each case using GetCase, and finally fetches detailed session data for each session using GetSession. This provides the richest session information available.',
                 'required_parameters' => [
@@ -2114,7 +2115,7 @@ class DataExchangeService
                 ],
                 'note' => 'This method performs the most SOAP calls (SearchCase + GetCase for each case + GetSession for each session) and will take the longest time but provides the most comprehensive session data'
             ],
-            'sessions' => [
+            ResourceType::SESSION => [
                 'method' => 'SearchSession (with SearchCase fallback)',
                 'description' => 'Search for session records in the DSS system',
                 'required_parameters' => [
@@ -2972,52 +2973,18 @@ class DataExchangeService
     }
 
     /**
-     * Generate a complete fake data set with related clients, cases, and sessions
-     */
-    public function generateFakeDataSet($clientCount = 5, $casesPerClient = 2, $sessionsPerCase = 3)
-    {
-        fake()->unique(true); // Reset unique generator
-
-        $clients = $this->generateFakeClientData($clientCount);
-        $clientIds = array_column($clients, 'client_id');
-
-        // Generate cases for clients
-        $cases = [];
-        foreach ($clientIds as $clientId) {
-            for ($i = 0; $i < $casesPerClient; $i++) {
-                $cases[] = $this->generateSampleCaseData($clientId);
-            }
-        }
-        $caseIds = array_column($cases, 'case_id');
-
-        // Generate sessions for cases
-        $sessions = [];
-        foreach ($caseIds as $caseId) {
-            for ($i = 0; $i < $sessionsPerCase; $i++) {
-                $sessions[] = $this->generateSampleSessionData($caseId);
-            }
-        }
-
-        return [
-            'clients' => $clients,
-            'cases' => $cases,
-            'sessions' => $sessions
-        ];
-    }
-
-    /**
      * Generate CSV content for fake data
      */
-    public function generateFakeCSV($type, $count = 10, $relatedIds = null)
+    public function generateFakeCSV(ResourceType $type, $count = 10, $relatedIds = null)
     {
         switch ($type) {
-            case 'clients':
+            case ResourceType::CLIENT:
                 $data = $this->generateFakeClientData($count);
                 break;
-            case 'cases':
+            case ResourceType::CASE:
                 $data = $this->generateFakeCaseData($count, $relatedIds);
                 break;
-            case 'sessions':
+            case ResourceType::SESSION:
                 $data = $this->generateFakeSessionData($count, $relatedIds);
                 break;
             default:
@@ -3033,11 +3000,11 @@ class DataExchangeService
     public function getAvailableResources()
     {
         return [
-            'clients' => 'Client Data',
-            'cases' => 'Case Data',
-            'full_cases' => 'Fetch Full Case Data (SearchCase + GetCase)',
-            'full_sessions' => 'Fetch Full Session Data (SearchCase + GetCase + GetSession)',
-            'sessions' => 'Session Data (requires Case ID)'
+            ResourceType::CLIENT => 'Client Data',
+            ResourceType::CASE => 'Case Data',
+            ResourceType::FULL_CASE => 'Fetch Full Case Data (SearchCase + GetCase)',
+            ResourceType::FULL_SESSION => 'Fetch Full Session Data (SearchCase + GetCase + GetSession)',
+            ResourceType::SESSION => 'Session Data (requires Case ID)'
         ];
     }
 

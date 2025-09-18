@@ -24,7 +24,6 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
     Route::post('/bulk-cases-upload', [DataExchangeController::class, 'bulkUploadCases'])->name('bulk-cases-upload');
     Route::get('/bulk-sessions', [DataExchangeController::class, 'showBulkSessionsForm'])->name('bulk-sessions');
     Route::post('/bulk-sessions-upload', [DataExchangeController::class, 'bulkUploadSessions'])->name('bulk-sessions-upload');
-    Route::post('/bulk-upload', [DataExchangeController::class, 'bulkUpload'])->name('bulk-upload');
 
     // Data Retrieval Routes
     Route::get('/retrieve-form', [DataExchangeController::class, 'showRetrieveForm'])->name('retrieve-form');
@@ -76,7 +75,6 @@ Route::prefix('data-exchange')->name('data-exchange.')->group(function () {
 
     // Fake Data Generation Routes
     Route::post('/generate-fake-data', [DataExchangeController::class, 'generateFakeData'])->name('generate-fake-data');
-    Route::post('/generate-fake-dataset', [DataExchangeController::class, 'generateFakeDataset'])->name('generate-fake-dataset');
     Route::get('/download-fake-csv/{type}/{timestamp}', [DataExchangeController::class, 'downloadFakeCSV'])->name('download-fake-csv');
 
     // Reference Data Routes

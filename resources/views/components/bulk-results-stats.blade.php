@@ -1,4 +1,4 @@
-@props(['results', 'type' => 'clients'])
+@props(['results', 'type' => ResourceType::CLIENT])
 
 @php
     $totalRecords = count($results);
@@ -6,9 +6,9 @@
     $failedRecords = collect($results)->where('status', 'error')->count();
 
     $typeLabels = [
-        'clients' => 'Client',
-        'cases' => 'Case',
-        'sessions' => 'Session',
+        ResourceType::CLIENT => 'Client',
+        ResourceType::CASE => 'Case',
+        ResourceType::SESSION => 'Session',
     ];
     $typeLabel = $typeLabels[$type] ?? 'Record';
 @endphp

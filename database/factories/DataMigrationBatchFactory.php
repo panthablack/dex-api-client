@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ResourceType;
 use App\Models\DataMigrationBatch;
 use App\Models\DataMigration;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,11 +23,14 @@ class DataMigrationBatchFactory extends Factory
     {
         return [
             'data_migration_id' => DataMigration::factory(),
-            'batch_id' => fake()->uuid(),
             'batch_number' => 1,
             'page_index' => 1,
             'page_size' => 50,
-            'resource_type' => fake()->randomElement(['clients', 'cases', 'sessions']),
+            'resource_type' => fake()->randomElement([
+                ResourceType::CLIENT,
+                ResourceType::CASE,
+                ResourceType::SESSION
+            ]),
             'status' => 'completed',
             'items_requested' => 50,
             'items_received' => 50,

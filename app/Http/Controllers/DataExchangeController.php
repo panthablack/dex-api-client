@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ResourceType;
 use Illuminate\Http\Request;
 use App\Services\DataExchangeService;
 use App\Helpers\ReferenceData;
@@ -305,32 +306,6 @@ class DataExchangeController extends Controller
     }
 
     /**
-     * Handle bulk upload
-     */
-    public function bulkUpload(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'csv_file' => 'required|file|mimes:csv,txt|max:2048'
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator);
-        }
-
-        try {
-            $file = $request->file('csv_file');
-            $clientDataArray = $this->parseCsvFile($file);
-
-            $results = $this->dataExchangeService->bulkSubmitClientData($clientDataArray);
-
-            return view('data-exchange.bulk-results', compact('results'));
-        } catch (\Exception $e) {
-            return redirect()->back()
-                ->with('error', 'Failed to process bulk upload: ' . $e->getMessage());
-        }
-    }
-
-    /**
      * Show bulk clients form
      */
     public function showBulkClientsForm()
@@ -353,7 +328,7 @@ class DataExchangeController extends Controller
 
         try {
             $file = $request->file('csv_file');
-            $clientDataArray = $this->parseCsvFile($file, 'clients');
+            $clientDataArray = $this->parseCsvFile($file, ResourceType::CLIENT);
             $results = $this->dataExchangeService->bulkSubmitClientData($clientDataArray);
             return view('data-exchange.bulk-results', compact('results'));
         } catch (\Exception $e) {
@@ -385,7 +360,7 @@ class DataExchangeController extends Controller
 
         try {
             $file = $request->file('csv_file');
-            $caseDataArray = $this->parseCsvFile($file, 'cases');
+            $caseDataArray = $this->parseCsvFile($file, ResourceType::CASE);
             $results = $this->dataExchangeService->bulkSubmitCaseData($caseDataArray);
             return view('data-exchange.bulk-results', compact('results'));
         } catch (\Exception $e) {
@@ -417,7 +392,7 @@ class DataExchangeController extends Controller
 
         try {
             $file = $request->file('csv_file');
-            $sessionDataArray = $this->parseCsvFile($file, 'sessions');
+            $sessionDataArray = $this->parseCsvFile($file, ResourceType::SESSION);
             $results = $this->dataExchangeService->bulkSubmitSessionData($sessionDataArray);
             return view('data-exchange.bulk-results', compact('results'));
         } catch (\Exception $e) {
@@ -482,10 +457,10 @@ class DataExchangeController extends Controller
 
             // Get data based on resource type
             switch ($resourceType) {
-                case 'clients':
+                case ResourceType::CLIENT:
                     $data = $this->dataExchangeService->getClientData($filters);
                     break;
-                case 'cases':
+                case ResourceType::CASE:
                     $data = $this->dataExchangeService->getCaseData($filters);
                     break;
                 case 'full_cases':
@@ -494,7 +469,7 @@ class DataExchangeController extends Controller
                 case 'full_sessions':
                     $data = $this->dataExchangeService->fetchFullSessionData($filters);
                     break;
-                case 'sessions':
+                case ResourceType::SESSION:
                     // Debug logging
                     Log::info('Session request debug', [
                         'request_case_id' => $request->case_id,
@@ -724,11 +699,11 @@ class DataExchangeController extends Controller
         if ($route) {
             $routeName = $route->getName();
 
-            if ($routeName && str_contains($routeName, 'clients')) {
+            if ($routeName && str_contains($routeName, (string)(ResourceType::CLIENT))) {
                 return 'ClientId';
-            } elseif ($routeName && str_contains($routeName, 'cases')) {
+            } elseif ($routeName && str_contains($routeName, (string) ResourceType::CASE)) {
                 return 'CaseId';
-            } elseif ($routeName && str_contains($routeName, 'sessions')) {
+            } elseif ($routeName && str_contains($routeName, (string) ResourceType::SESSION)) {
                 return 'CaseId';
             }
         }
@@ -839,13 +814,13 @@ class DataExchangeController extends Controller
             } else {
                 $data = [];
                 switch ($type) {
-                    case 'clients':
+                    case ResourceType::CLIENT:
                         $data = $this->dataExchangeService->generateFakeClientData($count);
                         break;
-                    case 'cases':
+                    case ResourceType::CASE:
                         $data = $this->dataExchangeService->generateFakeCaseData($count);
                         break;
-                    case 'sessions':
+                    case ResourceType::SESSION:
                         $data = $this->dataExchangeService->generateFakeSessionData($count);
                         break;
                 }
@@ -855,66 +830,6 @@ class DataExchangeController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to generate fake data: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Generate fake dataset with related records
-     */
-    public function generateFakeDataset(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'client_count' => 'integer|min:1|max:100',
-            'cases_per_client' => 'integer|min:1|max:10',
-            'sessions_per_case' => 'integer|min:1|max:20',
-            'format' => 'required|in:json,download_csv'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
-
-        try {
-            $clientCount = $request->get('client_count', 5);
-            $casesPerClient = $request->get('cases_per_client', 2);
-            $sessionsPerCase = $request->get('sessions_per_case', 3);
-            $format = $request->format;
-
-            $dataset = $this->dataExchangeService->generateFakeDataSet(
-                $clientCount,
-                $casesPerClient,
-                $sessionsPerCase
-            );
-
-            if ($format === 'download_csv') {
-                // Generate separate CSV files for each type
-                $timestamp = date('Y-m-d_H-i-s');
-
-                $response = response()->json([
-                    'message' => 'Dataset generated successfully',
-                    'summary' => [
-                        'clients' => count($dataset['clients']),
-                        'cases' => count($dataset['cases']),
-                        'sessions' => count($dataset['sessions'])
-                    ],
-                    'download_links' => [
-                        'clients' => route('data-exchange.download-fake-csv', ['type' => 'clients', 'timestamp' => $timestamp]),
-                        'cases' => route('data-exchange.download-fake-csv', ['type' => 'cases', 'timestamp' => $timestamp]),
-                        'sessions' => route('data-exchange.download-fake-csv', ['type' => 'sessions', 'timestamp' => $timestamp])
-                    ]
-                ]);
-
-                // Store dataset in session for download
-                session(['fake_dataset_' . $timestamp => $dataset]);
-
-                return $response;
-            } else {
-                return response()->json($dataset);
-            }
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to generate fake dataset: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -1009,7 +924,7 @@ class DataExchangeController extends Controller
     /**
      * Parse CSV file for bulk upload
      */
-    protected function parseCsvFile($file, $type = 'clients')
+    protected function parseCsvFile($file, ResourceType $type)
     {
         $dataArray = [];
         $handle = fopen($file->getPathname(), 'r');
@@ -1022,11 +937,11 @@ class DataExchangeController extends Controller
             $rowData = array_combine($headers, $data);
 
             // Clean up the data based on type
-            if ($type === 'clients') {
+            if ($type === ResourceType::CLIENT) {
                 $dataArray[] = $this->cleanClientData($rowData);
-            } elseif ($type === 'cases') {
+            } elseif ($type === ResourceType::CASE) {
                 $dataArray[] = $this->cleanCaseData($rowData);
-            } elseif ($type === 'sessions') {
+            } elseif ($type === ResourceType::SESSION) {
                 $dataArray[] = $this->cleanSessionData($rowData);
             }
         }
@@ -1388,7 +1303,7 @@ class DataExchangeController extends Controller
         try {
             $filters = $this->buildFilters($request);
             $loading = false;
-            $clients = [];
+            $data = [];
             $debugInfo = [];
             $pagination = null;
 
@@ -1410,10 +1325,10 @@ class DataExchangeController extends Controller
                 $pagination = $rawData['pagination'] ?? null;
 
                 // Handle different response structures - be more flexible
-                $clients = $this->extractClientsFromResponse($rawData);
+                $data = $this->extractClientsFromResponse($rawData);
 
-                $debugInfo['final_clients_count'] = count($clients);
-                $debugInfo['sample_client'] = !empty($clients) ? array_slice($clients, 0, 1) : null;
+                $debugInfo['final_clients_count'] = count($data);
+                $debugInfo['sample_client'] = !empty($data) ? array_slice($data, 0, 1) : null;
                 $debugInfo['pagination_info'] = $pagination;
             } catch (\Exception $e) {
                 $debugInfo = [
@@ -1425,7 +1340,7 @@ class DataExchangeController extends Controller
 
                 // Add sample data for testing when API fails (only in debug mode)
                 if (config('app.debug', false)) {
-                    $clients = $this->getSampleClients();
+                    $data = $this->getSampleClients();
                     $debugInfo['using_sample_data'] = true;
                 }
             }
@@ -1433,10 +1348,10 @@ class DataExchangeController extends Controller
             // Enable debug info only when needed (set to false for production)
             $debugInfo['view_debug'] = config('app.debug', false);
 
-            return view('data-exchange.clients.index', compact('clients', 'loading', 'debugInfo', 'pagination'));
+            return view('data-exchange.clients.index', compact('data', 'loading', 'debugInfo', 'pagination'));
         } catch (\Exception $e) {
             return view('data-exchange.clients.index', [
-                'clients' => [],
+                'data' => [],
                 'loading' => false,
                 'debugInfo' => ['controller_error' => $e->getMessage()],
                 'pagination' => null
@@ -2590,7 +2505,7 @@ class DataExchangeController extends Controller
             $filename = 'clients_export_' . now()->format('Y-m-d_H-i-s');
 
             if ($format === 'csv') {
-                return $this->exportLiveDataToCsv($clients, $filename, 'clients');
+                return $this->exportLiveDataToCsv($clients, $filename, ResourceType::CLIENT);
             } else {
                 return $this->exportLiveDataToJson($clients, $filename);
             }
@@ -2740,10 +2655,10 @@ class DataExchangeController extends Controller
     /**
      * Get header mappings for live data export
      */
-    private function getLiveDataHeaderMapping(string $dataType): array
+    private function getLiveDataHeaderMapping(ResourceType $dataType): array
     {
         return match ($dataType) {
-            'clients' => [
+            ResourceType::CLIENT => [
                 'ClientId' => 'Client ID',
                 'GivenName' => 'First Name',
                 'FamilyName' => 'Last Name',
@@ -2757,7 +2672,7 @@ class DataExchangeController extends Controller
                 'ResidentialAddress.Postcode' => 'Postcode',
                 'ClientType.ClientTypeDescription' => 'Client Type'
             ],
-            'cases' => [
+            ResourceType::CASE => [
                 'CaseId' => 'Case ID',
                 'ClientId' => 'Client ID',
                 'OutletActivityId' => 'Outlet Activity ID',
@@ -2768,7 +2683,7 @@ class DataExchangeController extends Controller
                 'EndDate' => 'End Date',
                 'ExitReasonCode' => 'Exit Reason Code'
             ],
-            'sessions' => [
+            ResourceType::SESSION => [
                 'SessionId' => 'Session ID',
                 'CaseId' => 'Case ID',
                 'ServiceTypeId' => 'Service Type ID',

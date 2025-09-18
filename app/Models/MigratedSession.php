@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MigratedSession extends Model
 {
     protected $fillable = [
-        'migration_id',
         'session_id',
         'case_id',
         'service_type_id',

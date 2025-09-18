@@ -1,4 +1,4 @@
-@props(['results', 'type' => 'clients'])
+@props(['results', 'type' => ResourceType::CLIENT])
 
 <div class="table-responsive">
     <table class="table table-striped table-hover">
@@ -6,13 +6,13 @@
             <tr>
                 <th>Row #</th>
                 <th>Status</th>
-                @if ($type === 'clients')
+                @if ($type === ResourceType::CLIENT)
                     <th>Client ID</th>
                     <th>Name</th>
-                @elseif($type === 'cases')
+                @elseif($type === ResourceType::CASE)
                     <th>Case ID</th>
                     <th>Client ID</th>
-                @elseif($type === 'sessions')
+                @elseif($type === ResourceType::SESSION)
                     <th>Session ID</th>
                     <th>Case ID</th>
                 @endif
@@ -32,7 +32,7 @@
                         @endif
                     </td>
 
-                    @if ($type === 'clients')
+                    @if ($type === ResourceType::CLIENT)
                         <td>
                             @if (isset($result['client_data']['client_id']))
                                 {{ $result['client_data']['client_id'] }}
@@ -47,7 +47,7 @@
                                 <em class="text-muted">N/A</em>
                             @endif
                         </td>
-                    @elseif($type === 'cases')
+                    @elseif($type === ResourceType::CASE)
                         <td>
                             @if (isset($result['case_data']['case_id']))
                                 {{ $result['case_data']['case_id'] }}
@@ -62,7 +62,7 @@
                                 <em class="text-muted">N/A</em>
                             @endif
                         </td>
-                    @elseif($type === 'sessions')
+                    @elseif($type === ResourceType::SESSION)
                         <td>
                             @if (isset($result['session_data']['session_id']))
                                 {{ $result['session_data']['session_id'] }}

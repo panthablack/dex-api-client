@@ -10,7 +10,6 @@ class DataMigrationBatch extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'batch_id',
         'data_migration_id',
         'resource_type',
         'batch_number',
@@ -37,31 +36,6 @@ class DataMigrationBatch extends Model
     public function dataMigration(): BelongsTo
     {
         return $this->belongsTo(DataMigration::class);
-    }
-
-    public function scopeForResource($query, string $resourceType)
-    {
-        return $query->where('resource_type', $resourceType);
-    }
-
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-
-    public function scopeProcessing($query)
-    {
-        return $query->where('status', 'processing');
-    }
-
-    public function scopeCompleted($query)
-    {
-        return $query->where('status', 'completed');
-    }
-
-    public function scopeFailed($query)
-    {
-        return $query->where('status', 'failed');
     }
 
     public function getSuccessRateAttribute()

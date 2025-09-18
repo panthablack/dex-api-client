@@ -147,20 +147,7 @@ class CaseIdDebugTest extends TestCase
             'action' => 'preview'
         ];
 
-        // Debug: Print what we're sending
-        echo "\nForm data being sent:\n";
-        print_r($formData);
-
         $response = $this->post(route('data-exchange.retrieve-data'), $formData);
-
-        // Debug: Print response and session
-        if (session('error')) {
-            echo "\nError received: " . session('error') . "\n";
-        }
-        if (session('success')) {
-            echo "\nSuccess received: " . session('success') . "\n";
-        }
-
         $response->assertRedirect();
         $response->assertSessionHas('success');
     }
