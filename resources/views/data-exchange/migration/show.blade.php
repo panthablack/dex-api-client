@@ -188,9 +188,9 @@
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span
                                     class="badge
-                            {{ $type === ResourceType::CLIENT ? 'bg-primary' : '' }}
-                            {{ $type === ResourceType::CASE ? 'bg-success' : '' }}
-                            {{ $type === ResourceType::SESSION ? 'bg-info' : '' }}">
+                            {{ $type === \App\Enums\ResourceType::CLIENT ? 'bg-primary' : '' }}
+                            {{ $type === \App\Enums\ResourceType::CASE ? 'bg-success' : '' }}
+                            {{ $type === \App\Enums\ResourceType::SESSION ? 'bg-info' : '' }}">
                                     {{ ucfirst($type) }}
                                 </span>
                                 @php
@@ -289,9 +289,9 @@
                                     <td>
                                         <span class="badge text-capitalize"
                                             :class="{
-                                                'bg-primary': batch.resource_type === ResourceType::CLIENT,
-                                                'bg-success': batch.resource_type === ResourceType::CASE,
-                                                'bg-info': batch.resource_type === ResourceType::SESSION
+                                                'bg-primary': batch.resource_type === \App\ Enums\ ResourceType::CLIENT,
+                                                'bg-success': batch.resource_type === \App\ Enums\ ResourceType::CASE,
+                                                'bg-info': batch.resource_type === \App\ Enums\ ResourceType::SESSION
                                             }"
                                             x-text="batch.resource_type">
                                         </span>

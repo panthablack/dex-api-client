@@ -1,4 +1,4 @@
-@props(['results', 'type' => ResourceType::CLIENT])
+@props(['results', 'type' => \App\Enums\ResourceType::CLIENT])
 
 @php
     $totalRecords = count($results);
@@ -6,9 +6,9 @@
     $failedRecords = collect($results)->where('status', 'error')->count();
 
     $typeLabels = [
-        ResourceType::CLIENT->value => 'Client',
-        ResourceType::CASE->value => 'Case',
-        ResourceType::SESSION->value => 'Session',
+        \App\Enums\ResourceType::CLIENT->value => 'Client',
+        \App\Enums\ResourceType::CASE->value => 'Case',
+        \App\Enums\ResourceType::SESSION->value => 'Session',
     ];
     $typeLabel = $typeLabels[$type] ?? 'Record';
 @endphp

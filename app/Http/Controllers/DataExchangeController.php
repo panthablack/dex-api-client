@@ -789,7 +789,7 @@ class DataExchangeController extends Controller
     public function generateFakeData(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:clients,cases,sessions',
+            'type' => 'required',
             'count' => 'required|integer|min:1|max:1000',
             'format' => 'required|in:csv,json'
         ]);
@@ -799,13 +799,13 @@ class DataExchangeController extends Controller
         }
 
         try {
-            $type = $request->type;
+            $type = ResourceType::resolve($request->type);
             $count = $request->count;
             $format = $request->format;
-
+            $printableType = strtolower($type->value);
             if ($format === 'csv') {
                 $content = $this->dataExchangeService->generateFakeCSV($type, $count);
-                $filename = "fake_{$type}_" . date('Y-m-d_H-i-s') . '.csv';
+                $filename = "fake_{$printableType}_" . date('Y-m-d_H-i-s') . '.csv';
 
                 return response($content, 200, [
                     'Content-Type' => 'text/csv',

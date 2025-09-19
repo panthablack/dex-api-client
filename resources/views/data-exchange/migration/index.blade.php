@@ -141,9 +141,9 @@
                                             @foreach ($migration->resource_types as $type)
                                                 <span
                                                     class="badge
-                                        {{ $type === ResourceType::CLIENT ? 'bg-primary' : '' }}
-                                        {{ $type === ResourceType::CASE ? 'bg-success' : '' }}
-                                        {{ $type === ResourceType::SESSION ? 'bg-info' : '' }}">
+                                        {{ $type === \App\Enums\ResourceType::CLIENT ? 'bg-primary' : '' }}
+                                        {{ $type === \App\Enums\ResourceType::CASE ? 'bg-success' : '' }}
+                                        {{ $type === \App\Enums\ResourceType::SESSION ? 'bg-info' : '' }}">
                                                     {{ ucfirst($type) }}
                                                 </span>
                                             @endforeach

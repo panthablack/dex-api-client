@@ -1,4 +1,4 @@
-@props(['results', 'type' => ResourceType::CLIENT])
+@props(['results', 'type' => \App\Enums\ResourceType::CLIENT->value])
 
 <div class="table-responsive">
     <table class="table table-striped table-hover">
@@ -6,13 +6,13 @@
             <tr>
                 <th>Row #</th>
                 <th>Status</th>
-                @if ($type === ResourceType::CLIENT)
+                @if ($type === \App\Enums\ResourceType::CLIENT->value)
                     <th>Client ID</th>
                     <th>Name</th>
-                @elseif($type === ResourceType::CASE)
+                @elseif($type === \App\Enums\ResourceType::CASE->value)
                     <th>Case ID</th>
                     <th>Client ID</th>
-                @elseif($type === ResourceType::SESSION)
+                @elseif($type === \App\Enums\ResourceType::SESSION->value)
                     <th>Session ID</th>
                     <th>Case ID</th>
                 @endif
@@ -32,7 +32,7 @@
                         @endif
                     </td>
 
-                    @if ($type === ResourceType::CLIENT)
+                    @if ($type === \App\Enums\ResourceType::CLIENT->value)
                         <td>
                             @if (isset($result['client_data']['client_id']))
                                 {{ $result['client_data']['client_id'] }}
@@ -47,7 +47,7 @@
                                 <em class="text-muted">N/A</em>
                             @endif
                         </td>
-                    @elseif($type === ResourceType::CASE)
+                    @elseif($type === \App\Enums\ResourceType::CASE->value)
                         <td>
                             @if (isset($result['case_data']['case_id']))
                                 {{ $result['case_data']['case_id'] }}
@@ -62,7 +62,7 @@
                                 <em class="text-muted">N/A</em>
                             @endif
                         </td>
-                    @elseif($type === ResourceType::SESSION)
+                    @elseif($type === \App\Enums\ResourceType::SESSION->value)
                         <td>
                             @if (isset($result['session_data']['session_id']))
                                 {{ $result['session_data']['session_id'] }}

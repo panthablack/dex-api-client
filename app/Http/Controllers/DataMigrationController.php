@@ -605,7 +605,7 @@ class DataMigrationController extends Controller
     /**
      * Get resource type from model class
      */
-    private function getResourceTypeFromModel(string $modelClass): string
+    private function getResourceTypeFromModel(string $modelClass): ResourceType
     {
         return match ($modelClass) {
             MigratedClient::class => ResourceType::CLIENT,

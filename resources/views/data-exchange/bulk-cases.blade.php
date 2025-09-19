@@ -160,7 +160,7 @@
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
                             },
                             body: JSON.stringify({
-                                type: 'cases',
+                                type: 'case',
                                 count: count,
                                 format: 'csv'
                             })

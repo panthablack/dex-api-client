@@ -458,13 +458,14 @@
                 optionalSection.style.display = 'block';
 
                 // Show relevant optional filters
-                if (resourceType === ResourceType::CLIENT || resourceType === 'client_by_id') {
+                if (resourceType === \App\ Enums\ ResourceType::CLIENT || resourceType === 'client_by_id') {
                     clientOptionalFilters.style.display = 'block';
-                } else if (resourceType === ResourceType::CASE || resourceType === 'case_by_id' || resourceType ===
+                } else if (resourceType === \App\ Enums\ ResourceType::CASE || resourceType === 'case_by_id' ||
+                    resourceType ===
                     'full_cases' ||
                     resourceType === 'full_sessions') {
                     caseOptionalFilters.style.display = 'block';
-                } else if (resourceType === ResourceType::SESSION || resourceType === 'session_by_id') {
+                } else if (resourceType === \App\ Enums\ ResourceType::SESSION || resourceType === 'session_by_id') {
                     sessionOptionalFilters.style.display = 'block';
                 }
             }

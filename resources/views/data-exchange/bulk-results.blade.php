@@ -6,22 +6,22 @@
     <div x-data="bulkResultsApp()" x-init="init()" x-cloak>
         @php
             // Detect the data type based on the first result
-            $dataType = ResourceType::CLIENT; // default
+            $dataType = \App\Enums\ResourceType::CLIENT->value; // default
             if (!empty($results)) {
                 $firstResult = $results[0];
                 if (isset($firstResult['case_data'])) {
-                    $dataType = ResourceType::CASE;
+                    $dataType = \App\Enums\ResourceType::CASE->value;
                 } elseif (isset($firstResult['session_data'])) {
-                    $dataType = ResourceType::SESSION;
+                    $dataType = \App\Enums\ResourceType::SESSION->value;
                 } elseif (isset($firstResult['client_data'])) {
-                    $dataType = ResourceType::CLIENT;
+                    $dataType = \App\Enums\ResourceType::CLIENT->value;
                 }
             }
 
             $typeLabels = [
-                ResourceType::CLIENT->value => 'Client Data',
-                ResourceType::CASE->value => 'Case Data',
-                ResourceType::SESSION->value => 'Session Data',
+                \App\Enums\ResourceType::CLIENT->value => 'Client Data',
+                \App\Enums\ResourceType::CASE->value => 'Case Data',
+                \App\Enums\ResourceType::SESSION->value => 'Session Data',
             ];
             $typeLabel = $typeLabels[$dataType] ?? 'Data';
 
@@ -229,14 +229,14 @@
                                 };
 
                                 // Add type-specific fields
-                                if (this.dataType === ResourceType::CLIENT {
+                                if (this.dataType === 'CLIENT' {
                                         exportRow.client_id = result.client_data?.client_id || 'N/A';
                                         exportRow.first_name = result.client_data?.first_name || 'N/A';
                                         exportRow.last_name = result.client_data?.last_name || 'N/A';
-                                    } else if (this.dataType === ResourceType::CASE) {
+                                    } else if (this.dataType === 'CASE') {
                                         exportRow.case_id = result.case_data?.case_id || 'N/A';
                                         exportRow.client_id = result.case_data?.client_id || 'N/A';
-                                    } else if (this.dataType === ResourceType::SESSION) {
+                                    } else if (this.dataType === 'SESSION') {
                                         exportRow.session_id = result.session_data?.session_id || 'N/A';
                                         exportRow.case_id = result.session_data?.case_id || 'N/A';
                                     }
