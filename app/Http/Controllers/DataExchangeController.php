@@ -699,11 +699,11 @@ class DataExchangeController extends Controller
         if ($route) {
             $routeName = $route->getName();
 
-            if ($routeName && str_contains($routeName, (string)(ResourceType::CLIENT))) {
+            if ($routeName && str_contains($routeName, ResourceType::CLIENT->value)) {
                 return 'ClientId';
-            } elseif ($routeName && str_contains($routeName, (string) ResourceType::CASE)) {
+            } elseif ($routeName && str_contains($routeName, ResourceType::CASE->value)) {
                 return 'CaseId';
-            } elseif ($routeName && str_contains($routeName, (string) ResourceType::SESSION)) {
+            } elseif ($routeName && str_contains($routeName, ResourceType::SESSION->value)) {
                 return 'CaseId';
             }
         }
@@ -2458,7 +2458,7 @@ class DataExchangeController extends Controller
             $filename = "case_{$caseId}_sessions_export_" . now()->format('Y-m-d_H-i-s');
 
             if ($format === 'csv') {
-                return $this->exportLiveDataToCsv($sessions, $filename, 'sessions');
+                return $this->exportLiveDataToCsv($sessions, $filename, ResourceType::SESSION);
             } else {
                 return $this->exportLiveDataToJson($sessions, $filename);
             }
@@ -2552,7 +2552,7 @@ class DataExchangeController extends Controller
             $filename = 'cases_export_' . now()->format('Y-m-d_H-i-s');
 
             if ($format === 'csv') {
-                return $this->exportLiveDataToCsv($cases, $filename, 'cases');
+                return $this->exportLiveDataToCsv($cases, $filename, ResourceType::CASE);
             } else {
                 return $this->exportLiveDataToJson($cases, $filename);
             }
@@ -2604,7 +2604,7 @@ class DataExchangeController extends Controller
             $filename = 'sessions_export_' . now()->format('Y-m-d_H-i-s');
 
             if ($format === 'csv') {
-                return $this->exportLiveDataToCsv($sessions, $filename, 'sessions');
+                return $this->exportLiveDataToCsv($sessions, $filename, ResourceType::SESSION);
             } else {
                 return $this->exportLiveDataToJson($sessions, $filename);
             }
@@ -2617,7 +2617,7 @@ class DataExchangeController extends Controller
     /**
      * Export live data to CSV format
      */
-    protected function exportLiveDataToCsv(array $data, string $filename, string $dataType)
+    protected function exportLiveDataToCsv(array $data, string $filename, ResourceType $dataType)
     {
         $csv = \League\Csv\Writer::createFromString('');
 
@@ -2658,7 +2658,7 @@ class DataExchangeController extends Controller
     private function getLiveDataHeaderMapping(ResourceType $dataType): array
     {
         return match ($dataType) {
-            ResourceType::CLIENT => [
+            ResourceType::CLIENT->value => [
                 'ClientId' => 'Client ID',
                 'GivenName' => 'First Name',
                 'FamilyName' => 'Last Name',

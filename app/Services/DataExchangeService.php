@@ -2042,7 +2042,7 @@ class DataExchangeService
     protected function getDefaultSchemaInfo(ResourceType $resourceType)
     {
         $schemas = [
-            ResourceType::CLIENT => [
+            ResourceType::CLIENT->value => [
                 'method' => 'SearchClient',
                 'description' => 'Search for client records in the DSS system',
                 'required_parameters' => [
@@ -2059,7 +2059,7 @@ class DataExchangeService
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ]
             ],
-            ResourceType::CASE => [
+            ResourceType::CASE->value => [
                 'method' => 'SearchCase',
                 'description' => 'Search for case records in the DSS system',
                 'required_parameters' => [
@@ -2077,7 +2077,7 @@ class DataExchangeService
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ]
             ],
-            ResourceType::FULL_CASE => [
+            ResourceType::FULL_CASE->value => [
                 'method' => 'SearchCase + GetCase combination',
                 'description' => 'First searches for cases using SearchCase, then fetches detailed data for each case using GetCase. This provides richer case information than SearchCase alone.',
                 'required_parameters' => [
@@ -2096,7 +2096,7 @@ class DataExchangeService
                 ],
                 'note' => 'This method performs multiple SOAP calls and may take longer than standard SearchCase'
             ],
-            ResourceType::FULL_SESSION => [
+            ResourceType::FULL_SESSION->value => [
                 'method' => 'SearchCase + GetCase + GetSession combination',
                 'description' => 'First searches for cases using SearchCase, then fetches detailed data for each case using GetCase, and finally fetches detailed session data for each session using GetSession. This provides the richest session information available.',
                 'required_parameters' => [
@@ -2115,7 +2115,7 @@ class DataExchangeService
                 ],
                 'note' => 'This method performs the most SOAP calls (SearchCase + GetCase for each case + GetSession for each session) and will take the longest time but provides the most comprehensive session data'
             ],
-            ResourceType::SESSION => [
+            ResourceType::SESSION->value => [
                 'method' => 'SearchSession (with SearchCase fallback)',
                 'description' => 'Search for session records in the DSS system',
                 'required_parameters' => [
@@ -3000,11 +3000,11 @@ class DataExchangeService
     public function getAvailableResources()
     {
         return [
-            ResourceType::CLIENT => 'Client Data',
-            ResourceType::CASE => 'Case Data',
-            ResourceType::FULL_CASE => 'Fetch Full Case Data (SearchCase + GetCase)',
-            ResourceType::FULL_SESSION => 'Fetch Full Session Data (SearchCase + GetCase + GetSession)',
-            ResourceType::SESSION => 'Session Data (requires Case ID)'
+            ResourceType::CLIENT->value => 'Client Data',
+            ResourceType::CASE->value => 'Case Data',
+            ResourceType::FULL_CASE->value => 'Fetch Full Case Data (SearchCase + GetCase)',
+            ResourceType::FULL_SESSION->value => 'Fetch Full Session Data (SearchCase + GetCase + GetSession)',
+            ResourceType::SESSION->value => 'Session Data (requires Case ID)'
         ];
     }
 

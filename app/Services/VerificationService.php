@@ -322,9 +322,9 @@ class VerificationService
     private function getModelClass(string $resourceType): ?string
     {
         return match ($resourceType) {
-            ResourceType::CLIENT => MigratedClient::class,
-            ResourceType::CASE => MigratedCase::class,
-            ResourceType::SESSION => MigratedSession::class,
+            ResourceType::CLIENT->value => MigratedClient::class,
+            ResourceType::CASE->value => MigratedCase::class,
+            ResourceType::SESSION->value => MigratedSession::class,
             default => null
         };
     }

@@ -6,22 +6,22 @@
     <div x-data="bulkResultsApp()" x-init="init()" x-cloak>
         @php
             // Detect the data type based on the first result
-            $dataType = 'clients'; // default
+            $dataType = ResourceType::CLIENT; // default
             if (!empty($results)) {
                 $firstResult = $results[0];
                 if (isset($firstResult['case_data'])) {
-                    $dataType = 'cases';
+                    $dataType = ResourceType::CASE;
                 } elseif (isset($firstResult['session_data'])) {
-                    $dataType = 'sessions';
+                    $dataType = ResourceType::SESSION;
                 } elseif (isset($firstResult['client_data'])) {
-                    $dataType = 'clients';
+                    $dataType = ResourceType::CLIENT;
                 }
             }
 
             $typeLabels = [
-                ResourceType::CLIENT => 'Client Data',
-                ResourceType::CASE => 'Case Data',
-                ResourceType::SESSION => 'Session Data',
+                ResourceType::CLIENT->value => 'Client Data',
+                ResourceType::CASE->value => 'Case Data',
+                ResourceType::SESSION->value => 'Session Data',
             ];
             $typeLabel = $typeLabels[$dataType] ?? 'Data';
 

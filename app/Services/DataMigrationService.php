@@ -111,7 +111,7 @@ class DataMigrationService
     /**
      * Create batches for a specific resource type
      */
-    protected function createBatchesForResource(DataMigration $migration, string $resourceType): void
+    protected function createBatchesForResource(DataMigration $migration, ResourceType $resourceType): void
     {
         // Get total count to determine number of batches needed
         $totalItems = $this->getTotalItemsForResource($resourceType, $migration->filters);
@@ -254,9 +254,9 @@ class DataMigrationService
     protected function getOrderedResourceTypes(array $resourceTypes): array
     {
         $dependencies = [
-            ResourceType::CLIENT => [],
-            ResourceType::CASE => [],
-            ResourceType::SESSION => [ResourceType::CASE] // Sessions depend on cases
+            ResourceType::CLIENT->value => [],
+            ResourceType::CASE->value => [],
+            ResourceType::SESSION->value => [ResourceType::CASE] // Sessions depend on cases
         ];
 
         $ordered = [];
@@ -290,7 +290,7 @@ class DataMigrationService
      */
     protected function dispatchDependentBatches(DataMigration $migration, int $limit = 3): void
     {
-        $dependentTypes = ['sessions' => 'cases'];
+        $dependentTypes = [ResourceType::SESSION => ResourceType::CASE];
 
         Log::debug("Dispatching batches for " . implode(', ', $dependentTypes));
 
@@ -381,9 +381,9 @@ class DataMigrationService
     protected function canProcessResourceType(DataMigration $migration, string $resourceType): bool
     {
         $dependencies = [
-            ResourceType::CLIENT => [],
-            ResourceType::CASE => [],
-            ResourceType::SESSION => [ResourceType::CASE] // Sessions depend on cases
+            ResourceType::CLIENT->value => [],
+            ResourceType::CASE->value => [],
+            ResourceType::SESSION->value => [ResourceType::CASE] // Sessions depend on cases
         ];
 
         $requiredDependencies = $dependencies[$resourceType] ?? [];

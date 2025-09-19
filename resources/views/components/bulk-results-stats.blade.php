@@ -6,9 +6,9 @@
     $failedRecords = collect($results)->where('status', 'error')->count();
 
     $typeLabels = [
-        ResourceType::CLIENT => 'Client',
-        ResourceType::CASE => 'Case',
-        ResourceType::SESSION => 'Session',
+        ResourceType::CLIENT->value => 'Client',
+        ResourceType::CASE->value => 'Case',
+        ResourceType::SESSION->value => 'Session',
     ];
     $typeLabel = $typeLabels[$type] ?? 'Record';
 @endphp
