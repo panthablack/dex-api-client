@@ -10,6 +10,7 @@ use App\Models\MigratedCase;
 use App\Models\MigratedSession;
 use App\Services\DataExchangeService;
 use App\Jobs\ProcessDataMigrationBatch;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,7 @@ class DataMigrationService
             $resolvedType = ResourceType::resolve($resourceType);
             $resourceTotal = $this->getTotalItemsForResource($resolvedType, $filters);
             $totalItems += $resourceTotal;
-            Log::info("Found {$resourceTotal} items for {$resourceType->value}");
+            Log::info("Found {$resourceTotal} items for {$resourceType}");
         }
 
         Log::info("Total items to migrate: {$totalItems}");
@@ -65,7 +66,8 @@ class DataMigrationService
             // Create batches for all resource types, but respect dependencies
             $orderedResourceTypes = $this->getOrderedResourceTypes($migration->resource_types);
             foreach ($orderedResourceTypes as $resourceType) {
-                $this->createBatchesForResource($migration, $resourceType);
+                $resolvedType = ResourceType::resolve($resourceType);
+                $this->createBatchesForResource($migration, $resolvedType);
             }
         });
 
@@ -77,6 +79,7 @@ class DataMigrationService
 
         // get independent batches
         $independentBatches = $this->getIndependentBatches($migration);
+
         // if independent batches are found incomplete, process them
         if (!empty($independentBatches)) {
             $this->dispatchIndependentBatches($migration);
@@ -96,17 +99,27 @@ class DataMigrationService
     /**
      * Get dependent batches for a migration
      */
-    public function getDependentBatches(DataMigration $migration): array
+    public function getDependentBatches(DataMigration $migration): Collection
     {
-        return [];
+        return $migration->batches->filter(
+            fn($batch) => in_array(
+                ResourceType::resolve($batch->resource_type),
+                ResourceType::getDependentResourceTypes()
+            )
+        );
     }
 
     /**
      * Get independent batches for a migration
      */
-    public function getIndependentBatches(DataMigration $migration): array
+    public function getIndependentBatches(DataMigration $migration): Collection
     {
-        return [];
+        return $migration->batches->filter(
+            fn($batch) => in_array(
+                ResourceType::resolve($batch->resource_type),
+                ResourceType::getIndependentResourceTypes()
+            )
+        );
     }
 
     /**
@@ -336,7 +349,7 @@ class DataMigrationService
      */
     protected function dispatchIndependentBatches(DataMigration $migration, int $limit = 3): void
     {
-        $independentTypes = [ResourceType::CLIENT, ResourceType::CASE];
+        $independentTypes = [ResourceType::CLIENT->value, ResourceType::CASE->value];
 
         Log::debug("Dispatching batches for " . implode(', ', $independentTypes));
 
@@ -360,14 +373,7 @@ class DataMigrationService
                 Log::info("Successfully dispatched and marked batch {$batch->id} as processing");
             } catch (\Exception $e) {
                 Log::error("Failed to dispatch batch {$batch->id}: " . $e->getMessage());
-                Log::info("Attempting synchronous processing as fallback for batch {$batch->id}");
-
-                try {
-                    $this->processBatch($batch);
-                    Log::info("Successfully processed batch {$batch->id} synchronously");
-                } catch (\Exception $syncError) {
-                    Log::error("Synchronous processing also failed for batch {$batch->id}: " . $syncError->getMessage());
-                }
+                $batch->failed($e);
             }
         }
 
@@ -405,35 +411,6 @@ class DataMigrationService
     }
 
     /**
-     * Process migration synchronously for testing (bypasses queue)
-     */
-    public function processMigrationSynchronously(DataMigration $migration): void
-    {
-        Log::info("Processing migration {$migration->id} synchronously (bypassing queue)");
-
-        $independentTypes = [ResourceType::CLIENT, ResourceType::CASE];
-        $pendingBatches = $migration->batches()
-            ->whereIn('resource_type', $independentTypes)
-            ->where('status', 'pending')
-            ->orderBy('resource_type')
-            ->orderBy('batch_number')
-            ->limit(1) // Process just one batch for testing
-            ->get();
-
-        Log::info("Found {$pendingBatches->count()} pending batches to process synchronously");
-
-        foreach ($pendingBatches as $batch) {
-            Log::info("Processing batch {$batch->id} synchronously");
-            try {
-                $this->processBatch($batch);
-                Log::info("Successfully processed batch {$batch->id}");
-            } catch (\Exception $e) {
-                Log::error("Failed to process batch {$batch->id}: " . $e->getMessage());
-            }
-        }
-    }
-
-    /**
      * Restart a stuck migration by re-dispatching pending batches
      */
     public function restartMigration(DataMigration $migration): void
@@ -459,13 +436,13 @@ class DataMigrationService
         // $this->dispatchIndependentBatches($migration);
 
         // Also check if any dependent batches can now be dispatched
-        // $this->dispatchNextBatches($migration, 5);
+        // $this->dispatchNextBatches($migration);
     }
 
     /**
      * Dispatch next pending batches for processing (respecting dependencies)
      */
-    public function dispatchNextBatches(DataMigration $migration, int $limit = 3): void
+    public function dispatchNextBatches(DataMigration $migration, int $limit = 1): void
     {
         $dispatchedCount = 0;
 
@@ -540,16 +517,10 @@ class DataMigrationService
             $this->updateMigrationProgress($batch->dataMigration);
 
             // Dispatch next batch if available
-            $this->dispatchNextBatches($batch->dataMigration, 1);
+            $this->dispatchNextBatches($batch->dataMigration);
         } catch (\Exception $e) {
             Log::error("Batch processing failed: " . $e->getMessage());
-
-            $batch->update([
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-                'completed_at' => now()
-            ]);
-
+            $batch->onFail($e);
             $this->handleBatchFailure($batch);
         }
     }
@@ -560,8 +531,9 @@ class DataMigrationService
     protected function fetchDataForBatch(DataMigrationBatch $batch): array
     {
         $filters = $batch->api_filters;
+        $resolvedType = ResourceType::resolve($batch->resource_type);
 
-        switch ($batch->resource_type) {
+        switch ($resolvedType) {
             case ResourceType::CLIENT:
                 $response = $this->dataExchangeService->getClientDataWithPagination($filters);
                 return $this->extractClientsFromResponse($response);
@@ -586,13 +558,14 @@ class DataMigrationService
         $storedCount = 0;
         $batchId = $batch->id;
         $migrationId = $batch->data_migration_id;
+        $resourceType = ResourceType::resolve($batch->resource_type);
 
         foreach ($data as $item) {
             try {
                 // Convert stdClass to array if needed
                 $itemArray = is_object($item) ? json_decode(json_encode($item), true) : $item;
 
-                switch ($batch->resource_type) {
+                switch ($resourceType) {
                     case ResourceType::CLIENT:
                         $this->storeClient($itemArray, $batchId, $migrationId);
                         break;
@@ -602,6 +575,8 @@ class DataMigrationService
                     case ResourceType::SESSION:
                         $this->storeSession($itemArray, $batchId, $migrationId);
                         break;
+                    default:
+                        throw new \Exception('ResourceType can\'t be stored');
                 }
                 $storedCount++;
             } catch (\Exception $e) {
@@ -621,7 +596,7 @@ class DataMigrationService
     /**
      * Store a client record
      */
-    protected function storeClient(array $clientData, string $batchId, int $migrationId)
+    protected function storeClient(array $clientData, int|string $batchId)
     {
         $res = MigratedClient::updateOrCreate(
             ['client_id' => $clientData['client_id'] ?? $clientData['ClientId']],
@@ -634,7 +609,7 @@ class DataMigrationService
                 'state' => $clientData['state'] ?? $clientData['ResidentialAddress']['State'] ?? null,
                 'postal_code' => $clientData['postal_code'] ?? $clientData['ResidentialAddress']['Postcode'] ?? null,
                 'api_response' => $clientData,
-                'migration_batch_id' => $batchId,
+                'data_migration_batch_id' => $batchId,
             ]
         );
         return $res;
@@ -864,18 +839,7 @@ class DataMigrationService
      */
     protected function updateMigrationProgress(DataMigration $migration): void
     {
-        $completedBatches = $migration->batches()->where('status', 'completed')->get();
         $failedBatches = $migration->batches()->where('status', 'failed')->get();
-
-        $processedItems = $completedBatches->sum('items_stored');
-        $successfulItems = $processedItems; // Items that were successfully stored
-        $failedItems = $failedBatches->sum('items_received');
-
-        $migration->update([
-            'processed_items' => $processedItems + $failedItems,
-            'successful_items' => $successfulItems,
-            'failed_items' => $failedItems
-        ]);
 
         // Check if migration is complete
         $totalBatches = $migration->batches()->count();
@@ -929,7 +893,6 @@ class DataMigrationService
     {
         // Update migration with failure
         $migration = $batch->dataMigration;
-        $migration->increment('failed_items', $batch->items_requested);
 
         // Check if we should retry or continue with next batch
         $failedBatches = $migration->batches()->where('status', 'failed')->count();
@@ -937,14 +900,10 @@ class DataMigrationService
 
         // If too many failures, mark migration as failed
         if ($failedBatches > $totalBatches * 0.5) {
-            $migration->update([
-                'status' => 'failed',
-                'error_message' => 'Too many batch failures',
-                'completed_at' => now()
-            ]);
+            $migration->onFail(new \Exception('Too many batch failures'));
         } else {
             // Continue with next batch
-            $this->dispatchNextBatches($migration, 1);
+            $this->dispatchNextBatches($migration);
         }
     }
 
@@ -962,9 +921,6 @@ class DataMigrationService
             'progress_percentage' => $migration->progress_percentage,
             'success_rate' => $migration->success_rate,
             'total_items' => $migration->total_items,
-            'processed_items' => $migration->processed_items,
-            'successful_items' => $migration->successful_items,
-            'failed_items' => $migration->failed_items,
             'started_at' => $migration->started_at?->toISOString(),
             'completed_at' => $migration->completed_at?->toISOString(),
             'resource_types' => $migration->resource_types,

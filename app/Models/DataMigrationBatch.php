@@ -38,12 +38,15 @@ class DataMigrationBatch extends Model
         return $this->belongsTo(DataMigration::class);
     }
 
-    public function getSuccessRateAttribute()
+    /**
+     * Handle batch failure.
+     */
+    public function onFail(\Throwable $e): void
     {
-        if ($this->items_received == 0) {
-            return 0;
-        }
-
-        return round(($this->items_stored / $this->items_received) * 100, 2);
+        $this->update([
+            'status' => 'failed',
+            'error_message' => $e->getMessage(),
+            'completed_at' => now()
+        ]);
     }
 }

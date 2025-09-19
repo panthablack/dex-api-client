@@ -11,6 +11,7 @@ class MigratedSession extends Model
     protected $fillable = [
         'session_id',
         'case_id',
+        'data_migration_batch_id',
         'service_type_id',
         'session_date',
         'duration_minutes',

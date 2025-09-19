@@ -11,6 +11,7 @@ class MigratedClient extends Model
 {
     protected $fillable = [
         'client_id',
+        'data_migration_batch_id',
         'first_name',
         'last_name',
         'date_of_birth',

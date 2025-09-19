@@ -16,9 +16,6 @@ class DataMigration extends Model
         'filters',
         'status',
         'total_items',
-        'processed_items',
-        'successful_items',
-        'failed_items',
         'batch_size',
         'error_message',
         'summary',
@@ -55,21 +52,15 @@ class DataMigration extends Model
         return $this->hasManyThrough(MigratedSession::class, DataMigrationBatch::class);
     }
 
-    public function getProgressPercentageAttribute()
+    /**
+     * Handle migration failure.
+     */
+    public function onFail(\Throwable $e): void
     {
-        if ($this->total_items == 0) {
-            return 0;
-        }
-
-        return round(($this->processed_items / $this->total_items) * 100, 2);
-    }
-
-    public function getSuccessRateAttribute()
-    {
-        if ($this->processed_items == 0) {
-            return 0;
-        }
-
-        return round(($this->successful_items / $this->processed_items) * 100, 2);
+        $this->update([
+            'status' => 'failed',
+            'error_message' => $e->getMessage(),
+            'completed_at' => now()
+        ]);
     }
 }

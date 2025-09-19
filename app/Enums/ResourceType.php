@@ -12,6 +12,16 @@ enum ResourceType: string
     case FULL_SESSION = 'FULL_SESSION';
     case UNKNOWN = 'UNKNOWN';
 
+    public static function getDependentResourceTypes(): array
+    {
+        return [self::SESSION];
+    }
+
+    public static function getIndependentResourceTypes(): array
+    {
+        return [self::CLIENT, self::CASE];
+    }
+
     public static function resolve(string $type): ResourceType
     {
         if (in_array($type, [

@@ -48,14 +48,9 @@ class ProcessDataMigrationBatch implements ShouldQueue
     /**
      * Handle a job failure.
      */
-    public function failed(\Throwable $exception): void
+    public function failed(\Throwable $e): void
     {
-        Log::error("Data migration batch job failed permanently: " . $exception->getMessage());
-
-        $this->batch->update([
-            'status' => 'failed',
-            'error_message' => $exception->getMessage(),
-            'completed_at' => now()
-        ]);
+        Log::error("Data migration batch job failed: " . $e->getMessage());
+        $this->batch->failed($e);
     }
 }

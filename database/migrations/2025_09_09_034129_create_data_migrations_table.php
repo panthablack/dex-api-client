@@ -18,9 +18,6 @@ return new class extends Migration
             $table->json('filters')->nullable(); // Date ranges, specific criteria
             $table->enum('status', ['pending', 'in_progress', 'completed', 'failed', 'cancelled'])->default('pending');
             $table->integer('total_items')->default(0);
-            $table->integer('processed_items')->default(0);
-            $table->integer('successful_items')->default(0);
-            $table->integer('failed_items')->default(0);
             $table->integer('batch_size')->default(100);
             $table->text('error_message')->nullable();
             $table->json('summary')->nullable(); // Store detailed summary

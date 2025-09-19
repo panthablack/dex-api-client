@@ -12,6 +12,7 @@ class MigratedCase extends Model
     protected $fillable = [
         'case_id',
         'client_id',
+        'data_migration_batch_id',
         'outlet_activity_id',
         'referral_source_code',
         'reasons_for_assistance',

@@ -40,13 +40,7 @@ class InitiateDataMigration implements ShouldQueue
             Log::info("Successfully initiated data migration {$this->migration->id}");
         } catch (\Exception $e) {
             Log::error("Failed to initiate data migration {$this->migration->id}: " . $e->getMessage());
-
-            $this->migration->update([
-                'status' => 'failed',
-                'error_message' => 'Failed to initiate migration: ' . $e->getMessage(),
-                'completed_at' => now()
-            ]);
-
+            $this->migration->failed($e);
             throw $e;
         }
     }
@@ -54,14 +48,9 @@ class InitiateDataMigration implements ShouldQueue
     /**
      * Handle a job failure.
      */
-    public function failed(\Throwable $exception): void
+    public function failed(\Throwable $e): void
     {
-        Log::error("Data migration initiation job failed permanently: " . $exception->getMessage());
-
-        $this->migration->update([
-            'status' => 'failed',
-            'error_message' => 'Initiation failed: ' . $exception->getMessage(),
-            'completed_at' => now()
-        ]);
+        Log::error("Data migration initiation job failed permanently: " . $e->getMessage());
+        $this->migration->onFail($e);
     }
 }

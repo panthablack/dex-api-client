@@ -2144,7 +2144,7 @@ class DataExchangeService
         }
 
         // If no schema methods work, return helpful information based on resource type
-        return $this->getDefaultSchemaInfo($resourceType);
+        return $this->getDefaultSchemaInfo(ResourceType::resolve($resourceType));
     }
 
     /**
@@ -2408,7 +2408,7 @@ class DataExchangeService
     /**
      * Convert data to specified format
      */
-    public function convertDataFormat($data, $format = 'json')
+    public function convertDataFormat($data, string $format = 'json')
     {
         // Convert objects to arrays for consistent processing
         if (is_object($data)) {

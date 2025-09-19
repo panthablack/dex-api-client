@@ -453,10 +453,10 @@ class DataExchangeController extends Controller
 
         try {
             $filters = $this->buildFilters($request);
-            $resourceType = $request->resource_type;
+            $resolvedType = ResourceType::resolve($request->resource_type);
 
             // Get data based on resource type
-            switch ($resourceType) {
+            switch ($resolvedType) {
                 case ResourceType::CLIENT:
                     $data = $this->dataExchangeService->getClientData($filters);
                     break;
@@ -523,28 +523,29 @@ class DataExchangeController extends Controller
                     $data = $this->dataExchangeService->getSessionById($request->session_id, $request->case_id);
                     break;
                 default:
-                    throw new \Exception("Unsupported resource type: {$resourceType}");
+                    throw new \Exception("Unsupported resource type: {$resolvedType->value}");
             }
 
             if ($request->action === 'download') {
-                return $this->downloadData($data, $resourceType, $request->format);
+                return $this->downloadData($data, $resolvedType->value, $request->format);
             }
 
             $response = redirect()->back()
                 ->with('success', 'Data retrieved successfully')
                 ->with('data', $data)
                 ->with('format', $request->format)
-                ->with('resource_type', $resourceType)
+                ->with('resource_type', $resolvedType->value)
                 ->withInput();
 
             // Store resource ID in session for individual resource lookups
-            if (in_array($resourceType, ['client_by_id', 'case_by_id', 'session_by_id'])) {
+            $lowerType = strtolower($resolvedType->value);
+            if (in_array($lowerType, ['client', 'case', 'session'])) {
                 $resourceId = '';
-                if ($resourceType === 'client_by_id') {
+                if ($lowerType === 'client_by_id') {
                     $resourceId = $request->client_id;
-                } elseif ($resourceType === 'case_by_id') {
+                } elseif ($lowerType === 'case_by_id') {
                     $resourceId = $request->case_id;
-                } elseif ($resourceType === 'session_by_id') {
+                } elseif ($lowerType === 'session_by_id') {
                     $resourceId = $request->session_id;
                 }
                 $response->with('resource_id', $resourceId);
@@ -563,7 +564,7 @@ class DataExchangeController extends Controller
     /**
      * Download data in specified format
      */
-    public function downloadData($data, $resourceType, $format)
+    public function downloadData($data, string $resourceType, $format)
     {
         $filename = $resourceType . '_' . date('Y-m-d_H-i-s') . '.' . $format;
         $convertedData = $this->dataExchangeService->convertDataFormat($data, $format);
