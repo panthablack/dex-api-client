@@ -33,9 +33,10 @@ class DataMigrationService
         $filters = $data['filters'] ?? [];
 
         foreach ($data['resource_types'] as $resourceType) {
-            $resourceTotal = $this->getTotalItemsForResource($resourceType, $filters);
+            $resolvedType = ResourceType::resolve($resourceType);
+            $resourceTotal = $this->getTotalItemsForResource($resolvedType, $filters);
             $totalItems += $resourceTotal;
-            Log::info("Found {$resourceTotal} items for {$resourceType}");
+            Log::info("Found {$resourceTotal} items for {$resourceType->value}");
         }
 
         Log::info("Total items to migrate: {$totalItems}");
@@ -117,13 +118,13 @@ class DataMigrationService
         $totalItems = $this->getTotalItemsForResource($resourceType, $migration->filters);
 
         if ($totalItems === 0) {
-            Log::info("No items found for resource type: {$resourceType}");
+            Log::info("No items found for resource type: {$resourceType->value}");
             return;
         }
 
         $totalBatches = ceil($totalItems / $migration->batch_size);
 
-        Log::info("Creating {$totalBatches} batches for {$resourceType} ({$totalItems} total items)");
+        Log::info("Creating {$totalBatches} batches for {$resourceType->value} ({$totalItems} total items)");
 
         for ($batchNumber = 1; $batchNumber <= $totalBatches; $batchNumber++) {
             $pageIndex = $batchNumber; // DSS API uses 1-based indexing
@@ -142,7 +143,7 @@ class DataMigrationService
             ]);
         }
 
-        Log::info("Created {$totalBatches} batches for {$resourceType} (total items already set during migration creation)");
+        Log::info("Created {$totalBatches} batches for {$resourceType->value} (total items already set during migration creation)");
     }
 
     /**
@@ -157,7 +158,7 @@ class DataMigrationService
                 'page_size' => 1 // Just get one item to extract TotalCount from metadata
             ]);
 
-            Log::info("Getting total items count for {$resourceType}", ['filters' => $searchFilters]);
+            Log::info("Getting total items count for {$resourceType->value}", ['filters' => $searchFilters]);
 
             switch ($resourceType) {
                 case ResourceType::CLIENT:
@@ -173,23 +174,23 @@ class DataMigrationService
                     $response = $this->dataExchangeService->getSessionData($searchFilters);
                     break;
                 default:
-                    throw new \InvalidArgumentException("Unknown resource type: {$resourceType}");
+                    throw new \InvalidArgumentException("Unknown resource type: {$resourceType->value}");
             }
 
             // Extract TotalCount from SOAP response metadata
             $totalCount = $this->extractTotalCountFromResponse($response);
 
             if ($totalCount > 0) {
-                Log::info("Found {$totalCount} total items for {$resourceType}");
+                Log::info("Found {$totalCount} total items for {$resourceType->value}");
                 return $totalCount;
             }
 
             // Fallback: estimate based on reasonable assumptions
-            Log::warning("Could not determine total items for {$resourceType}, using estimate");
+            Log::warning("Could not determine total items for {$resourceType->value}, using estimate");
             return 1000; // Conservative estimate
 
         } catch (\Exception $e) {
-            Log::error("Failed to get total items for {$resourceType}: " . $e->getMessage());
+            Log::error("Failed to get total items for {$resourceType->value}: " . $e->getMessage());
             return 0;
         }
     }
