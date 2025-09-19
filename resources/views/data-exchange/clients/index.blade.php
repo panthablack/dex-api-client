@@ -97,7 +97,7 @@
                                 <option value="WA" {{ request('state') === 'WA' ? 'selected' : '' }}>WA</option>
                                 <option value="SA" {{ request('state') === 'SA' ? 'selected' : '' }}>SA</option>
                                 <option value="TAS" {{ request('state') === 'TAS' ? 'selected' : '' }}>TAS</option>
-                                <option value="ACT" {{ request('ACT') === 'ACT' ? 'selected' : '' }}>ACT</option>
+                                <option value="ACT" {{ request('state') === 'ACT' ? 'selected' : '' }}>ACT</option>
                                 <option value="NT" {{ request('state') === 'NT' ? 'selected' : '' }}>NT</option>
                             </select>
                         </div>
@@ -118,7 +118,7 @@
     </div>
 
     <!-- Clients Table -->
-    <x-resource-table title="Client Records" resource-type="client" :data="$clients ?? []" :columns="[
+    <x-resource-table title="Client Records" resource-type="client" :data="$data ?? []" :columns="[
         ['key' => 'ClientId', 'label' => 'Client ID'],
         ['key' => 'GivenName', 'label' => 'First Name'],
         ['key' => 'FamilyName', 'label' => 'Last Name'],
