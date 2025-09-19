@@ -1750,6 +1750,117 @@ class DataExchangeService
     }
 
     /**
+     * Fetch Session Data for a specific case - Uses getCaseById then fetches detailed session data
+     * This provides session information for a specific case by using GetCase + GetSession calls
+     *
+     * @param string $caseId The case ID to fetch sessions for
+     * @return array Array of session data
+     */
+    public function fetchSessionData($caseId)
+    {
+        try {
+            Log::info('Fetching session data for specific case', [
+                'case_id' => $caseId
+            ]);
+
+            // Get the case data using getCaseById
+            $caseResult = $this->getCaseById($caseId);
+
+            // Convert objects to arrays for consistent handling
+            if (is_object($caseResult)) {
+                $caseResult = json_decode(json_encode($caseResult), true);
+            }
+
+            // Extract case data from the response
+            $caseData = null;
+            if (isset($caseResult['Result']['Case'])) {
+                $caseData = $caseResult['Result']['Case'];
+            } elseif (isset($caseResult['Case'])) {
+                $caseData = $caseResult['Case'];
+            }
+
+            if (!$caseData) {
+                Log::warning('No case data found for case ID', ['case_id' => $caseId]);
+                return [];
+            }
+
+            // Extract session IDs from the case data
+            $sessionIds = $this->extractSessionIdsFromCase($caseData);
+
+            if (empty($sessionIds)) {
+                Log::info('No sessions found in case', ['case_id' => $caseId]);
+                return [];
+            }
+
+            Log::info('Processing sessions for case', [
+                'case_id' => $caseId,
+                'session_count' => count($sessionIds)
+            ]);
+
+            $sessionData = [];
+            $successfulSessions = 0;
+            $errors = [];
+
+            // Fetch detailed data for each session
+            foreach ($sessionIds as $sessionId) {
+                try {
+                    Log::info('Fetching full data for session', [
+                        'session_id' => $sessionId,
+                        'case_id' => $caseId
+                    ]);
+
+                    // Get detailed session data using GetSession
+                    $fullSessionResult = $this->getSessionById($sessionId, $caseId);
+
+                    // Extract clean session data from the SOAP response
+                    $cleanSessionData = $this->extractCleanSessionData($fullSessionResult);
+
+                    // Only include successfully retrieved sessions
+                    if ($cleanSessionData) {
+                        // Add case context to session data
+                        $cleanSessionData['_case_context'] = [
+                            'CaseId' => $caseId,
+                            'OutletName' => $caseData['OutletName'] ?? null,
+                            'ProgramActivityName' => $caseData['ProgramActivityName'] ?? null
+                        ];
+
+                        $sessionData[] = $cleanSessionData;
+                        $successfulSessions++;
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to get full data for session', [
+                        'session_id' => $sessionId,
+                        'case_id' => $caseId,
+                        'error' => $e->getMessage()
+                    ]);
+
+                    $errors[] = [
+                        'session_id' => $sessionId,
+                        'case_id' => $caseId,
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+
+            Log::info('Fetch session data completed', [
+                'case_id' => $caseId,
+                'total_sessions_found' => count($sessionIds),
+                'successful_sessions' => $successfulSessions,
+                'errors' => count($errors)
+            ]);
+
+            return $sessionData;
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch session data for case', [
+                'case_id' => $caseId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception('Failed to fetch session data for case: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Extract session IDs from case data structure
      */
     protected function extractSessionIdsFromCase($caseData)

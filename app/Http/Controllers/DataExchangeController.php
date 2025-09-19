@@ -1694,24 +1694,13 @@ class DataExchangeController extends Controller
 
             // Load session data for this specific case
             try {
-                $rawData = $this->dataExchangeService->fetchFullSessionData($filters);
+                $sessions = $this->dataExchangeService->fetchSessionData($caseId);
 
-                $debugInfo['raw_data_type'] = gettype($rawData);
+                $debugInfo['raw_data_type'] = gettype($sessions);
                 $debugInfo['filters_applied'] = $filters;
 
-                // Convert to array if it's an object
-                if (is_object($rawData)) {
-                    $rawData = json_decode(json_encode($rawData), true);
-                }
-
-                // Extract pagination and sessions
-                if (isset($rawData['pagination']) && isset($rawData['data'])) {
-                    $pagination = $rawData['pagination'];
-                    $sessions = $rawData['data'];
-                } else {
-                    $pagination = $rawData['pagination'] ?? null;
-                    $sessions = $this->extractSessionsFromResponse($rawData);
-                }
+                // The new fetchSessionData function returns sessions directly as an array
+                $pagination = null; // No pagination for single case session retrieval
 
                 $debugInfo['final_sessions_count'] = count($sessions);
                 $debugInfo['case_info'] = $caseInfo;
