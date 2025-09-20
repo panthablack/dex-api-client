@@ -90,7 +90,7 @@ class DataMigrationService
                 // if dependent batches are found incomplete, process them
                 $this->dispatchDependentBatches($migration);
             } else {
-                // else, set migration status completed and return
+                // else, set migration status completed
                 $migration->update(['status' => 'completed']);
             }
         }
