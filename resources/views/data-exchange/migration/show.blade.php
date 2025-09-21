@@ -196,8 +196,16 @@
                                     {{ ucfirst($type) }}
                                 </span>
                                 @php
-                                    $typeBatches = $migration->batches->where('resource_type', $type);
-                                    $typeCompleted = $typeBatches->where('status', 'COMPLETED');
+                                    // Convert string type to enum value for database comparison
+                                    $enumType = match($type) {
+                                        'clients' => \App\Enums\ResourceType::CLIENT->value,
+                                        'cases' => \App\Enums\ResourceType::CASE->value,
+                                        'sessions' => \App\Enums\ResourceType::SESSION->value,
+                                        default => strtoupper($type)
+                                    };
+
+                                    $typeBatches = $migration->batches->where('resource_type', $enumType);
+                                    $typeCompleted = $typeBatches->where('status', \App\Enums\DataMigrationBatchStatus::COMPLETED);
                                     $typeProgress =
                                         $typeBatches->count() > 0
                                             ? round(($typeCompleted->count() / $typeBatches->count()) * 100)
@@ -345,7 +353,7 @@
             </div>
 
             <!-- Export Options -->
-            @if ($migration->status === 'COMPLETED' || $migration->batches->where('status', 'COMPLETED')->count() > 0)
+            @if ($migration->status === \App\Enums\DataMigrationStatus::COMPLETED || $migration->batches->where('status', \App\Enums\DataMigrationBatchStatus::COMPLETED)->count() > 0)
                 <div class="card mt-4">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Export Migrated Data</h5>
@@ -354,9 +362,17 @@
                         <div class="row">
                             @foreach ($migration->resource_types as $type)
                                 @php
+                                    // Convert string type to enum value for database comparison
+                                    $enumType = match($type) {
+                                        'clients' => \App\Enums\ResourceType::CLIENT->value,
+                                        'cases' => \App\Enums\ResourceType::CASE->value,
+                                        'sessions' => \App\Enums\ResourceType::SESSION->value,
+                                        default => strtoupper($type)
+                                    };
+
                                     $completedBatches = $migration->batches
-                                        ->where('resource_type', $type)
-                                        ->where('status', 'COMPLETED');
+                                        ->where('resource_type', $enumType)
+                                        ->where('status', \App\Enums\DataMigrationBatchStatus::COMPLETED);
                                 @endphp
                                 @if ($completedBatches->count() > 0)
                                     <div class="col-md-4 mb-3">
@@ -366,11 +382,11 @@
                                                 {{ $completedBatches->sum('items_stored') }} items migrated
                                             </p>
                                             <div class="d-grid gap-2">
-                                                <a href="{{ route('data-migration.api.export', ['migration' => $migration, 'resource_type' => $type, 'format' => 'csv']) }}"
+                                                <a href="{{ route('data-migration.api.export', ['migration' => $migration, 'resource_type' => $enumType, 'format' => 'csv']) }}"
                                                     class="btn btn-outline-primary btn-sm">
                                                     Export CSV
                                                 </a>
-                                                <a href="{{ route('data-migration.api.export', ['migration' => $migration, 'resource_type' => $type, 'format' => 'json']) }}"
+                                                <a href="{{ route('data-migration.api.export', ['migration' => $migration, 'resource_type' => $enumType, 'format' => 'json']) }}"
                                                     class="btn btn-outline-secondary btn-sm">
                                                     Export JSON
                                                 </a>

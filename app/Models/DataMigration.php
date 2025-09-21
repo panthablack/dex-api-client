@@ -115,4 +115,39 @@ class DataMigration extends Model
 
         return round($percentage, 1);
     }
+
+    /**
+     * Get the total number of successful items across all batches.
+     */
+    public function getSuccessfulItemsAttribute(): int
+    {
+        return $this->batches->sum('items_stored') ?? 0;
+    }
+
+    /**
+     * Get the total number of failed items across all batches.
+     */
+    public function getFailedItemsAttribute(): int
+    {
+        $totalReceived = $this->batches->sum('items_received') ?? 0;
+        $totalStored = $this->batches->sum('items_stored') ?? 0;
+        return $totalReceived - $totalStored;
+    }
+
+    /**
+     * Get the success rate percentage based on stored vs received items.
+     */
+    public function getSuccessRateAttribute(): float
+    {
+        $totalReceived = $this->batches->sum('items_received') ?? 0;
+
+        if ($totalReceived == 0) {
+            return 0.0;
+        }
+
+        $totalStored = $this->batches->sum('items_stored') ?? 0;
+        $percentage = ($totalStored / $totalReceived) * 100;
+
+        return round($percentage, 1);
+    }
 }
