@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DataMigrationStatus;
 use App\Enums\ResourceType;
 use App\Models\DataMigration;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -31,7 +32,7 @@ class DataMigrationFactory extends Factory
                 'date_from' => fake()->date('Y-m-d'),
                 'date_to' => fake()->date('Y-m-d'),
             ],
-            'status' => 'completed',
+            'status' => DataMigrationStatus::COMPLETED,
             'total_items' => 100,
             'batch_size' => 50,
             'error_message' => null,

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DataMigrationBatchStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,7 @@ class DataMigrationBatch extends Model
     protected $casts = [
         'api_filters' => 'array',
         'api_response_summary' => 'array',
+        'status' => DataMigrationBatchStatus::class,
         'started_at' => 'datetime',
         'completed_at' => 'datetime'
     ];
@@ -44,7 +46,7 @@ class DataMigrationBatch extends Model
     public function onFail(\Throwable $e): void
     {
         $this->update([
-            'status' => 'failed',
+            'status' => DataMigrationBatchStatus::FAILED,
             'error_message' => $e->getMessage(),
             'completed_at' => now()
         ]);

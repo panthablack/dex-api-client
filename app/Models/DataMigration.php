@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DataMigrationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -27,6 +28,7 @@ class DataMigration extends Model
         'resource_types' => 'array',
         'filters' => 'array',
         'summary' => 'array',
+        'status' => DataMigrationStatus::class,
         'started_at' => 'datetime',
         'completed_at' => 'datetime'
     ];
@@ -58,7 +60,7 @@ class DataMigration extends Model
     public function onFail(\Throwable $e): void
     {
         $this->update([
-            'status' => 'failed',
+            'status' => DataMigrationStatus::FAILED,
             'error_message' => $e->getMessage(),
             'completed_at' => now()
         ]);

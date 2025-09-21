@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DataMigrationStatus;
+use App\Enums\DataMigrationBatchStatus;
 use App\Enums\ResourceType;
 use App\Enums\VerificationStatus;
 use App\Models\DataMigration;
@@ -166,7 +168,7 @@ class DataMigrationController extends Controller
             $pendingBatches = $migration->batches()->where('status', 'pending')->count();
 
             // Handle stuck/pending migrations
-            if ($migration->status === 'pending' || ($failedBatches === 0 && $pendingBatches > 0)) {
+            if ($migration->status === DataMigrationStatus::PENDING || ($failedBatches === 0 && $pendingBatches > 0)) {
                 $this->migrationService->restartMigration($migration);
                 return response()->json([
                     'success' => true,
@@ -202,7 +204,7 @@ class DataMigrationController extends Controller
     public function destroy(DataMigration $migration)
     {
         try {
-            if ($migration->status === 'in_progress') {
+            if ($migration->status === DataMigrationStatus::IN_PROGRESS) {
                 return redirect()->back()
                     ->with('error', 'Cannot delete migration that is currently in progress. Cancel it first.');
             }
@@ -466,7 +468,7 @@ class DataMigrationController extends Controller
     public function quickVerify(DataMigration $migration): JsonResponse
     {
         try {
-            if (!in_array($migration->status, ['completed', 'failed']) && $migration->batches->where('status', 'completed')->count() === 0) {
+            if (!in_array($migration->status, [DataMigrationStatus::COMPLETED, DataMigrationStatus::FAILED]) && $migration->batches->where('status', DataMigrationBatchStatus::COMPLETED)->count() === 0) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Can only verify migrations with completed batches'

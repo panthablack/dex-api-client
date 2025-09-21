@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\DataMigrationStatus;
+use App\Enums\DataMigrationBatchStatus;
 use App\Enums\ResourceType;
 use App\Models\DataMigration;
 use App\Models\DataMigrationBatch;
@@ -48,7 +50,7 @@ class DataMigrationService
             'filters' => $data['filters'] ?? [],
             'batch_size' => $data['batch_size'] ?? 100,
             'total_items' => $totalItems,  // Set total items immediately
-            'status' => 'pending'
+            'status' => DataMigrationStatus::PENDING
         ]);
     }
 
@@ -59,7 +61,7 @@ class DataMigrationService
     {
         DB::transaction(function () use ($migration) {
             $migration->update([
-                'status' => 'in_progress',
+                'status' => DataMigrationStatus::IN_PROGRESS,
                 'started_at' => now()
             ]);
 
@@ -91,7 +93,7 @@ class DataMigrationService
                 $this->dispatchDependentBatches($migration);
             } else {
                 // else, set migration status completed
-                $migration->update(['status' => 'completed']);
+                $migration->update(['status' => DataMigrationStatus::COMPLETED]);
             }
         }
     }
@@ -148,7 +150,7 @@ class DataMigrationService
                 'batch_number' => $batchNumber,
                 'page_index' => $pageIndex,
                 'page_size' => $migration->batch_size,
-                'status' => 'pending',
+                'status' => DataMigrationBatchStatus::PENDING,
                 'api_filters' => array_merge($migration->filters, [
                     'page_index' => $pageIndex,
                     'page_size' => $migration->batch_size
@@ -369,7 +371,7 @@ class DataMigrationService
             try {
                 // For debugging, try synchronous processing if dispatch fails
                 ProcessDataMigrationBatch::dispatch($batch);
-                $batch->update(['status' => 'processing']);
+                $batch->update(['status' => DataMigrationBatchStatus::IN_PROGRESS]);
                 Log::info("Successfully dispatched and marked batch {$batch->id} as processing");
             } catch (\Exception $e) {
                 Log::error("Failed to dispatch batch {$batch->id}: " . $e->getMessage());
@@ -399,7 +401,7 @@ class DataMigrationService
             // Check if all batches for this dependency are completed
             $incompleteBatches = $migration->batches()
                 ->where('resource_type', $dependency)
-                ->where('status', '!=', 'completed')
+                ->where('status', '!=', DataMigrationStatus::COMPLETED)
                 ->count();
 
             if ($incompleteBatches > 0) {
@@ -418,7 +420,7 @@ class DataMigrationService
         Log::info("Restarting migration {$migration->id}");
 
         $migration->update([
-            'status' => 'in_progress',
+            'status' => DataMigrationStatus::IN_PROGRESS,
             'started_at' => now()
         ]);
 
@@ -461,7 +463,7 @@ class DataMigrationService
             // Check if this resource type can be processed (dependencies met)
             if ($this->canProcessResourceType($migration, $batch->resource_type)) {
                 ProcessDataMigrationBatch::dispatch($batch);
-                $batch->update(['status' => 'processing']);
+                $batch->update(['status' => DataMigrationBatchStatus::IN_PROGRESS]);
                 $dispatchedCount++;
 
                 Log::info("Dispatched {$batch->resource_type} batch {$batch->batch_number} (dependencies satisfied)");
@@ -482,7 +484,7 @@ class DataMigrationService
     {
         try {
             $batch->update([
-                'status' => 'processing',
+                'status' => DataMigrationBatchStatus::IN_PROGRESS,
                 'started_at' => now()
             ]);
 
@@ -496,13 +498,13 @@ class DataMigrationService
             $errorMessage = null;
 
             if ($receivedCount === 0) {
-                $status = 'failed';
+                $status = DataMigrationBatchStatus::FAILED;
                 $errorMessage = "No data received from API";
             } elseif ($storedCount < $receivedCount) {
-                $status = 'failed';
+                $status = DataMigrationBatchStatus::FAILED;
                 $errorMessage = "Only stored {$storedCount} out of {$receivedCount} items - partial storage not allowed";
             } else {
-                $status = 'completed';
+                $status = DataMigrationBatchStatus::COMPLETED;
             }
 
             $batch->update([
@@ -848,7 +850,7 @@ class DataMigrationService
             ->count();
 
         if ($totalBatches > 0 && $completedOrFailedBatches >= $totalBatches) {
-            $status = $failedBatches->count() > 0 ? 'completed' : 'completed';
+            $status = $failedBatches->count() > 0 ? DataMigrationStatus::COMPLETED : DataMigrationStatus::COMPLETED;
 
             $migration->update([
                 'status' => $status,
@@ -948,14 +950,14 @@ class DataMigrationService
     public function cancelMigration(DataMigration $migration): void
     {
         $migration->update([
-            'status' => 'cancelled',
+            'status' => DataMigrationStatus::CANCELLED,
             'completed_at' => now()
         ]);
 
         // Cancel pending batches
         $migration->batches()
             ->where('status', 'pending')
-            ->update(['status' => 'cancelled']);
+            ->update(['status' => DataMigrationStatus::CANCELLED]);
     }
 
     /**
@@ -967,7 +969,7 @@ class DataMigrationService
 
         foreach ($failedBatches as $batch) {
             $batch->update([
-                'status' => 'pending',
+                'status' => DataMigrationBatchStatus::PENDING,
                 'error_message' => null,
                 'started_at' => null,
                 'completed_at' => null
@@ -975,7 +977,7 @@ class DataMigrationService
         }
 
         if ($failedBatches->count() > 0) {
-            $migration->update(['status' => 'in_progress']);
+            $migration->update(['status' => DataMigrationStatus::IN_PROGRESS]);
             $this->dispatchNextBatches($migration);
         }
     }

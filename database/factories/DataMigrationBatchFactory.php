@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DataMigrationBatchStatus;
 use App\Enums\ResourceType;
 use App\Models\DataMigrationBatch;
 use App\Models\DataMigration;
@@ -31,7 +32,7 @@ class DataMigrationBatchFactory extends Factory
                 ResourceType::CASE,
                 ResourceType::SESSION
             ]),
-            'status' => 'completed',
+            'status' => DataMigrationBatchStatus::COMPLETED,
             'items_requested' => 50,
             'items_received' => 50,
             'items_stored' => 45,
@@ -49,7 +50,7 @@ class DataMigrationBatchFactory extends Factory
     public function completed(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'completed',
+            'status' => DataMigrationBatchStatus::COMPLETED,
             'items_received' => $attributes['items_requested'] ?? 50,
             'items_stored' => $attributes['items_requested'] ?? 50,
             'completed_at' => fake()->dateTimeBetween('-1 hour', 'now'),
@@ -62,7 +63,7 @@ class DataMigrationBatchFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'pending',
+            'status' => DataMigrationBatchStatus::PENDING,
             'items_received' => 0,
             'items_stored' => 0,
             'started_at' => null,
@@ -76,7 +77,7 @@ class DataMigrationBatchFactory extends Factory
     public function failed(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'failed',
+            'status' => DataMigrationBatchStatus::FAILED,
             'items_received' => fake()->numberBetween(1, $attributes['items_requested'] ?? 50),
             'items_stored' => 0,
             'error_message' => 'Batch processing failed',
