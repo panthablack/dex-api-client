@@ -511,7 +511,7 @@ class DataMigrationController extends Controller
     private function getHeaderMapping(ResourceType $resourceType): array
     {
         return match ($resourceType) {
-            ResourceType::CLIENT->value => [
+            ResourceType::CLIENT => [
                 'client_id' => 'Client ID',
                 'first_name' => 'First Name',
                 'last_name' => 'Last Name',
