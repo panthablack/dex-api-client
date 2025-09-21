@@ -32,7 +32,7 @@
                 <a href="{{ route('data-migration.show', $migration) }}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-1"></i> Back to Migration
                 </a>
-                @if ($migration->status === 'completed' || $migration->batches->where('status', 'completed')->count() > 0)
+                @if ($migration->status === 'COMPLETED' || $migration->batches->where('status', 'COMPLETED')->count() > 0)
                     <!-- Loading state - hide buttons -->
                     <template x-if="verification.status === 'loading'">
                         <div class="d-flex align-items-center">
@@ -88,7 +88,7 @@
             </div>
         </div>
 
-        @if (!($migration->status === 'completed' || $migration->batches->where('status', 'completed')->count() > 0))
+        @if (!($migration->status === 'COMPLETED' || $migration->batches->where('status', 'COMPLETED')->count() > 0))
             <!-- Info Card for Unavailable Verification -->
             <div class="card border-warning mb-4">
                 <div class="card-body">

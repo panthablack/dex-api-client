@@ -29,17 +29,17 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button x-show="['pending', 'in_progress'].includes(migration.status)" @click="cancelMigration()"
+                <button x-show="[DataMigrationStatus.PENDING, DataMigrationStatus.IN_PROGRESS].includes(migration.status)" @click="cancelMigration()"
                     class="btn btn-danger btn-sm">
                     Cancel Migration
                 </button>
 
-                <button x-show="migration.status === 'failed' || migration.batches.some(b => b.status === 'failed')"
+                <button x-show="migration.status === DataMigrationStatus.FAILED || migration.batches.some(b => b.status === DataMigrationBatchStatus.FAILED)"
                     @click="retryMigration()" class="btn btn-warning btn-sm">
                     Retry Failed Batches
                 </button>
 
-                <button x-show="migration.status === 'in_progress' && migration.batches.every(b => b.status === 'pending')"
+                <button x-show="migration.status === DataMigrationStatus.IN_PROGRESS && migration.batches.every(b => b.status === DataMigrationBatchStatus.PENDING)"
                     @click="restartStuckMigration()" class="btn btn-warning btn-sm">
                     <i class="fas fa-redo me-1"></i>
                     Restart Stuck Migration
@@ -195,7 +195,7 @@
                                 </span>
                                 @php
                                     $typeBatches = $migration->batches->where('resource_type', $type);
-                                    $typeCompleted = $typeBatches->where('status', 'completed');
+                                    $typeCompleted = $typeBatches->where('status', 'COMPLETED');
                                     $typeProgress =
                                         $typeBatches->count() > 0
                                             ? round(($typeCompleted->count() / $typeBatches->count()) * 100)
@@ -337,7 +337,7 @@
             </div>
 
             <!-- Export Options -->
-            @if ($migration->status === 'completed' || $migration->batches->where('status', 'completed')->count() > 0)
+            @if ($migration->status === 'COMPLETED' || $migration->batches->where('status', 'COMPLETED')->count() > 0)
                 <div class="card mt-4">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Export Migrated Data</h5>
@@ -348,7 +348,7 @@
                                 @php
                                     $completedBatches = $migration->batches
                                         ->where('resource_type', $type)
-                                        ->where('status', 'completed');
+                                        ->where('status', 'COMPLETED');
                                 @endphp
                                 @if ($completedBatches->count() > 0)
                                     <div class="col-md-4 mb-3">
@@ -455,36 +455,36 @@
                                                     <h5 class="card-title text-capitalize" x-text="resourceType"></h5>
                                                     <div class="mb-2" style="font-size: 2rem;"
                                                         :class="{
-                                                            'text-success': result.status === 'completed' && (result
+                                                            'text-success': result.status === DataMigrationBatchStatus.COMPLETED && (result
                                                                 .success_rate || 0) >= 95,
-                                                            'text-warning': result.status === 'completed' && (result
+                                                            'text-warning': result.status === DataMigrationBatchStatus.COMPLETED && (result
                                                                 .success_rate || 0) >= 80 && (result.success_rate ||
                                                                 0) < 95,
-                                                            'text-danger': result.status === 'completed' && (result
+                                                            'text-danger': result.status === DataMigrationBatchStatus.COMPLETED && (result
                                                                 .success_rate || 0) < 80,
                                                             'text-muted': result.status === 'no_data',
-                                                            'text-danger': result.status !== 'completed' && result
+                                                            'text-danger': result.status !== DataMigrationBatchStatus.COMPLETED && result
                                                                 .status !== 'no_data'
                                                         }"
-                                                        x-text="result.status === 'completed' ?
+                                                        x-text="result.status === DataMigrationBatchStatus.COMPLETED ?
                                                             ((result.success_rate || 0) >= 95 ? '✓' :
                                                              (result.success_rate || 0) >= 80 ? '⚠' : '✗') :
                                                             (result.status === 'no_data' ? '—' : '✗')">
                                                     </div>
                                                     <p class="card-text"
                                                         :class="{
-                                                            'text-success': result.status === 'completed' && (result
+                                                            'text-success': result.status === DataMigrationBatchStatus.COMPLETED && (result
                                                                 .success_rate || 0) >= 95,
-                                                            'text-warning': result.status === 'completed' && (result
+                                                            'text-warning': result.status === DataMigrationBatchStatus.COMPLETED && (result
                                                                 .success_rate || 0) >= 80 && (result.success_rate ||
                                                                 0) < 95,
-                                                            'text-danger': result.status === 'completed' && (result
+                                                            'text-danger': result.status === DataMigrationBatchStatus.COMPLETED && (result
                                                                 .success_rate || 0) < 80,
                                                             'text-muted': result.status === 'no_data',
-                                                            'text-danger': result.status !== 'completed' && result
+                                                            'text-danger': result.status !== DataMigrationBatchStatus.COMPLETED && result
                                                                 .status !== 'no_data'
                                                         }"
-                                                        x-text="result.status === 'completed' ?
+                                                        x-text="result.status === DataMigrationBatchStatus.COMPLETED ?
                                                             `${result.verified || 0}/${result.total_checked || 0} verified (${result.success_rate || 0}%)` :
                                                             (result.status === 'no_data' ? 'No data to verify' :
                                                              `Error: ${result.error || 'Unknown error'}`)">
@@ -505,8 +505,10 @@
                 </div>
             </div>
 
-            <script>
-                function migrationApp() {
+            <script type="module">
+                import { DataMigrationStatus, DataMigrationBatchStatus, getStatusClass, isActiveStatus, isCompletedStatus, isFailedStatus } from '/resources/js/enums/DataMigrationEnums.js';
+
+                window.migrationApp = function migrationApp() {
                     return {
                         migration: {
                             id: {{ $migration->id }},
@@ -541,14 +543,14 @@
                         },
 
                         init() {
-                            if (this.migration.status === 'in_progress' || this.migration.status === 'pending') {
+                            if (this.migration.status === DataMigrationStatus.IN_PROGRESS || this.migration.status === DataMigrationStatus.PENDING) {
                                 this.startAutoRefresh();
                             }
 
                             document.addEventListener('visibilitychange', () => {
                                 if (document.hidden) {
                                     if (this.refreshInterval) clearInterval(this.refreshInterval);
-                                } else if (this.migration.status === 'in_progress') {
+                                } else if (this.migration.status === DataMigrationStatus.IN_PROGRESS) {
                                     this.startAutoRefresh();
                                 }
                             });
@@ -571,8 +573,8 @@
                                     const oldStatus = this.migration.status;
                                     this.migration = data.data;
 
-                                    if ((oldStatus === 'in_progress' || oldStatus === 'pending') &&
-                                        (data.data.status === 'completed' || data.data.status === 'failed')) {
+                                    if ((oldStatus === DataMigrationStatus.IN_PROGRESS || oldStatus === DataMigrationStatus.PENDING) &&
+                                        (data.data.status === DataMigrationStatus.COMPLETED || data.data.status === DataMigrationStatus.FAILED)) {
                                         if (this.refreshInterval) {
                                             clearInterval(this.refreshInterval);
                                             this.refreshInterval = null;
@@ -581,8 +583,8 @@
                                         return;
                                     }
 
-                                    if (data.data.status === 'completed' || data.data.status === 'failed' || data.data
-                                        .status === 'cancelled') {
+                                    if (data.data.status === DataMigrationStatus.COMPLETED || data.data.status === DataMigrationStatus.FAILED || data.data
+                                        .status === DataMigrationStatus.CANCELLED) {
                                         if (this.refreshInterval) {
                                             clearInterval(this.refreshInterval);
                                             this.refreshInterval = null;
@@ -595,21 +597,13 @@
                         },
 
                         isVerificationAvailable() {
-                            return (this.migration.status === 'completed' &&
+                            return (this.migration.status === DataMigrationStatus.COMPLETED &&
                                 this.migration.batches &&
-                                this.migration.batches.some(b => b.status === 'completed'));
+                                this.migration.batches.some(b => b.status === DataMigrationBatchStatus.COMPLETED));
                         },
 
                         getStatusClass(status) {
-                            const classes = {
-                                'completed': 'bg-success',
-                                'processing': 'bg-warning',
-                                'in_progress': 'bg-warning',
-                                'failed': 'bg-danger',
-                                'pending': 'bg-secondary',
-                                'cancelled': 'bg-danger'
-                            };
-                            return classes[status] || 'bg-secondary';
+                            return getStatusClass(status);
                         },
 
                         formatTimestamp(timestamp) {
@@ -754,6 +748,9 @@
                         }
                     };
                 }
+
+                // Make function available globally for Alpine.js
+                window.migrationApp = migrationApp;
             </script>
 
         </div>

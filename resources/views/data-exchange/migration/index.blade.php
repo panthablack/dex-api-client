@@ -57,7 +57,7 @@
                         <div class="ms-3">
                             <h6 class="card-title text-muted mb-1">Active Migrations</h6>
                             <h4 class="mb-0" x-text="stats.active_migrations">
-                                {{ $migrations->whereIn('status', ['pending', 'in_progress'])->count() }}
+                                {{ $migrations->whereIn('status', ['PENDING', 'IN_PROGRESS'])->count() }}
                             </h4>
                         </div>
                     </div>
@@ -75,7 +75,7 @@
                         <div class="ms-3">
                             <h6 class="card-title text-muted mb-1">Completed</h6>
                             <h4 class="mb-0" x-text="stats.completed_migrations">
-                                {{ $migrations->where('status', 'completed')->count() }}
+                                {{ $migrations->where('status', 'COMPLETED')->count() }}
                             </h4>
                         </div>
                     </div>
@@ -93,7 +93,7 @@
                         <div class="ms-3">
                             <h6 class="card-title text-muted mb-1">Failed</h6>
                             <h4 class="mb-0" x-text="stats.failed_migrations">
-                                {{ $migrations->where('status', 'failed')->count() }}
+                                {{ $migrations->where('status', 'FAILED')->count() }}
                             </h4>
                         </div>
                     </div>
@@ -152,10 +152,10 @@
                                     <td>
                                         <span
                                             class="badge
-                                {{ $migration->status === 'completed' ? 'bg-success' : '' }}
-                                {{ $migration->status === 'in_progress' ? 'bg-warning' : '' }}
-                                {{ $migration->status === 'failed' ? 'bg-danger' : '' }}
-                                {{ $migration->status === 'pending' ? 'bg-secondary' : '' }}
+                                {{ $migration->status === 'COMPLETED' ? 'bg-success' : '' }}
+                                {{ $migration->status === 'IN_PROGRESS' ? 'bg-warning' : '' }}
+                                {{ $migration->status === 'FAILED' ? 'bg-danger' : '' }}
+                                {{ $migration->status === 'PENDING' ? 'bg-secondary' : '' }}
                                 {{ $migration->status === 'cancelled' ? 'bg-danger' : '' }}">
                                             {{ ucfirst($migration->status) }}
                                         </span>
@@ -179,17 +179,17 @@
                                             <a href="{{ route('data-migration.show', $migration) }}"
                                                 class="btn btn-outline-primary btn-sm">View</a>
 
-                                            @if (in_array($migration->status, ['pending', 'in_progress']))
+                                            @if (in_array($migration->status, ['PENDING', 'IN_PROGRESS']))
                                                 <button @click="cancelMigration({{ $migration->id }})"
                                                     class="btn btn-outline-danger btn-sm">Cancel</button>
                                             @endif
 
-                                            @if ($migration->status === 'failed' || $migration->batches->where('status', 'failed')->count() > 0)
+                                            @if ($migration->status === 'FAILED' || $migration->batches->where('status', 'FAILED')->count() > 0)
                                                 <button @click="retryMigration({{ $migration->id }})"
                                                     class="btn btn-outline-warning btn-sm">Retry</button>
                                             @endif
 
-                                            @if (!in_array($migration->status, ['in_progress']))
+                                            @if (!in_array($migration->status, ['IN_PROGRESS']))
                                                 <form method="POST"
                                                     action="{{ route('data-migration.destroy', $migration) }}"
                                                     class="d-inline"
@@ -227,14 +227,16 @@
 
     </div> <!-- End Alpine.js wrapper -->
 
-    <script>
-        function migrationIndexApp() {
+    <script type="module">
+        import { DataMigrationStatus, DataMigrationBatchStatus, getStatusClass, isActiveStatus, isCompletedStatus, isFailedStatus } from '/resources/js/enums/DataMigrationEnums.js';
+
+        window.migrationIndexApp = function migrationIndexApp() {
             return {
                 stats: {
                     total_migrations: {{ $migrations->total() }},
-                    active_migrations: {{ $migrations->whereIn('status', ['pending', 'in_progress'])->count() }},
-                    completed_migrations: {{ $migrations->where('status', 'completed')->count() }},
-                    failed_migrations: {{ $migrations->where('status', 'failed')->count() }}
+                    active_migrations: {{ $migrations->whereIn('status', ['PENDING', 'IN_PROGRESS'])->count() }},
+                    completed_migrations: {{ $migrations->where('status', 'COMPLETED')->count() }},
+                    failed_migrations: {{ $migrations->where('status', 'FAILED')->count() }}
                 },
                 refreshInterval: null,
 
@@ -315,14 +317,7 @@
                 },
 
                 getStatusClass(status) {
-                    const classes = {
-                        'completed': 'bg-success',
-                        'in_progress': 'bg-warning',
-                        'failed': 'bg-danger',
-                        'pending': 'bg-secondary',
-                        'cancelled': 'bg-danger'
-                    };
-                    return classes[status] || 'bg-secondary';
+                    return getStatusClass(status);
                 },
 
                 async cancelMigration(migrationId) {
@@ -373,5 +368,8 @@
                 }
             };
         }
+
+        // Make function available globally for Alpine.js
+        window.migrationIndexApp = migrationIndexApp;
     </script>
 @endsection
