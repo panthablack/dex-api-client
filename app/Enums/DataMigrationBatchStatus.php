@@ -46,4 +46,15 @@ enum DataMigrationBatchStatus: string
         // If cannot resolve, return unknown
         return self::UNKNOWN;
     }
+
+    public static function statusValues(): array
+    {
+        return [
+            self::IN_PROGRESS->value,
+            self::COMPLETED->value,
+            self::FAILED->value,
+            self::PENDING->value,
+            self::UNKNOWN->value,
+        ];
+    }
 }
