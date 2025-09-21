@@ -22,7 +22,7 @@
                 <div class="d-flex align-items-center gap-3 mt-2">
                     <span class="badge" :class="getStatusClass(migration.status)"
                         x-text="migration.status.charAt(0).toUpperCase() + migration.status.slice(1)">
-                        {{ ucfirst($migration->status) }}
+                        {{ ucfirst($migration->status->value) }}
                     </span>
                     <small class="text-muted">Created {{ $migration->created_at->diffForHumans() }}</small>
                 </div>
@@ -513,14 +513,18 @@
                         migration: {
                             id: {{ $migration->id }},
                             name: @json($migration->name),
-                            status: @json($migration->status),
+                            status: @json($migration->status->value),
                             progress_percentage: {{ $migration->progress_percentage }},
                             success_rate: {{ $migration->success_rate }},
                             total_items: {{ $migration->total_items }},
                             processed_items: {{ $migration->processed_items }},
                             successful_items: {{ $migration->successful_items }},
                             failed_items: {{ $migration->failed_items }},
-                            batches: @json($migration->batches->toArray())
+                            batches: @json($migration->batches->map(function($batch) {
+                                $batchArray = $batch->toArray();
+                                $batchArray['status'] = $batch->status->value;
+                                return $batchArray;
+                            }))
                         },
                         refreshInterval: null,
                         resourceFilter: 'all',

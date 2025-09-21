@@ -156,8 +156,8 @@
                                 {{ $migration->status === 'IN_PROGRESS' ? 'bg-warning' : '' }}
                                 {{ $migration->status === 'FAILED' ? 'bg-danger' : '' }}
                                 {{ $migration->status === 'PENDING' ? 'bg-secondary' : '' }}
-                                {{ $migration->status === 'cancelled' ? 'bg-danger' : '' }}">
-                                            {{ ucfirst($migration->status) }}
+                                {{ $migration->status === 'CANCELLED' ? 'bg-danger' : '' }}">
+                                            {{ ucfirst($migration->status->value) }}
                                         </span>
                                     </td>
                                     <td>
