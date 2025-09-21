@@ -451,16 +451,17 @@ class DataExchangeController extends Controller
                 ->withInput();
         }
 
+        $resourceType = $request->resource_type;
+
         try {
             $filters = $this->buildFilters($request);
-            $resolvedType = ResourceType::resolve($request->resource_type);
 
             // Get data based on resource type
-            switch ($resolvedType) {
-                case ResourceType::CLIENT:
+            switch ($resourceType) {
+                case 'client':
                     $data = $this->dataExchangeService->getClientData($filters);
                     break;
-                case ResourceType::CASE:
+                case 'case':
                     $data = $this->dataExchangeService->getCaseData($filters);
                     break;
                 case 'full_cases':
@@ -469,7 +470,7 @@ class DataExchangeController extends Controller
                 case 'full_sessions':
                     $data = $this->dataExchangeService->fetchFullSessionData($filters);
                     break;
-                case ResourceType::SESSION:
+                case 'session':
                     // Debug logging
                     Log::info('Session request debug', [
                         'request_case_id' => $request->case_id,
@@ -523,22 +524,22 @@ class DataExchangeController extends Controller
                     $data = $this->dataExchangeService->getSessionById($request->session_id, $request->case_id);
                     break;
                 default:
-                    throw new \Exception("Unsupported resource type: {$resolvedType->value}");
+                    throw new \Exception("Unsupported resource type: {$resourceType}");
             }
 
             if ($request->action === 'download') {
-                return $this->downloadData($data, $resolvedType->value, $request->format);
+                return $this->downloadData($data, $resourceType, $request->format);
             }
 
             $response = redirect()->back()
                 ->with('success', 'Data retrieved successfully')
                 ->with('data', $data)
                 ->with('format', $request->format)
-                ->with('resource_type', $resolvedType->value)
+                ->with('resource_type', $resourceType)
                 ->withInput();
 
             // Store resource ID in session for individual resource lookups
-            $lowerType = strtolower($resolvedType->value);
+            $lowerType = strtolower($resourceType);
             if (in_array($lowerType, ['client', 'case', 'session'])) {
                 $resourceId = '';
                 if ($lowerType === 'client_by_id') {
