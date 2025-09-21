@@ -850,7 +850,7 @@ class DataMigrationService
             ->count();
 
         if ($totalBatches > 0 && $completedOrFailedBatches >= $totalBatches) {
-            $status = $failedBatches->count() > 0 ? DataMigrationStatus::COMPLETED : DataMigrationStatus::COMPLETED;
+            $status = $failedBatches->count() > 0 ? DataMigrationStatus::FAILED : DataMigrationStatus::COMPLETED;
 
             $migration->update([
                 'status' => $status,
@@ -858,7 +858,7 @@ class DataMigrationService
                 'summary' => $this->generateMigrationSummary($migration)
             ]);
 
-            Log::info("Data migration {$migration->id} completed with status: {$status}");
+            Log::info("Data migration {$migration->id} completed with status: {$status->value}");
         }
     }
 
