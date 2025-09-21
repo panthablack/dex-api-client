@@ -921,6 +921,7 @@ class DataMigrationService
             'name' => $migration->name,
             'status' => $migration->status->value,
             'progress_percentage' => $migration->progress_percentage,
+            'processed_items' => $migration->processed_items,
             'success_rate' => $migration->success_rate,
             'total_items' => $migration->total_items,
             'started_at' => $migration->started_at?->toISOString(),

@@ -92,4 +92,27 @@ class DataMigration extends Model
     {
         return $query->where('status', DataMigrationStatus::FAILED);
     }
+
+    /**
+     * Get the total number of processed items across all batches.
+     */
+    public function getProcessedItemsAttribute(): int
+    {
+        return $this->batches->sum('items_stored') ?? 0;
+    }
+
+    /**
+     * Get the progress percentage based on processed vs total items.
+     */
+    public function getProgressPercentageAttribute(): float
+    {
+        if (!$this->total_items || $this->total_items == 0) {
+            return 0.0;
+        }
+
+        $processed = $this->processed_items;
+        $percentage = ($processed / $this->total_items) * 100;
+
+        return round($percentage, 1);
+    }
 }
