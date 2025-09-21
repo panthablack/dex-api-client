@@ -28,7 +28,12 @@
 
                 add(message, type = 'info', timeout = 5000) {
                     const id = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-                    const toast = { id, message, type, timeout };
+                    const toast = {
+                        id,
+                        message,
+                        type,
+                        timeout
+                    };
                     this.toasts.push(toast);
 
                     // Auto-remove after timeout
@@ -151,11 +156,12 @@
                             Retrieve Data
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ route('data-exchange.retrieve-form') }}">
+                            {{-- Hide Temporarily as view broken --}}
+                            {{-- <li><a class="dropdown-item" href="{{ route('data-exchange.retrieve-form') }}">
                                     <i class="fas fa-search"></i> Search & Retrieve</a></li>
                             <li>
                                 <hr class="dropdown-divider">
-                            </li>
+                            </li> --}}
                             <li>
                                 <h6 class="dropdown-header">Browse Resources</h6>
                             </li>
@@ -165,8 +171,8 @@
                                     <i class="fas fa-folder-open"></i> View All Cases</a></li>
                             <li class="dropdown-divider"></li>
                             <li><span class="dropdown-item-text text-muted small">
-                                <i class="fas fa-info-circle"></i> Sessions are now accessed via Cases
-                            </span></li>
+                                    <i class="fas fa-info-circle"></i> Sessions are now accessed via Cases
+                                </span></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -191,32 +197,24 @@
     <!-- Toast Container -->
     <div x-data class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1060;" x-cloak>
         <template x-for="toast in $store.toast.toasts" :key="toast.id">
-            <div :id="toast.id"
-                 class="toast align-items-center border-0 mb-2"
-                 :class="{
-                     'bg-success text-white': toast.type === 'success',
-                     'bg-danger text-white': toast.type === 'error',
-                     'bg-warning text-dark': toast.type === 'warning',
-                     'bg-info text-white': toast.type === 'info',
-                     'bg-primary text-white': toast.type === 'primary',
-                     'bg-secondary text-white': toast.type === 'secondary'
-                 }"
-                 role="alert"
-                 aria-live="assertive"
-                 aria-atomic="true"
-                 style="min-width: 300px;"
-                 x-init="
-                     const toastEl = $el;
-                     const bsToast = new bootstrap.Toast(toastEl, { autohide: false });
-                     bsToast.show();
-                 ">
+            <div :id="toast.id" class="toast align-items-center border-0 mb-2"
+                :class="{
+                    'bg-success text-white': toast.type === 'success',
+                    'bg-danger text-white': toast.type === 'error',
+                    'bg-warning text-dark': toast.type === 'warning',
+                    'bg-info text-white': toast.type === 'info',
+                    'bg-primary text-white': toast.type === 'primary',
+                    'bg-secondary text-white': toast.type === 'secondary'
+                }"
+                role="alert" aria-live="assertive" aria-atomic="true" style="min-width: 300px;"
+                x-init="const toastEl = $el;
+                const bsToast = new bootstrap.Toast(toastEl, { autohide: false });
+                bsToast.show();">
                 <div class="d-flex">
                     <div class="toast-body" x-text="toast.message"></div>
-                    <button type="button"
-                            class="btn-close me-2 m-auto"
-                            :class="{ 'btn-close-white': toast.type !== 'warning' }"
-                            @click="$store.toast.remove(toast.id)"
-                            aria-label="Close"></button>
+                    <button type="button" class="btn-close me-2 m-auto"
+                        :class="{ 'btn-close-white': toast.type !== 'warning' }"
+                        @click="$store.toast.remove(toast.id)" aria-label="Close"></button>
                 </div>
             </div>
         </template>
