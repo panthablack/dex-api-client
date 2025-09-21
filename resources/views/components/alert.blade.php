@@ -29,7 +29,7 @@
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.store('alert', {
-        show: false,
+        visible: false,
         message: '',
         type: 'info',
         timeout: null,
@@ -41,7 +41,7 @@ document.addEventListener('alpine:init', () => {
         show(message, type = 'info', duration = 5000) {
             this.message = message;
             this.type = type;
-            this.show = true;
+            this.visible = true;
 
             // Clear any existing timeout
             if (this.timeout) {
@@ -57,7 +57,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         hide() {
-            this.show = false;
+            this.visible = false;
             if (this.timeout) {
                 clearTimeout(this.timeout);
                 this.timeout = null;
@@ -69,7 +69,7 @@ document.addEventListener('alpine:init', () => {
 function alertComponent() {
     return {
         get show() {
-            return this.$store.alert.show;
+            return this.$store.alert.visible;
         },
 
         get message() {
