@@ -261,22 +261,16 @@
         }
 
         function getResourceTypeClass(resourceType) {
-            const normalizedType = resourceType.toUpperCase();
-            switch (normalizedType) {
+            const enumValue = convertToEnumValue(resourceType);
+            switch (enumValue) {
                 case 'CLIENT':
-                case 'CLIENTS':
                 case 'FULL_CLIENT':
-                case 'FULL_CLIENTS':
                     return 'bg-primary';
                 case 'CASE':
-                case 'CASES':
                 case 'FULL_CASE':
-                case 'FULL_CASES':
                     return 'bg-success';
                 case 'SESSION':
-                case 'SESSIONS':
                 case 'FULL_SESSION':
-                case 'FULL_SESSIONS':
                     return 'bg-info';
                 default:
                     return 'bg-secondary';
@@ -284,9 +278,44 @@
         }
 
         function formatResourceTypeName(resourceType) {
-            return resourceType.toLowerCase()
+            // Convert API data (e.g., "clients") to enum-like format (e.g., "CLIENT")
+            // Then format the same way as Blade template
+            const enumValue = convertToEnumValue(resourceType);
+            return enumValue.toLowerCase()
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function convertToEnumValue(resourceType) {
+            const normalizedType = resourceType.toLowerCase();
+            switch (normalizedType) {
+                case 'client':
+                case 'clients':
+                    return 'CLIENT';
+                case 'case':
+                case 'cases':
+                    return 'CASE';
+                case 'session':
+                case 'sessions':
+                    return 'SESSION';
+                case 'full_client':
+                case 'full_clients':
+                case 'full-client':
+                case 'full-clients':
+                    return 'FULL_CLIENT';
+                case 'full_case':
+                case 'full_cases':
+                case 'full-case':
+                case 'full-cases':
+                    return 'FULL_CASE';
+                case 'full_session':
+                case 'full_sessions':
+                case 'full-session':
+                case 'full-sessions':
+                    return 'FULL_SESSION';
+                default:
+                    return resourceType.toUpperCase();
+            }
         }
 
         window.migrationIndexApp = function migrationIndexApp() {
