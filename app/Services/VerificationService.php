@@ -219,12 +219,16 @@ class VerificationService
 
         // Get stats for each resource type
         foreach ($migration->resource_types as $resourceType) {
-            $modelClass = $this->getModelClass($resourceType);
+            // Convert string resource type to enum value for database queries
+            $enumResourceType = ResourceType::resolve($resourceType);
+            $enumValue = $enumResourceType->value;
+
+            $modelClass = $this->getModelClass($enumValue);
 
             if ($modelClass) {
                 // Get the batch IDs for this migration and resource type
                 $batchIds = $migration->batches()
-                    ->where('resource_type', $resourceType)
+                    ->where('resource_type', $enumValue)
                     ->where('status', 'completed')
                     ->pluck('id')
                     ->toArray();
@@ -261,12 +265,16 @@ class VerificationService
         $results = [];
 
         foreach ($migration->resource_types as $resourceType) {
-            $modelClass = $this->getModelClass($resourceType);
+            // Convert string resource type to enum value for database queries
+            $enumResourceType = ResourceType::resolve($resourceType);
+            $enumValue = $enumResourceType->value;
+
+            $modelClass = $this->getModelClass($enumValue);
 
             if ($modelClass) {
                 // Get the batch IDs for this migration and resource type
                 $batchIds = $migration->batches()
-                    ->where('resource_type', $resourceType)
+                    ->where('resource_type', $enumValue)
                     ->where('status', 'completed')
                     ->pluck('id')
                     ->toArray();
@@ -278,7 +286,7 @@ class VerificationService
 
                 $verified = 0;
                 foreach ($records as $record) {
-                    if ($this->verifyRecord($resourceType, $record)) {
+                    if ($this->verifyRecord($enumResourceType, $record)) {
                         $verified++;
                     }
                 }
