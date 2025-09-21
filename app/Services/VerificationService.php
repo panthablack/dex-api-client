@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DataMigrationBatchStatus;
 use App\Enums\ResourceType;
 use App\Enums\VerificationStatus;
 use App\Models\DataMigration;
@@ -296,7 +297,7 @@ class VerificationService
                     'verified' => $verified,
                     'failed' => $records->count() - $verified,
                     'success_rate' => $records->count() > 0 ? round(($verified / $records->count()) * 100) : 0,
-                    'status' => $records->count() > 0 ? 'completed' : 'no_data'
+                    'status' => $records->count() > 0 ? DataMigrationBatchStatus::COMPLETED->value : 'no_data'
                 ];
             }
         }
