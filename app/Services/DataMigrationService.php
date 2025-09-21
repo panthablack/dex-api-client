@@ -919,7 +919,7 @@ class DataMigrationService
         return [
             'id' => $migration->id,
             'name' => $migration->name,
-            'status' => $migration->status,
+            'status' => $migration->status->value,
             'progress_percentage' => $migration->progress_percentage,
             'success_rate' => $migration->success_rate,
             'total_items' => $migration->total_items,
@@ -931,7 +931,7 @@ class DataMigrationService
                     'id' => $batch->id,
                     'batch_number' => $batch->batch_number,
                     'resource_type' => $batch->resource_type,
-                    'status' => $batch->status,
+                    'status' => $batch->status->value,
                     'items_requested' => $batch->items_requested,
                     'items_received' => $batch->items_received ?? 0,
                     'items_stored' => $batch->items_stored ?? 0,
