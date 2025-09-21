@@ -190,9 +190,9 @@
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span
                                     class="badge
-                            {{ $type === \App\Enums\ResourceType::CLIENT ? 'bg-primary' : '' }}
-                            {{ $type === \App\Enums\ResourceType::CASE ? 'bg-success' : '' }}
-                            {{ $type === \App\Enums\ResourceType::SESSION ? 'bg-info' : '' }}">
+                            {{ $type === 'clients' ? 'bg-primary' : '' }}
+                            {{ $type === 'cases' ? 'bg-success' : '' }}
+                            {{ $type === 'sessions' ? 'bg-info' : '' }}">
                                     {{ ucfirst($type) }}
                                 </span>
                                 @php
