@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DataMigrationBatchStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -18,7 +19,7 @@ return new class extends Migration
             $table->integer('batch_number'); // Sequential batch number
             $table->integer('page_index'); // DSS API page index
             $table->integer('page_size')->default(100);
-            $table->enum('status', ['pending', 'processing', 'completed', 'failed'])->default('pending');
+            $table->enum('status', DataMigrationBatchStatus::statusValues())->default('pending');
             $table->integer('items_requested')->default(0);
             $table->integer('items_received')->default(0);
             $table->integer('items_stored')->default(0);

@@ -52,4 +52,16 @@ enum DataMigrationStatus: string
         // If cannot resolve, return unknown
         return self::UNKNOWN;
     }
+
+    public static function statusValues(): array
+    {
+        return [
+            self::CANCELLED->value,
+            self::COMPLETED->value,
+            self::FAILED->value,
+            self::IN_PROGRESS->value,
+            self::PENDING->value,
+            self::UNKNOWN->value,
+        ];
+    }
 }

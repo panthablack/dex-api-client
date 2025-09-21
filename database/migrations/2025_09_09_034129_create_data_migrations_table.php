@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DataMigrationStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +17,7 @@ return new class extends Migration
             $table->string('name'); // e.g., "Client Migration 2025-09-09"
             $table->json('resource_types'); // ['clients', 'cases', 'sessions']
             $table->json('filters')->nullable(); // Date ranges, specific criteria
-            $table->enum('status', ['pending', 'in_progress', 'completed', 'failed', 'cancelled'])->default('pending');
+            $table->enum('status', DataMigrationStatus::statusValues())->default('pending');
             $table->integer('total_items')->default(0);
             $table->integer('batch_size')->default(100);
             $table->text('error_message')->nullable();
