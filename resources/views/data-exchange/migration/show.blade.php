@@ -549,8 +549,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <a href="{{ route('data-migration.verification', $migration) }}" class="btn btn-primary"
-                                data-bs-dismiss="modal">Run Full Verification</a>
+                            <a href="{{ route('data-migration.verification', $migration) }}" class="btn btn-primary">Run Full Verification</a>
                         </div>
                     </div>
                 </div>
