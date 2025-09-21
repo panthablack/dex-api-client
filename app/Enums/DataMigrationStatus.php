@@ -4,20 +4,21 @@ namespace App\Enums;
 
 enum DataMigrationStatus: string
 {
-    case IN_PROGRESS = 'IN_PROGRESS';
+    case CANCELLED = 'CANCELLED';
     case COMPLETED = 'COMPLETED';
     case FAILED = 'FAILED';
+    case IN_PROGRESS = 'IN_PROGRESS';
+    case PENDING = 'PENDING';
     case UNKNOWN = 'UNKNOWN';
 
     public static function resolve(string $type): DataMigrationStatus
     {
         if (in_array($type, [
-            self::IN_PROGRESS,
-            self::IN_PROGRESS->value,
-            'in_progress',
-            'in-progress',
-            'IN-PROGRESS',
-        ])) return self::IN_PROGRESS;
+            self::CANCELLED,
+            self::CANCELLED->value,
+            'cancelled',
+            'CANCELLED',
+        ])) return self::CANCELLED;
 
         if (in_array($type, [
             self::COMPLETED,
@@ -32,6 +33,21 @@ enum DataMigrationStatus: string
             'failed',
             'FAILED',
         ])) return self::FAILED;
+
+        if (in_array($type, [
+            self::IN_PROGRESS,
+            self::IN_PROGRESS->value,
+            'in_progress',
+            'in-progress',
+            'IN-PROGRESS',
+        ])) return self::IN_PROGRESS;
+
+        if (in_array($type, [
+            self::PENDING,
+            self::PENDING->value,
+            'pending',
+            'PENDING',
+        ])) return self::PENDING;
 
         // If cannot resolve, return unknown
         return self::UNKNOWN;
