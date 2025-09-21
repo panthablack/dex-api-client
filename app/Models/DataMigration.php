@@ -65,4 +65,31 @@ class DataMigration extends Model
             'completed_at' => now()
         ]);
     }
+
+    /**
+     * Scope a query to only include active migrations.
+     */
+    public function scopeActive($query)
+    {
+        return $query->whereIn('status', [
+            DataMigrationStatus::PENDING,
+            DataMigrationStatus::IN_PROGRESS
+        ]);
+    }
+
+    /**
+     * Scope a query to only include completed migrations.
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', DataMigrationStatus::COMPLETED);
+    }
+
+    /**
+     * Scope a query to only include failed migrations.
+     */
+    public function scopeFailed($query)
+    {
+        return $query->where('status', DataMigrationStatus::FAILED);
+    }
 }
