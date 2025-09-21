@@ -187,31 +187,48 @@
                     </div>
                     <div class="card-body">
                         @foreach ($migration->resource_types as $type)
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span
-                                    class="badge
-                            {{ $type === 'clients' ? 'bg-primary' : '' }}
-                            {{ $type === 'cases' ? 'bg-success' : '' }}
-                            {{ $type === 'sessions' ? 'bg-info' : '' }}">
-                                    {{ ucfirst($type) }}
-                                </span>
-                                @php
-                                    // Convert string type to enum value for database comparison
-                                    $enumType = match($type) {
-                                        'clients' => \App\Enums\ResourceType::CLIENT->value,
-                                        'cases' => \App\Enums\ResourceType::CASE->value,
-                                        'sessions' => \App\Enums\ResourceType::SESSION->value,
-                                        default => strtoupper($type)
-                                    };
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span
+                                        class="badge
+                                {{ $type === 'clients' ? 'bg-primary' : '' }}
+                                {{ $type === 'cases' ? 'bg-success' : '' }}
+                                {{ $type === 'sessions' ? 'bg-info' : '' }}">
+                                        {{ ucfirst($type) }}
+                                    </span>
+                                    @php
+                                        // Convert string type to enum value for database comparison
+                                        $enumType = match ($type) {
+                                            'clients' => \App\Enums\ResourceType::CLIENT->value,
+                                            'cases' => \App\Enums\ResourceType::CASE->value,
+                                            'sessions' => \App\Enums\ResourceType::SESSION->value,
+                                            default => strtoupper($type),
+                                        };
 
-                                    $typeBatches = $migration->batches->where('resource_type', $enumType);
-                                    $typeCompleted = $typeBatches->where('status', \App\Enums\DataMigrationBatchStatus::COMPLETED);
-                                    $typeProgress =
-                                        $typeBatches->count() > 0
-                                            ? round(($typeCompleted->count() / $typeBatches->count()) * 100)
-                                            : 0;
-                                @endphp
-                                <small class="text-muted">{{ $typeProgress }}% complete</small>
+                                        $typeBatches = $migration->batches->where('resource_type', $enumType);
+                                        $typeCompleted = $typeBatches->where(
+                                            'status',
+                                            \App\Enums\DataMigrationBatchStatus::COMPLETED,
+                                        );
+                                        $typeProgress =
+                                            $typeBatches->count() > 0
+                                                ? round(($typeCompleted->count() / $typeBatches->count()) * 100)
+                                                : 0;
+                                    @endphp
+                                    <div class="flex-grow-1 px-3">
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar
+                                                {{ $type === 'clients' ? 'bg-primary' : '' }}
+                                                {{ $type === 'cases' ? 'bg-success' : '' }}
+                                                {{ $type === 'sessions' ? 'bg-info' : '' }}"
+                                                role="progressbar" style="width: {{ $typeProgress }}%"
+                                                aria-valuenow="{{ $typeProgress }}" aria-valuemin="0"
+                                                aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ $typeProgress }}% complete</small>
+                                </div>
                             </div>
                         @endforeach
                     </div>
@@ -353,7 +370,9 @@
             </div>
 
             <!-- Export Options -->
-            @if ($migration->status === \App\Enums\DataMigrationStatus::COMPLETED || $migration->batches->where('status', \App\Enums\DataMigrationBatchStatus::COMPLETED)->count() > 0)
+            @if (
+                $migration->status === \App\Enums\DataMigrationStatus::COMPLETED ||
+                    $migration->batches->where('status', \App\Enums\DataMigrationBatchStatus::COMPLETED)->count() > 0)
                 <div class="card mt-4">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Export Migrated Data</h5>
@@ -363,11 +382,11 @@
                             @foreach ($migration->resource_types as $type)
                                 @php
                                     // Convert string type to enum value for database comparison
-                                    $enumType = match($type) {
+                                    $enumType = match ($type) {
                                         'clients' => \App\Enums\ResourceType::CLIENT->value,
                                         'cases' => \App\Enums\ResourceType::CASE->value,
                                         'sessions' => \App\Enums\ResourceType::SESSION->value,
-                                        default => strtoupper($type)
+                                        default => strtoupper($type),
                                     };
 
                                     $completedBatches = $migration->batches
