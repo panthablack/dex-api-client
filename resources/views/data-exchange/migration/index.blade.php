@@ -227,8 +227,29 @@
 
     </div> <!-- End Alpine.js wrapper -->
 
-    <script type="module">
-        import { DataMigrationStatus, DataMigrationBatchStatus, getStatusClass, isActiveStatus, isCompletedStatus, isFailedStatus } from '/resources/js/enums/DataMigrationEnums.js';
+    <script>
+        // Define status constants and helper functions inline
+        const DataMigrationStatus = {
+            CANCELLED: 'CANCELLED',
+            COMPLETED: 'COMPLETED',
+            FAILED: 'FAILED',
+            IN_PROGRESS: 'IN_PROGRESS',
+            PENDING: 'PENDING',
+            UNKNOWN: 'UNKNOWN'
+        };
+
+        const StatusColorMappings = {
+            [DataMigrationStatus.PENDING]: 'bg-secondary',
+            [DataMigrationStatus.IN_PROGRESS]: 'bg-warning',
+            [DataMigrationStatus.COMPLETED]: 'bg-success',
+            [DataMigrationStatus.FAILED]: 'bg-danger',
+            [DataMigrationStatus.CANCELLED]: 'bg-secondary',
+            [DataMigrationStatus.UNKNOWN]: 'bg-light'
+        };
+
+        function getStatusClass(status) {
+            return StatusColorMappings[status] || 'bg-light';
+        }
 
         window.migrationIndexApp = function migrationIndexApp() {
             return {
@@ -369,7 +390,5 @@
             };
         }
 
-        // Make function available globally for Alpine.js
-        window.migrationIndexApp = migrationIndexApp;
     </script>
 @endsection
