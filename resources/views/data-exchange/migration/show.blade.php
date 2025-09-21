@@ -29,17 +29,19 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button x-show="[DataMigrationStatus.PENDING, DataMigrationStatus.IN_PROGRESS].includes(migration.status)" @click="cancelMigration()"
-                    class="btn btn-danger btn-sm">
+                <button x-show="[DataMigrationStatus.PENDING, DataMigrationStatus.IN_PROGRESS].includes(migration.status)"
+                    @click="cancelMigration()" class="btn btn-danger btn-sm">
                     Cancel Migration
                 </button>
 
-                <button x-show="migration.status === DataMigrationStatus.FAILED || migration.batches.some(b => b.status === DataMigrationBatchStatus.FAILED)"
+                <button
+                    x-show="migration.status === DataMigrationStatus.FAILED || migration.batches.some(b => b.status === DataMigrationBatchStatus.FAILED)"
                     @click="retryMigration()" class="btn btn-warning btn-sm">
                     Retry Failed Batches
                 </button>
 
-                <button x-show="migration.status === DataMigrationStatus.IN_PROGRESS && migration.batches.every(b => b.status === DataMigrationBatchStatus.PENDING)"
+                <button
+                    x-show="migration.status === DataMigrationStatus.IN_PROGRESS && migration.batches.every(b => b.status === DataMigrationBatchStatus.PENDING)"
                     @click="restartStuckMigration()" class="btn btn-warning btn-sm">
                     <i class="fas fa-redo me-1"></i>
                     Restart Stuck Migration
@@ -289,9 +291,15 @@
                                     <td>
                                         <span class="badge text-capitalize"
                                             :class="{
-                                                'bg-primary': batch.resource_type === \App\ Enums\ ResourceType::CLIENT,
-                                                'bg-success': batch.resource_type === \App\ Enums\ ResourceType::CASE,
-                                                'bg-info': batch.resource_type === \App\ Enums\ ResourceType::SESSION
+                                                'bg-primary': batch
+                                                    .resource_type ===
+                                                    '{{ \App\Enums\ResourceType::CLIENT->value }}',
+                                                'bg-success': batch
+                                                    .resource_type ===
+                                                    '{{ \App\Enums\ResourceType::CASE->value }}',
+                                                'bg-info': batch
+                                                    .resource_type ===
+                                                    '{{ \App\Enums\ResourceType::SESSION->value }}',
                                             }"
                                             x-text="batch.resource_type">
                                         </span>
@@ -455,15 +463,19 @@
                                                     <h5 class="card-title text-capitalize" x-text="resourceType"></h5>
                                                     <div class="mb-2" style="font-size: 2rem;"
                                                         :class="{
-                                                            'text-success': result.status === DataMigrationBatchStatus.COMPLETED && (result
-                                                                .success_rate || 0) >= 95,
-                                                            'text-warning': result.status === DataMigrationBatchStatus.COMPLETED && (result
-                                                                .success_rate || 0) >= 80 && (result.success_rate ||
-                                                                0) < 95,
-                                                            'text-danger': result.status === DataMigrationBatchStatus.COMPLETED && (result
-                                                                .success_rate || 0) < 80,
+                                                            'text-success': result.status === DataMigrationBatchStatus
+                                                                .COMPLETED && (result
+                                                                    .success_rate || 0) >= 95,
+                                                            'text-warning': result.status === DataMigrationBatchStatus
+                                                                .COMPLETED && (result
+                                                                    .success_rate || 0) >= 80 && (result.success_rate ||
+                                                                    0) < 95,
+                                                            'text-danger': result.status === DataMigrationBatchStatus
+                                                                .COMPLETED && (result
+                                                                    .success_rate || 0) < 80,
                                                             'text-muted': result.status === 'no_data',
-                                                            'text-danger': result.status !== DataMigrationBatchStatus.COMPLETED && result
+                                                            'text-danger': result.status !== DataMigrationBatchStatus
+                                                                .COMPLETED && result
                                                                 .status !== 'no_data'
                                                         }"
                                                         x-text="result.status === DataMigrationBatchStatus.COMPLETED ?
@@ -473,15 +485,19 @@
                                                     </div>
                                                     <p class="card-text"
                                                         :class="{
-                                                            'text-success': result.status === DataMigrationBatchStatus.COMPLETED && (result
-                                                                .success_rate || 0) >= 95,
-                                                            'text-warning': result.status === DataMigrationBatchStatus.COMPLETED && (result
-                                                                .success_rate || 0) >= 80 && (result.success_rate ||
-                                                                0) < 95,
-                                                            'text-danger': result.status === DataMigrationBatchStatus.COMPLETED && (result
-                                                                .success_rate || 0) < 80,
+                                                            'text-success': result.status === DataMigrationBatchStatus
+                                                                .COMPLETED && (result
+                                                                    .success_rate || 0) >= 95,
+                                                            'text-warning': result.status === DataMigrationBatchStatus
+                                                                .COMPLETED && (result
+                                                                    .success_rate || 0) >= 80 && (result.success_rate ||
+                                                                    0) < 95,
+                                                            'text-danger': result.status === DataMigrationBatchStatus
+                                                                .COMPLETED && (result
+                                                                    .success_rate || 0) < 80,
                                                             'text-muted': result.status === 'no_data',
-                                                            'text-danger': result.status !== DataMigrationBatchStatus.COMPLETED && result
+                                                            'text-danger': result.status !== DataMigrationBatchStatus
+                                                                .COMPLETED && result
                                                                 .status !== 'no_data'
                                                         }"
                                                         x-text="result.status === DataMigrationBatchStatus.COMPLETED ?
@@ -505,26 +521,26 @@
                 </div>
             </div>
 
-            <script type="module">
-                import { DataMigrationStatus, DataMigrationBatchStatus, getStatusClass, isActiveStatus, isCompletedStatus, isFailedStatus } from '/resources/js/enums/DataMigrationEnums.js';
-
-                window.migrationApp = function migrationApp() {
+            <x-js.data-migration-functions />
+            <script>
+                function migrationApp() {
                     return {
                         migration: {
-                            id: {{ $migration->id }},
+                            id: {{ $migration->id ?? 'null' }},
                             name: @json($migration->name),
                             status: @json($migration->status->value),
-                            progress_percentage: {{ $migration->progress_percentage }},
-                            success_rate: {{ $migration->success_rate }},
-                            total_items: {{ $migration->total_items }},
-                            processed_items: {{ $migration->processed_items }},
-                            successful_items: {{ $migration->successful_items }},
-                            failed_items: {{ $migration->failed_items }},
-                            batches: @json($migration->batches->map(function($batch) {
-                                $batchArray = $batch->toArray();
-                                $batchArray['status'] = $batch->status->value;
-                                return $batchArray;
-                            }))
+                            progress_percentage: {{ $migration->progress_percentage ?? 0 }},
+                            success_rate: {{ $migration->success_rate ?? 0 }},
+                            total_items: {{ $migration->total_items ?? 0 }},
+                            processed_items: {{ $migration->processed_items ?? 0 }},
+                            successful_items: {{ $migration->successful_items ?? 0 }},
+                            failed_items: {{ $migration->failed_items ?? 0 }},
+                            batches: @json(
+                                $migration->batches->map(function ($batch) {
+                                    $batchArray = $batch->toArray();
+                                    $batchArray['status'] = $batch->status->value;
+                                    return $batchArray;
+                                }))
                         },
                         refreshInterval: null,
                         resourceFilter: 'all',
@@ -547,7 +563,8 @@
                         },
 
                         init() {
-                            if (this.migration.status === DataMigrationStatus.IN_PROGRESS || this.migration.status === DataMigrationStatus.PENDING) {
+                            if (this.migration.status === DataMigrationStatus.IN_PROGRESS || this.migration.status ===
+                                DataMigrationStatus.PENDING) {
                                 this.startAutoRefresh();
                             }
 
@@ -577,8 +594,10 @@
                                     const oldStatus = this.migration.status;
                                     this.migration = data.data;
 
-                                    if ((oldStatus === DataMigrationStatus.IN_PROGRESS || oldStatus === DataMigrationStatus.PENDING) &&
-                                        (data.data.status === DataMigrationStatus.COMPLETED || data.data.status === DataMigrationStatus.FAILED)) {
+                                    if ((oldStatus === DataMigrationStatus.IN_PROGRESS || oldStatus === DataMigrationStatus
+                                            .PENDING) &&
+                                        (data.data.status === DataMigrationStatus.COMPLETED || data.data.status ===
+                                            DataMigrationStatus.FAILED)) {
                                         if (this.refreshInterval) {
                                             clearInterval(this.refreshInterval);
                                             this.refreshInterval = null;
@@ -587,7 +606,8 @@
                                         return;
                                     }
 
-                                    if (data.data.status === DataMigrationStatus.COMPLETED || data.data.status === DataMigrationStatus.FAILED || data.data
+                                    if (data.data.status === DataMigrationStatus.COMPLETED || data.data.status ===
+                                        DataMigrationStatus.FAILED || data.data
                                         .status === DataMigrationStatus.CANCELLED) {
                                         if (this.refreshInterval) {
                                             clearInterval(this.refreshInterval);
