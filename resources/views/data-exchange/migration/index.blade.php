@@ -276,7 +276,7 @@
                     this.refreshInterval = setInterval(() => {
                         this.updateStats();
                         this.updateMigrations();
-                    }, 30000);
+                    }, 10000);
                 },
 
                 async updateStats() {
@@ -322,14 +322,16 @@
                                     /bg-(success|warning|danger|secondary|primary|info)/g, '');
                                 const statusClass = this.getStatusClass(migration.status);
                                 statusBadge.className += ' ' + statusClass;
-                                statusBadge.textContent = migration.status.charAt(0).toUpperCase() + migration.status
+                                statusBadge.textContent = migration.status.charAt(0).toUpperCase() + migration
+                                    .status
                                     .slice(1);
                             }
 
                             // Update items count
                             const itemsText = row.querySelector('small.text-muted');
                             if (itemsText) {
-                                itemsText.textContent = `${migration.processed_items}/${migration.total_items} items`;
+                                itemsText.textContent =
+                                    `${migration.processed_items}/${migration.total_items} items`;
                             }
                         }
                     } catch (error) {
@@ -389,6 +391,5 @@
                 }
             };
         }
-
     </script>
 @endsection
