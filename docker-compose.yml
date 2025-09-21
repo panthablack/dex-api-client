@@ -54,6 +54,23 @@ services:
         networks:
             - app-network
 
+    test:
+        build:
+            context: .
+            target: development
+        volumes:
+            - .:/var/www/html
+        environment:
+            - APP_DEBUG=${APP_DEBUG:-true}
+            - APP_URL=http://app:80
+        depends_on:
+            db:
+                condition: service_healthy
+        networks:
+            - app-network
+        profiles:
+            - testing
+
     playwright:
         build:
             context: .
