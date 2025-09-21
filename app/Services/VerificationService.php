@@ -229,7 +229,7 @@ class VerificationService
                     ->pluck('id')
                     ->toArray();
 
-                $query = $modelClass::whereIn('migration_batch_id', $batchIds);
+                $query = $modelClass::whereIn('data_migration_batch_id', $batchIds);
 
                 $total = $query->count();
                 $verified = $query->where('verification_status', VerificationStatus::VERIFIED)->count();
@@ -271,7 +271,7 @@ class VerificationService
                     ->pluck('id')
                     ->toArray();
 
-                $records = $modelClass::whereIn('migration_batch_id', $batchIds)
+                $records = $modelClass::whereIn('data_migration_batch_id', $batchIds)
                     ->inRandomOrder()
                     ->limit($sampleSize)
                     ->get();

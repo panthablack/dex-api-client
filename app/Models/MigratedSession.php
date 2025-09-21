@@ -21,7 +21,6 @@ class MigratedSession extends Model
         'outcome',
         'notes',
         'api_response',
-        'migration_batch_id',
         'verification_status',
         'verified_at',
         'verification_error'

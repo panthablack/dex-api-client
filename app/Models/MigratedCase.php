@@ -22,7 +22,6 @@ class MigratedCase extends Model
         'exit_reason_code',
         'ag_business_type_code',
         'api_response',
-        'migration_batch_id',
         'verification_status',
         'verified_at',
         'verification_error'

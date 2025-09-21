@@ -657,7 +657,7 @@ class DataMigrationService
                 'referral_source_code' => $referralSourceCode,
                 'reasons_for_assistance' => $reasonsForAssistance,
                 'api_response' => $caseData,
-                'migration_batch_id' => $batchId,
+                'data_migration_batch_id' => $batchId,
             ]
         );
     }
@@ -698,7 +698,7 @@ class DataMigrationService
                 'duration_minutes' => $sessionData['duration_minutes'] ?? $sessionData['DurationMinutes'] ?? 0,
                 'location' => $sessionData['location'] ?? $sessionData['Location'] ?? null,
                 'api_response' => $sessionData,
-                'migration_batch_id' => $batchId,
+                'data_migration_batch_id' => $batchId,
             ]
         );
     }
@@ -799,7 +799,7 @@ class DataMigrationService
         $batchNumber = $batch->batch_number;
 
         // Get migrated cases for this migration, paginated for this batch
-        $migratedCases = MigratedCase::where('migration_batch_id', $batch->data_migration_id)
+        $migratedCases = MigratedCase::where('data_migration_batch_id', $batch->data_migration_id)
             ->orderBy('case_id')
             ->skip(($batchNumber - 1) * $batchSize)
             ->take($batchSize)

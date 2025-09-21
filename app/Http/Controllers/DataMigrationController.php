@@ -214,9 +214,9 @@ class DataMigrationController extends Controller
 
             if ($batchIds->isNotEmpty()) {
                 // Delete migrated records
-                \App\Models\MigratedClient::whereIn('migration_batch_id', $batchIds)->delete();
-                \App\Models\MigratedCase::whereIn('migration_batch_id', $batchIds)->delete();
-                \App\Models\MigratedSession::whereIn('migration_batch_id', $batchIds)->delete();
+                \App\Models\MigratedClient::whereIn('data_migration_batch_id', $batchIds)->delete();
+                \App\Models\MigratedCase::whereIn('data_migration_batch_id', $batchIds)->delete();
+                \App\Models\MigratedSession::whereIn('data_migration_batch_id', $batchIds)->delete();
             }
 
             // Delete migration and its batches (cascaded)
@@ -312,8 +312,14 @@ class DataMigrationController extends Controller
      */
     public function export(DataMigration $migration, Request $request)
     {
+        $validResources = [
+            ResourceType::CLIENT->value,
+            ResourceType::CASE->value,
+            ResourceType::SESSION->value,
+        ];
+
         $validator = Validator::make($request->all(), [
-            'resource_type' => 'required|in:clients,cases,sessions',
+            'resource_type' => 'required|in:' . implode(',', $validResources),
             'format' => 'required|in:csv,json,xlsx'
         ]);
 
@@ -325,36 +331,36 @@ class DataMigrationController extends Controller
         }
 
         try {
-            $resourceType = $request->resource_type;
+            $resourceType = ResourceType::resolve($request->resource_type);
             $format = $request->format;
 
             $batchIds = $migration->batches()
-                ->where('resource_type', $resourceType)
+                ->where('resource_type', $resourceType->value)
                 ->where('status', 'completed')
                 ->pluck('id');
 
             if ($batchIds->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'error' => "No completed {$resourceType} data found for this migration"
+                    'error' => "No completed {$resourceType->value} data found for this migration"
                 ], 404);
             }
 
             // Get the data based on resource type
             switch ($resourceType) {
                 case ResourceType::CLIENT:
-                    $data = \App\Models\MigratedClient::whereIn('migration_batch_id', $batchIds)->get();
+                    $data = \App\Models\MigratedClient::whereIn('data_migration_batch_id', $batchIds)->get();
                     break;
                 case ResourceType::CASE:
-                    $data = \App\Models\MigratedCase::whereIn('migration_batch_id', $batchIds)->get();
+                    $data = \App\Models\MigratedCase::whereIn('data_migration_batch_id', $batchIds)->get();
                     break;
                 case ResourceType::SESSION:
-                    $data = \App\Models\MigratedSession::whereIn('migration_batch_id', $batchIds)->get();
+                    $data = \App\Models\MigratedSession::whereIn('data_migration_batch_id', $batchIds)->get();
                     break;
             }
 
             // Convert to the requested format
-            $filename = "{$migration->name}_{$resourceType}_" . now()->format('Y-m-d_H-i-s');
+            $filename = "{$migration->name}_{$resourceType->value}_" . now()->format('Y-m-d_H-i-s');
 
             switch ($format) {
                 case 'csv':

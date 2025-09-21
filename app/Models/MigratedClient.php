@@ -30,7 +30,6 @@ class MigratedClient extends Model
         'consent_to_be_contacted',
         'client_type',
         'api_response',
-        'migration_batch_id',
         'verification_status',
         'verified_at',
         'verification_error'
