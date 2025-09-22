@@ -55,7 +55,7 @@
 
                 // Do initial fetch of data and set state
                 this.initialised = true
-                const res = await this.getStatus()
+                const res = await Promise.all([this.getStatus(), this.getMigration()])
                 this.verification.status = 'idle'
             },
 
