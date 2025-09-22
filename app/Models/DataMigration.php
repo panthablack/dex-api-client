@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Enums\DataMigrationStatus;
+use App\Enums\ResourceType;
+use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Collection;
 
 class DataMigration extends Model
 {
@@ -149,5 +152,58 @@ class DataMigration extends Model
         $percentage = ($totalStored / $totalReceived) * 100;
 
         return round($percentage, 1);
+    }
+
+    public function endResources(ResourceType $type): HasManyThrough
+    {
+        if ($type === ResourceType::CLIENT) return $this->hasManyThrough(
+            MigratedClient::class,
+            DataMigrationBatch::class
+        );
+        if ($type === ResourceType::CASE) return $this->hasManyThrough(
+            MigratedCase::class,
+            DataMigrationBatch::class
+        );
+        if ($type === ResourceType::SESSION) return $this->hasManyThrough(
+            MigratedSession::class,
+            DataMigrationBatch::class
+        );
+        else throw new \Exception('Resource type not supported for end resources');
+    }
+    public function getResourceVerificationInfo(ResourceType $type): array
+    {
+        return [
+            'total' => $this->endResources($type)->count(),
+            VerificationStatus::PENDING->value => $this->endResources($type)->where(
+                'verification_status',
+                '=',
+                VerificationStatus::PENDING->value
+            )->pluck($type->getTableName() . '.id'),
+            VerificationStatus::VERIFIED->value => $this->endResources($type)->where(
+                'verification_status',
+                '=',
+                VerificationStatus::VERIFIED->value
+            )->pluck($type->getTableName() . '.id'),
+            VerificationStatus::FAILED->value => $this->endResources($type)->where(
+                'verification_status',
+                '=',
+                VerificationStatus::FAILED->value
+            )->pluck($type->getTableName() . '.id'),
+        ];
+    }
+
+    public function getVerificationInfo()
+    {
+        return [
+            ResourceType::CLIENT->value => $this->getResourceVerificationInfo(
+                ResourceType::CLIENT
+            ),
+            ResourceType::CASE->value => $this->getResourceVerificationInfo(
+                ResourceType::CASE
+            ),
+            ResourceType::SESSION->value => $this->getResourceVerificationInfo(
+                ResourceType::SESSION
+            ),
+        ];
     }
 }

@@ -22,6 +22,14 @@ enum ResourceType: string
         return [self::CLIENT, self::CASE];
     }
 
+    public function getTableName(): string
+    {
+        if ($this === ResourceType::CLIENT) return 'migrated_clients';
+        if ($this === ResourceType::CASE) return 'migrated_cases';
+        if ($this === ResourceType::SESSION) return 'migrated_sessions';
+        else throw new \Exception('Resource type not supported by getTableName');
+    }
+
     public static function resolve(string $type): ResourceType
     {
         if (in_array($type, [

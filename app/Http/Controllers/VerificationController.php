@@ -40,9 +40,14 @@ class VerificationController extends Controller
 
     public function getStatus(DataMigration $migration)
     {
-        $resourceVerificationInfo = $this->getResourceVerificationInfo($migration);
-        return [
-            'resource_verification' => $resourceVerificationInfo
-        ];
+        return $migration->getVerificationInfo($migration);
     }
+
+    // public function getStatus(DataMigration $migration)
+    // {
+    //     $resourceVerificationInfo = $this->getResourceVerificationInfo($migration);
+    //     return [
+    //         'resource_verification' => $resourceVerificationInfo
+    //     ];
+    // }
 }
