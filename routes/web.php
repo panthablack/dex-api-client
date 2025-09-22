@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DataExchangeController;
 use App\Http\Controllers\DataMigrationController;
+use App\Http\Controllers\VerificationController;
 
 Route::get('/', [DataExchangeController::class, 'index'])->name('home');
 
@@ -116,5 +117,6 @@ Route::prefix('data-migration')->name('data-migration.')->group(function () {
         Route::post('/{migration}/retry', [DataMigrationController::class, 'retry'])->name('retry');
         Route::get('/{migration}/export', [DataMigrationController::class, 'export'])->name('export');
         Route::post('/{migration}/quick-verify', [DataMigrationController::class, 'quickVerify'])->name('quick-verify');
+        Route::get('/{migration}/verification-status', [VerificationController::class, 'getStatus'])->name('verification-status');
     });
 });

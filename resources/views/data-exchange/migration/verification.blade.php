@@ -104,5 +104,5 @@
 
     </div>
 
-    <x-js.verification />
+    <x-js.verification :migration="$migration" />
 @endsection

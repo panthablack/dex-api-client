@@ -18,8 +18,26 @@
                 errors: []
             },
 
+            async getStatus() {
+                const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    this.showToast('Error: ' + data.error, 'error');
+                }
+            },
+
             async init() {
-                // Do nothing
+                // Do initial fetch of data and set state
+                const res = await this.getStatus()
+                this.verification.status = 'idle'
             },
 
             async startVerification() {
