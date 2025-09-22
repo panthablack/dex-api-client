@@ -1,4 +1,15 @@
 <script>
+    // This manages the common issue of enum rendering as a constant
+    const {{ \App\Enums\ResourceType::CLIENT }} = '{{ \App\Enums\ResourceType::CLIENT }}'
+    const {{ \App\Enums\ResourceType::CASE }} = '{{ \App\Enums\ResourceType::CASE }}'
+    const {{ \App\Enums\ResourceType::SESSION }} = '{{ \App\Enums\ResourceType::SESSION }}'
+    const {{ \App\Enums\VerificationStatus::PENDING }} =
+        '{{ \App\Enums\VerificationStatus::PENDING }}'
+    const {{ \App\Enums\VerificationStatus::VERIFIED }} =
+        '{{ \App\Enums\VerificationStatus::VERIFIED }}'
+    const {{ \App\Enums\VerificationStatus::FAILED }} =
+        '{{ \App\Enums\VerificationStatus::FAILED }}'
+
     function verificationApp() {
         return {
             verification: {
@@ -23,7 +34,26 @@
             },
             initialised: false,
             migration: {},
-            verificationStatus: {},
+            verificationStatus: {
+                {{ \App\Enums\ResourceType::CLIENT }}: {
+                    total: 0,
+                    {{ \App\Enums\VerificationStatus::PENDING }}: [],
+                    {{ \App\Enums\VerificationStatus::VERIFIED }}: [],
+                    {{ \App\Enums\VerificationStatus::FAILED }}: [],
+                },
+                {{ \App\Enums\ResourceType::CASE }}: {
+                    total: 0,
+                    {{ \App\Enums\VerificationStatus::PENDING }}: [],
+                    {{ \App\Enums\VerificationStatus::VERIFIED }}: [],
+                    {{ \App\Enums\VerificationStatus::FAILED }}: [],
+                },
+                {{ \App\Enums\ResourceType::SESSION }}: {
+                    total: 0,
+                    {{ \App\Enums\VerificationStatus::PENDING }}: [],
+                    {{ \App\Enums\VerificationStatus::VERIFIED }}: [],
+                    {{ \App\Enums\VerificationStatus::FAILED }}: [],
+                },
+            },
 
             async getStatus() {
                 const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`, {
@@ -35,6 +65,7 @@
                 const data = await response.json();
                 this.verificationStatus = data
                 if (!data) this.showToast('Error: ' + data.error, 'error');
+                else return data
             },
 
             async getMigration() {
@@ -47,6 +78,7 @@
                 const data = await response.json();
                 this.migration = data
                 if (!data) this.showToast('Error: ' + data.error, 'error');
+                else return data
             },
 
             async init() {
@@ -56,6 +88,7 @@
                 // Do initial fetch of data and set state
                 this.initialised = true
                 const res = await Promise.all([this.getStatus(), this.getMigration()])
+                console.debug('Initialised: ', res)
                 this.verification.status = 'idle'
             },
 
@@ -68,32 +101,67 @@
                 }
             },
 
-            updateVerification(data) {
-                // Map new API response format to frontend expectations
-                this.verification.status = data.status;
-                this.verification.total = data.total_records || 0;
-                this.verification.processed = data.processed_records || 0;
-                this.verification.verified = data.verified_records || 0;
-                this.verification.currentActivity = data.message || '';
-                this.verification.resourceProgress = data.resource_progress || {};
+            getSuccessRateByResource(type) {
+                const counts =
+                    this.getVerificationCountsByResource(this.resolveResourceType(type))
+                const v = counts.{{ \App\Enums\VerificationStatus::VERIFIED }} || 0
+                const t = counts?.total || 0
+                if (!v || !t) return 0
+                else return Math.round((v / t) * 10000) / 100
+            },
 
-                // Convert resource_progress to results format for button logic
-                this.verification.results = {};
-                if (data.resource_progress) {
-                    for (const [resourceType, progress] of Object.entries(data.resource_progress)) {
-                        this.verification.results[resourceType] = {
-                            total: progress.total || 0,
-                            verified: progress.verified || 0,
-                            failed: progress.failed || 0,
-                            pending: progress.pending || 0
-                        };
-                    }
+            resolveResourceType(type) {
+                if (!type) throw 'resource type not supported'
+
+                // check for straight match
+                if (type === {{ \App\Enums\ResourceType::CLIENT }})
+                    return {{ \App\Enums\ResourceType::CLIENT }}
+                if (type === {{ \App\Enums\ResourceType::CASE }})
+                    return {{ \App\Enums\ResourceType::CASE }}
+                if (type === {{ \App\Enums\ResourceType::SESSION }})
+                    return {{ \App\Enums\ResourceType::SESSION }}
+
+                // check for value string match
+                const strType = String(type).toLowerCase()
+                const rt = {
+                    'client': {{ \App\Enums\ResourceType::CLIENT }},
+                    'client': {{ \App\Enums\ResourceType::CLIENT }},
+                    'clients': {{ \App\Enums\ResourceType::CLIENT }},
+                    'case': {{ \App\Enums\ResourceType::CASE }},
+                    'cases': {{ \App\Enums\ResourceType::CASE }},
+                    'session': {{ \App\Enums\ResourceType::SESSION }},
+                    'sessions': {{ \App\Enums\ResourceType::SESSION }},
+                }
+                return rt[strType]
+            },
+
+            getVerificationCountsByResource(resource) {
+                const counts = {
+                    total: this.verificationStatus[resource]?.total || 0
                 }
 
-                if (this.verification.total > 0) {
-                    this.verification.progress = Math.min(Math.round((this.verification.processed / this.verification
-                        .total) * 100), 100);
-                }
+                const statuses = [
+                    {{ \App\Enums\VerificationStatus::PENDING }},
+                    {{ \App\Enums\VerificationStatus::VERIFIED }},
+                    {{ \App\Enums\VerificationStatus::FAILED }},
+                ]
+
+                statuses.forEach(s => {
+                    counts[s] = this.verificationStatus[resource]?.[s]?.length || 0
+                });
+
+                return counts
+            },
+
+            get verificationCounts() {
+                return [
+                    {{ \App\Enums\ResourceType::CLIENT }},
+                    {{ \App\Enums\ResourceType::CASE }},
+                    {{ \App\Enums\ResourceType::SESSION }},
+                ].reduce((a, v) => {
+                    a[v] = this.getVerificationCountsByResource(v)
+                    return a
+                }, {})
             },
 
             getStatusText() {

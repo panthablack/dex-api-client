@@ -108,25 +108,5 @@
                 <small class="text-muted">Success Rate</small>
             </div>
         </div>
-
-        <!-- Current Activity -->
-        <div x-show="verification.currentActivity" class="mt-3">
-            <small class="text-muted">
-                <i :class="verification.status === 'in_progress' || verification.status === 'starting' ?
-                    'fas fa-cog fa-spin' : 'fas fa-info-circle'"
-                    class="me-1"></i>
-                <span x-text="verification.currentActivity"></span>
-            </small>
-        </div>
-
-        <!-- Verification Progress - For test compatibility -->
-        <div x-show="verification.status === 'in_progress' || verification.status === 'starting'" class="mt-3"
-            id="verification-progress">
-            <div class="d-flex align-items-center">
-                <i class="fas fa-spinner fa-spin text-primary me-2"></i>
-                <span x-text="verification.currentActivity || 'Processing clients...'"
-                    id="verification-progress-text"></span>
-            </div>
-        </div>
     </div>
 </div>

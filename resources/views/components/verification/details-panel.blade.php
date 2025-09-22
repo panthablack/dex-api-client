@@ -25,15 +25,30 @@
                                 <div class="col-md-6">
                                     <h6>Verification Summary</h6>
                                     <ul class="list-unstyled">
-                                        <li><strong>Total Records:</strong> <span
-                                                x-text="result.total?.toLocaleString() || '0'"></span></li>
-                                        <li><strong>Verified:</strong> <span
-                                                x-text="result.verified?.toLocaleString() || '0'"></span></li>
-                                        <li><strong>Failed:</strong> <span
-                                                x-text="((result.total || 0) - (result.verified || 0)).toLocaleString()"></span>
+                                        <li>
+                                            <strong>Total Records:</strong>
+                                            <span
+                                                x-text="verificationCounts[resolveResourceType(resourceType)]?.total || 0"></span>
                                         </li>
-                                        <li><strong>Success Rate:</strong> <span
-                                                x-text="getResultSuccessRate(result) + '%'"></span></li>
+                                        <li>
+                                            <strong>Pending:</strong>
+                                            <span
+                                                x-text="verificationCounts[resolveResourceType(resourceType)]?.{{ \App\Enums\VerificationStatus::PENDING }} || 0 || '0'"></span>
+                                        </li>
+                                        <li>
+                                            <strong>Verified:</strong>
+                                            <span
+                                                x-text="verificationCounts[resolveResourceType(resourceType)]?.{{ \App\Enums\VerificationStatus::VERIFIED }} || 0 || '0'"></span>
+                                        </li>
+                                        <li>
+                                            <strong>Failed:</strong>
+                                            <span
+                                                x-text="verificationCounts[resolveResourceType(resourceType)]?.{{ \App\Enums\VerificationStatus::FAILED }} || 0 || '0'"></span>
+                                        </li>
+                                        <li>
+                                            <strong>Success Rate:</strong>
+                                            <span x-text="getSuccessRateByResource(resourceType) + '%'"></span>
+                                        </li>
                                     </ul>
                                 </div>
                                 <div class="col-md-6">

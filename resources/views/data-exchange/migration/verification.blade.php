@@ -3,7 +3,7 @@
 @section('title', 'Full Verification - ' . $migration->name)
 
 @section('content')
-    <div x-data="verificationApp()" x-init="init()" x-cloak>
+    <div x-data="verificationApp()" x-init="init()" x-cloak class="appRoot">
         <x-verification.breadcrumbs :migration="$migration" />
 
         <x-verification.header :migration="$migration" />
