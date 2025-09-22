@@ -614,4 +614,9 @@ class DataMigrationController extends Controller
             default => ResourceType::UNKNOWN
         };
     }
+
+    public function getMigration(DataMigration $migration)
+    {
+        return $migration;
+    }
 }

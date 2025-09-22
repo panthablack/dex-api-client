@@ -17,25 +17,40 @@
                 resourceType: '',
                 errors: []
             },
+            initialised: false,
+            migration: {},
+            verificationStatus: {},
 
             async getStatus() {
                 const response = await fetch(`{{ route('data-migration.api.verification-status', $migration) }}`, {
-                    method: 'POST',
+                    method: 'GET',
                     headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json'
+                        'Accept': 'application/json'
                     }
                 });
                 const data = await response.json();
-                if (data.success) {
-                    location.reload();
-                } else {
-                    this.showToast('Error: ' + data.error, 'error');
-                }
+                this.verificationStatus = data
+                if (!data) this.showToast('Error: ' + data.error, 'error');
+            },
+
+            async getMigration() {
+                const response = await fetch(`{{ route('data-migration.api.get-migration', $migration) }}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                this.migration = data
+                if (!data) this.showToast('Error: ' + data.error, 'error');
             },
 
             async init() {
+                // if app already initialised, return
+                if (this.initialised) return
+
                 // Do initial fetch of data and set state
+                this.initialised = true
                 const res = await this.getStatus()
                 this.verification.status = 'idle'
             },

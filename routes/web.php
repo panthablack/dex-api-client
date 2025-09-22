@@ -112,6 +112,7 @@ Route::prefix('data-migration')->name('data-migration.')->group(function () {
     Route::prefix('api')->name('api.')->group(function () {
         Route::get('/dashboard', [DataMigrationController::class, 'dashboard'])->name('dashboard');
         Route::get('/stats', [DataMigrationController::class, 'stats'])->name('stats');
+        Route::get('/{migration}', [DataMigrationController::class, 'getMigration'])->name('get-migration');
         Route::get('/{migration}/status', [DataMigrationController::class, 'status'])->name('status');
         Route::post('/{migration}/cancel', [DataMigrationController::class, 'cancel'])->name('cancel');
         Route::post('/{migration}/retry', [DataMigrationController::class, 'retry'])->name('retry');
