@@ -1,4 +1,4 @@
-<div x-show="verification.results && Object.keys(verification.results).length > 0" class="row">
+<div x-show="verification.results" class="row mb-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">

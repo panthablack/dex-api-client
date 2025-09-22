@@ -1,5 +1,4 @@
-<div x-show="verification.status !== 'loading' && (verification.status !== 'idle' || verification.total > 0)"
-    class="card mb-4" x-transition>
+<div x-show="verification.status !== 'loading'" class="card mb-4" x-transition>
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
             <i class="fas fa-shield-alt me-2"></i>

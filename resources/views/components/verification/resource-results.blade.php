@@ -1,4 +1,4 @@
-<div x-show="verification.results && Object.keys(verification.results).length > 0" class="row">
+<div x-show="verification.results" class="row">
     <template x-for="[resourceType, result] in Object.entries(verification.results || {})" :key="resourceType">
         <div class="col-md-4 mb-4">
             <div class="card h-100" :class="getResultCardClass(result)">

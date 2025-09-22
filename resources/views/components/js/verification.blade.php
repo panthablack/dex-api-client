@@ -9,7 +9,11 @@
                 verified: 0,
                 currentActivity: '',
                 resourceProgress: {},
-                results: {}
+                results: {
+                    clients: {},
+                    cases: {},
+                    sessions: {}
+                }
             },
             pollInterval: null,
             errorModal: {
