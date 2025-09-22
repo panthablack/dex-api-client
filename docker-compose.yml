@@ -4,7 +4,7 @@ services:
             context: .
             target: development
         ports:
-            - "8000:80"
+            - "${APP_HOST_PORT:-80}:80"
         volumes:
             - .:/var/www/html
         environment:
