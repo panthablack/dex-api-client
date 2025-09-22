@@ -12,21 +12,7 @@
 
     function verificationApp() {
         return {
-            verification: {
-                status: 'loading', // 'loading', 'idle', 'starting', 'in_progress', 'completed', 'failed', 'partial'
-                progress: 0,
-                total: 0,
-                processed: 0,
-                verified: 0,
-                currentActivity: '',
-                resourceProgress: {},
-                results: {
-                    clients: {},
-                    cases: {},
-                    sessions: {}
-                }
-            },
-            pollInterval: null,
+            pageStatus: 'loading', // 'loading', 'idle', 'starting', 'in_progress', 'completed', 'failed', 'partial'
             errorModal: {
                 title: '',
                 resourceType: '',
@@ -89,7 +75,7 @@
                 this.initialised = true
                 const res = await Promise.all([this.getStatus(), this.getMigration()])
                 console.debug('Initialised: ', res)
-                this.verification.status = 'idle'
+                this.pageStatus = 'idle'
             },
 
             async startVerification() {
@@ -135,37 +121,53 @@
                 return rt[strType]
             },
 
+            get allVerificationStatuses() {
+                return [
+                    {{ \App\Enums\VerificationStatus::PENDING }},
+                    {{ \App\Enums\VerificationStatus::VERIFIED }},
+                    {{ \App\Enums\VerificationStatus::FAILED }},
+                ]
+            },
+
             getVerificationCountsByResource(resource) {
                 const counts = {
                     total: this.verificationStatus[resource]?.total || 0
                 }
 
-                const statuses = [
-                    {{ \App\Enums\VerificationStatus::PENDING }},
-                    {{ \App\Enums\VerificationStatus::VERIFIED }},
-                    {{ \App\Enums\VerificationStatus::FAILED }},
-                ]
-
-                statuses.forEach(s => {
+                this.allVerificationStatuses.forEach(s => {
                     counts[s] = this.verificationStatus[resource]?.[s]?.length || 0
                 });
 
                 return counts
             },
 
-            get verificationCounts() {
+            get allResources() {
                 return [
                     {{ \App\Enums\ResourceType::CLIENT }},
                     {{ \App\Enums\ResourceType::CASE }},
                     {{ \App\Enums\ResourceType::SESSION }},
-                ].reduce((a, v) => {
+                ]
+            },
+
+            get verificationCounts() {
+                return this.allResources.reduce((a, v) => {
                     a[v] = this.getVerificationCountsByResource(v)
                     return a
                 }, {})
             },
 
+            get totalCounts() {
+                return [...this.allResources].reduce((a, v) => {
+                    this.allVerificationStatuses.forEach(s => {
+                        const vc = this.verificationCounts
+                        a[s] = Number(a[s] || 0) + Number(vc[v][s] || 0)
+                    })
+                    return a
+                }, {})
+            },
+
             getStatusText() {
-                switch (this.verification.status) {
+                switch (this.pageStatus) {
                     case 'loading':
                         return 'Loading...';
                     case 'starting':
@@ -194,7 +196,7 @@
             },
 
             getStatusBadgeClass() {
-                switch (this.verification.status) {
+                switch (this.pageStatus) {
                     case 'loading':
                         return 'bg-info';
                     case 'starting':
@@ -223,7 +225,7 @@
             },
 
             getProgressBarClass() {
-                switch (this.verification.status) {
+                switch (this.pageStatus) {
                     case 'completed':
                         return 'bg-success';
                     case 'completed_with_failures':
@@ -241,8 +243,14 @@
                 }
             },
 
+            get totalProcessed() {
+                const tv = this.totalCounts?.{{ \App\Enums\VerificationStatus::VERIFIED }} || 0
+                const tf = this.totalCounts?.{{ \App\Enums\VerificationStatus::FAILED }} || 0
+                return tv + tf
+            },
+
             getProgressText() {
-                return `${this.verification.processed?.toLocaleString() || 0} of ${this.verification.total?.toLocaleString() || 0} records processed`;
+                return `${this.totalProcessed || 0} of ${this.migration?.total_items || 0} records processed`;
             },
 
             getSuccessRate() {
@@ -256,7 +264,7 @@
 
             getProcessingBarClass() {
                 // Processing progress: Blue for in progress, Green when complete
-                if (this.verification.status === 'in_progress' || this.verification.status === 'starting') {
+                if (this.pageStatus === 'in_progress' || this.pageStatus === 'starting') {
                     return 'progress-bar-striped progress-bar-animated bg-info';
                 }
                 return this.verification.progress >= 100 ? 'bg-success' : 'bg-info';

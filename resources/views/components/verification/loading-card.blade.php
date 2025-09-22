@@ -1,4 +1,4 @@
-<div x-show="verification.status === 'loading'" class="card mb-4" x-transition>
+<div x-show="pageStatus === 'loading'" class="card mb-4" x-transition>
     <div class="card-body text-center py-5">
         <x-spinners.primary />
         <h5 class="text-muted">Loading verification status...</h5>

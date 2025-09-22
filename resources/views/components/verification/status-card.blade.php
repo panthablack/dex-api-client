@@ -1,4 +1,4 @@
-<div x-show="verification.status !== 'loading'" class="card mb-4" x-transition>
+<div x-show="pageStatus !== 'loading'" class="card mb-4" x-transition>
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
             <i class="fas fa-shield-alt me-2"></i>
@@ -6,8 +6,7 @@
         </h5>
         <div class="d-flex align-items-center gap-2">
             <div class="badge" :class="getStatusBadgeClass()" x-text="getStatusText()"></div>
-            <div
-                x-show="verification.status === 'starting' || verification.status === 'in_progress' || verification.status === 'stopping'">
+            <div x-show="pageStatus === 'starting' || pageStatus === 'in_progress' || pageStatus === 'stopping'">
                 <div class="spinner-border spinner-border-sm text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
@@ -52,7 +51,7 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="text-capitalize fw-medium" x-text="resourceType"></span>
                         <span class="text-muted small"
-                            x-text="`${progress.processed || 0}/${progress.total || 0} processed`"></span>
+                            x-text="`${totalProcessed || 0}/${migration.total_items || 0} processed`"></span>
                     </div>
 
                     <!-- Processing Progress -->
