@@ -253,13 +253,22 @@
                 return `${this.totalProcessed || 0} of ${this.migration?.total_items || 0} records processed`;
             },
 
+            getProcessingProgress() {
+                const total = this.migration?.total_items || 0;
+                const processed = this.totalProcessed || 0;
+                return total > 0 ? Math.round((processed / total) * 100) : 0;
+            },
+
             getSuccessRate() {
-                return this.verification.total > 0 ? Math.round((this.verification.verified / this.verification.total) *
-                    100) : 0;
+                const total = this.migration?.total_items || 0;
+                const verified = this.totalCounts?.{{ \App\Enums\VerificationStatus::VERIFIED }} || 0;
+                return total > 0 ? Math.round((verified / total) * 100) : 0;
             },
 
             getSuccessText() {
-                return `${this.verification.verified?.toLocaleString() || 0} of ${this.verification.total?.toLocaleString() || 0} records verified`;
+                const verified = this.totalCounts?.{{ \App\Enums\VerificationStatus::VERIFIED }} || 0;
+                const total = this.migration?.total_items || 0;
+                return `${verified?.toLocaleString() || 0} of ${total?.toLocaleString() || 0} records verified`;
             },
 
             getProcessingBarClass() {
@@ -267,7 +276,8 @@
                 if (this.pageStatus === 'in_progress' || this.pageStatus === 'starting') {
                     return 'progress-bar-striped progress-bar-animated bg-info';
                 }
-                return this.verification.progress >= 100 ? 'bg-success' : 'bg-info';
+                const progress = this.getProcessingProgress();
+                return progress >= 100 ? 'bg-success' : 'bg-info';
             },
 
             getSuccessBarClass() {
@@ -298,6 +308,27 @@
 
             getResultIcon(result) {
                 const rate = this.getResultSuccessRate(result);
+                if (rate >= 95) return '✓';
+                if (rate >= 80) return '⚠';
+                return '✗';
+            },
+
+            getResourceCardClass(resourceType) {
+                const rate = this.getSuccessRateByResource(resourceType.toLowerCase());
+                if (rate >= 95) return 'border-success';
+                if (rate >= 80) return 'border-warning';
+                return 'border-danger';
+            },
+
+            getResourceStatusClass(resourceType) {
+                const rate = this.getSuccessRateByResource(resourceType.toLowerCase());
+                if (rate >= 95) return 'text-success';
+                if (rate >= 80) return 'text-warning';
+                return 'text-danger';
+            },
+
+            getResourceIcon(resourceType) {
+                const rate = this.getSuccessRateByResource(resourceType.toLowerCase());
                 if (rate >= 95) return '✓';
                 if (rate >= 80) return '⚠';
                 return '✗';
@@ -340,21 +371,19 @@
             },
 
             getResourceSuccessRate(resourceType, progress) {
-                const results = this.verification.results || {};
-                const result = results[resourceType] || {
-                    total: 0,
-                    verified: 0
-                };
-                return result.total > 0 ? Math.round((result.verified / result.total) * 100) : 0;
+                const resolvedType = this.resolveResourceType(resourceType);
+                const counts = this.verificationCounts[resolvedType] || { total: 0 };
+                const verified = counts.{{ \App\Enums\VerificationStatus::VERIFIED }} || 0;
+                const total = counts.total || 0;
+                return total > 0 ? Math.round((verified / total) * 100) : 0;
             },
 
             getResourceSuccessText(resourceType, progress) {
-                const results = this.verification.results || {};
-                const result = results[resourceType] || {
-                    total: 0,
-                    verified: 0
-                };
-                return `${result.verified?.toLocaleString() || 0} of ${result.total?.toLocaleString() || 0} verified`;
+                const resolvedType = this.resolveResourceType(resourceType);
+                const counts = this.verificationCounts[resolvedType] || { total: 0 };
+                const verified = counts.{{ \App\Enums\VerificationStatus::VERIFIED }} || 0;
+                const total = counts.total || 0;
+                return `${verified?.toLocaleString() || 0} of ${total?.toLocaleString() || 0} verified`;
             },
 
             getResourceSuccessBarClass(resourceType, progress) {
@@ -386,13 +415,10 @@
             },
 
             hasUnverifiedRecords() {
-                if (!this.verification.results) return false;
-
-                for (const [resourceType, result] of Object.entries(this.verification.results)) {
-                    const failed = result.failed || 0;
-                    const total = result.total || 0;
-                    const verified = result.verified || 0;
-                    const pending = total - verified - failed;
+                for (const resourceType of this.allResources) {
+                    const counts = this.verificationCounts[resourceType] || {};
+                    const failed = counts.{{ \App\Enums\VerificationStatus::FAILED }} || 0;
+                    const pending = counts.{{ \App\Enums\VerificationStatus::PENDING }} || 0;
 
                     if (failed > 0 || pending > 0) {
                         return true;
@@ -403,18 +429,12 @@
 
             hasNeverBeenVerified() {
                 // Check if verification has never been started
-                // This is true when:
-                // 1. No verification results exist, OR
-                // 2. All records are still in pending state (never attempted)
+                // This is true when all records are still in pending state (never attempted)
 
-                if (!this.verification.results || Object.keys(this.verification.results).length === 0) {
-                    return true;
-                }
-
-                // Check if any records have been processed (verified or failed)
-                for (const [resourceType, result] of Object.entries(this.verification.results)) {
-                    const verified = result.verified || 0;
-                    const failed = result.failed || 0;
+                for (const resourceType of this.allResources) {
+                    const counts = this.verificationCounts[resourceType] || {};
+                    const verified = counts.{{ \App\Enums\VerificationStatus::VERIFIED }} || 0;
+                    const failed = counts.{{ \App\Enums\VerificationStatus::FAILED }} || 0;
 
                     // If any records have been verified or failed, verification has been attempted
                     if (verified > 0 || failed > 0) {

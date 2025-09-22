@@ -22,8 +22,8 @@
             </div>
             <div class="progress" style="height: 20px;">
                 <div class="progress-bar progress-bar-striped" role="progressbar"
-                    :style="`width: ${verification.progress}%`" :class="getProcessingBarClass()"
-                    x-text="`${verification.progress}%`">
+                    :style="`width: ${getProcessingProgress()}%`" :class="getProcessingBarClass()"
+                    x-text="`${getProcessingProgress()}%`">
                 </div>
             </div>
         </div>
@@ -42,16 +42,14 @@
         </div>
 
         <!-- Resource Type Progress -->
-        <div x-show="verification.resourceProgress && Object.keys(verification.resourceProgress).length > 0"
-            class="mb-3">
+        <div x-show="allResources && allResources.length > 0" class="mb-3">
             <h6 class="text-muted mb-3">Resource Type Progress</h6>
-            <template x-for="[resourceType, progress] in Object.entries(verification.resourceProgress || {})"
-                :key="resourceType">
+            <template x-for="resourceType in allResources" :key="resourceType">
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-capitalize fw-medium" x-text="resourceType"></span>
+                        <span class="text-capitalize fw-medium" x-text="resourceType.toLowerCase()"></span>
                         <span class="text-muted small"
-                            x-text="`${totalProcessed || 0}/${migration.total_items || 0} processed`"></span>
+                            x-text="`${(verificationCounts[resourceType]?.VERIFIED || 0) + (verificationCounts[resourceType]?.FAILED || 0)}/${verificationCounts[resourceType]?.total || 0} processed`"></span>
                     </div>
 
                     <!-- Processing Progress -->
@@ -59,14 +57,13 @@
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <small class="text-muted">Processing</small>
                             <small class="text-muted"
-                                x-text="`${progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0}%`"></small>
+                                x-text="`${verificationCounts[resourceType]?.total > 0 ? Math.round(((verificationCounts[resourceType]?.VERIFIED || 0) + (verificationCounts[resourceType]?.FAILED || 0)) / verificationCounts[resourceType]?.total * 100) : 0}%`"></small>
                         </div>
                         <div class="progress" style="height: 6px;">
                             <div class="progress-bar"
-                                :class="(progress.total > 0 && progress.processed === progress.total) ? 'bg-success' :
-                                'bg-info'"
+                                :class="(verificationCounts[resourceType]?.total > 0 && ((verificationCounts[resourceType]?.VERIFIED || 0) + (verificationCounts[resourceType]?.FAILED || 0)) === verificationCounts[resourceType]?.total) ? 'bg-success' : 'bg-info'"
                                 role="progressbar"
-                                :style="`width: ${progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0}%`">
+                                :style="`width: ${verificationCounts[resourceType]?.total > 0 ? Math.round(((verificationCounts[resourceType]?.VERIFIED || 0) + (verificationCounts[resourceType]?.FAILED || 0)) / verificationCounts[resourceType]?.total * 100) : 0}%`">
                             </div>
                         </div>
                     </div>
@@ -75,11 +72,11 @@
                     <div class="mb-1">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <small class="text-muted">Success Rate</small>
-                            <small class="text-muted" x-text="getResourceSuccessText(resourceType, progress)"></small>
+                            <small class="text-muted" x-text="getResourceSuccessText(resourceType.toLowerCase(), null)"></small>
                         </div>
                         <div class="progress" style="height: 6px;">
-                            <div class="progress-bar" :class="getResourceSuccessBarClass(resourceType, progress)"
-                                role="progressbar" :style="`width: ${getResourceSuccessRate(resourceType, progress)}%`">
+                            <div class="progress-bar" :class="getResourceSuccessBarClass(resourceType.toLowerCase(), null)"
+                                role="progressbar" :style="`width: ${getResourceSuccessRate(resourceType.toLowerCase(), null)}%`">
                             </div>
                         </div>
                     </div>
@@ -90,16 +87,16 @@
         <!-- Statistics -->
         <div class="row text-center mt-3">
             <div class="col-md-3">
-                <div class="h5 mb-0" x-text="verification.total?.toLocaleString() || '0'"></div>
+                <div class="h5 mb-0" x-text="migration.total_items?.toLocaleString() || '0'"></div>
                 <small class="text-muted">Total Records</small>
             </div>
             <div class="col-md-3">
-                <div class="h5 mb-0 text-success" x-text="verification.verified?.toLocaleString() || '0'"></div>
+                <div class="h5 mb-0 text-success" x-text="(totalCounts.VERIFIED || 0).toLocaleString()"></div>
                 <small class="text-muted">Verified</small>
             </div>
             <div class="col-md-3">
                 <div class="h5 mb-0 text-danger"
-                    x-text="((verification.processed || 0) - (verification.verified || 0)).toLocaleString()"></div>
+                    x-text="(totalCounts.FAILED || 0).toLocaleString()"></div>
                 <small class="text-muted">Failed</small>
             </div>
             <div class="col-md-3">

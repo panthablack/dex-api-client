@@ -1,30 +1,30 @@
-<div x-show="verification.results" class="row">
-    <template x-for="[resourceType, result] in Object.entries(verification.results || {})" :key="resourceType">
+<div x-show="allResources && allResources.length > 0" class="row">
+    <template x-for="resourceType in allResources" :key="resourceType">
         <div class="col-md-4 mb-4">
-            <div class="card h-100" :class="getResultCardClass(result)">
+            <div class="card h-100" :class="getResourceCardClass(resourceType)">
                 <div class="card-body text-center">
-                    <h5 class="card-title text-capitalize" x-text="resourceType"></h5>
-                    <div class="mb-3" style="font-size: 3rem;" :class="getResultStatusClass(result)"
-                        x-text="getResultIcon(result)">
+                    <h5 class="card-title text-capitalize" x-text="resourceType.toLowerCase()"></h5>
+                    <div class="mb-3" style="font-size: 3rem;" :class="getResourceStatusClass(resourceType)"
+                        x-text="getResourceIcon(resourceType)">
                     </div>
                     <div class="row">
                         <div class="col-6">
-                            <div class="h6 mb-0" x-text="result.verified?.toLocaleString() || '0'"></div>
+                            <div class="h6 mb-0" x-text="(verificationCounts[resourceType]?.VERIFIED || 0).toLocaleString()"></div>
                             <small class="text-muted">Verified</small>
                         </div>
                         <div class="col-6">
-                            <div class="h6 mb-0" x-text="result.total?.toLocaleString() || '0'"></div>
+                            <div class="h6 mb-0" x-text="(verificationCounts[resourceType]?.total || 0).toLocaleString()"></div>
                             <small class="text-muted">Total</small>
                         </div>
                     </div>
                     <div class="mt-2">
-                        <span :class="getResultStatusClass(result)" class="fw-bold"
-                            x-text="getResultSuccessRate(result) + '% Success'">
+                        <span :class="getResourceStatusClass(resourceType)" class="fw-bold"
+                            x-text="getSuccessRateByResource(resourceType.toLowerCase()) + '% Success'">
                         </span>
                     </div>
-                    <button x-show="result.errors && result.errors.length > 0"
-                        @click="showErrorDetails(resourceType, result.errors)"
-                        class="btn btn-outline-danger btn-sm mt-2" x-text="`View ${result.errors?.length || 0} Errors`">
+                    <button x-show="(verificationCounts[resourceType]?.FAILED || 0) > 0"
+                        @click="showErrorDetails(resourceType.toLowerCase(), [`${verificationCounts[resourceType]?.FAILED || 0} verification failures found`])"
+                        class="btn btn-outline-danger btn-sm mt-2" x-text="`View ${verificationCounts[resourceType]?.FAILED || 0} Errors`">
                     </button>
                 </div>
             </div>
