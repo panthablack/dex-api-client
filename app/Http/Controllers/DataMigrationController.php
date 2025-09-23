@@ -6,6 +6,7 @@ use App\Enums\DataMigrationStatus;
 use App\Enums\DataMigrationBatchStatus;
 use App\Enums\ResourceType;
 use App\Enums\VerificationStatus;
+use App\Helpers\ArrayHelpers;
 use App\Models\DataMigration;
 use App\Services\DataMigrationService;
 use App\Services\VerificationService;
@@ -531,7 +532,8 @@ class DataMigrationController extends Controller
                 'consent_to_be_contacted' => 'Consent to be Contacted',
                 'client_type' => 'Client Type',
                 'verification_status' => 'Verification Status',
-                'verified_at' => 'Verified Date'
+                'verified_at' => 'Verified Date',
+                'api_response' => 'Raw API Data (JSON)'
             ],
             ResourceType::CASE => [
                 'case_id' => 'Case ID',
@@ -545,7 +547,8 @@ class DataMigrationController extends Controller
                 'exit_reason_code' => 'Exit Reason Code',
                 'ag_business_type_code' => 'AG Business Type Code',
                 'verification_status' => 'Verification Status',
-                'verified_at' => 'Verified Date'
+                'verified_at' => 'Verified Date',
+                'api_response' => 'Raw API Data (JSON)'
             ],
             ResourceType::SESSION => [
                 'session_id' => 'Session ID',
@@ -559,7 +562,8 @@ class DataMigrationController extends Controller
                 'outcome' => 'Outcome',
                 'notes' => 'Notes',
                 'verification_status' => 'Verification Status',
-                'verified_at' => 'Verified Date'
+                'verified_at' => 'Verified Date',
+                'api_response' => 'Raw API Data (JSON)'
             ],
             default => []
         };
@@ -586,7 +590,10 @@ class DataMigrationController extends Controller
                 // Dates
                 $value instanceof \Carbon\Carbon => $value->format('Y-m-d H:i:s'),
 
-                // Arrays (like reasons_for_assistance)
+                // Make sure deep arrays and objects are JSON strings before conversion.
+                ArrayHelpers::isDeepArray($value) => json_encode($value),
+
+                // Simple Arrays (like reasons_for_assistance)
                 is_array($value) => implode('; ', $value),
 
                 // Null values
