@@ -53,25 +53,58 @@
 
                 <!-- Resource Type -->
                 <div class="mb-4">
-                    <label for="resource_type" class="form-label">Resource to Migrate</label>
-                    <select name="resource_type" id="resource_type" class="form-select" required>
-                        <option value="">Select a resource type...</option>
-                        <option value="clients" {{ old('resource_type') == 'clients' ? 'selected' : '' }}>
-                            Clients - Client records from DSS
-                        </option>
-                        <option value="cases" {{ old('resource_type') == 'cases' ? 'selected' : '' }}>
-                            Cases - Case records from DSS
-                        </option>
+                    <label class="form-label">Resource to Migrate</label>
+                    <div class="d-flex flex-column gap-3">
+                        <div class="form-check">
+                            <input type="radio" name="resource_type" value="clients" id="clients"
+                                class="form-check-input"
+                                {{ old('resource_type', 'clients') == 'clients' ? 'checked' : '' }} required>
+                            <label for="clients" class="form-check-label d-flex align-items-center">
+                                <span>Clients</span>
+                                <span class="badge bg-primary ms-2">
+                                    Client records from DSS
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="form-check">
+                            <input type="radio" name="resource_type" value="cases" id="cases"
+                                class="form-check-input"
+                                {{ old('resource_type') == 'cases' ? 'checked' : '' }} required>
+                            <label for="cases" class="form-check-label d-flex align-items-center">
+                                <span>Cases</span>
+                                <span class="badge bg-success ms-2">
+                                    Case records from DSS
+                                </span>
+                            </label>
+                        </div>
+
                         @if($hasMigratedCases)
-                            <option value="sessions" {{ old('resource_type') == 'sessions' ? 'selected' : '' }}>
-                                Sessions - Session records from DSS
-                            </option>
+                            <div class="form-check">
+                                <input type="radio" name="resource_type" value="sessions" id="sessions"
+                                    class="form-check-input"
+                                    {{ old('resource_type') == 'sessions' ? 'checked' : '' }} required>
+                                <label for="sessions" class="form-check-label d-flex align-items-center">
+                                    <span>Sessions</span>
+                                    <span class="badge bg-info ms-2">
+                                        Session records from DSS
+                                    </span>
+                                </label>
+                            </div>
                         @else
-                            <option value="sessions" disabled title="Sessions require migrated cases to be available">
-                                Sessions - Session records from DSS (requires migrated cases)
-                            </option>
+                            <div class="form-check">
+                                <input type="radio" name="resource_type" value="sessions" id="sessions"
+                                    class="form-check-input" disabled
+                                    title="Sessions require migrated cases to be available">
+                                <label for="sessions" class="form-check-label d-flex align-items-center text-muted">
+                                    <span>Sessions</span>
+                                    <span class="badge bg-secondary ms-2">
+                                        Session records from DSS (requires migrated cases)
+                                    </span>
+                                </label>
+                            </div>
                         @endif
-                    </select>
+                    </div>
                     <div class="form-text">
                         Resources can only be migrated one at a time.
                         @if(!$hasMigratedCases)
@@ -163,14 +196,19 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const resourceSelect = document.getElementById('resource_type');
+            const resourceRadios = document.querySelectorAll('input[name="resource_type"]');
             const dateFromInput = document.getElementById('date_from');
             const dateToInput = document.getElementById('date_to');
             const batchSizeSelect = document.getElementById('batch_size');
             const previewDiv = document.getElementById('migration-preview');
 
+            function getSelectedResource() {
+                const selectedRadio = document.querySelector('input[name="resource_type"]:checked');
+                return selectedRadio ? selectedRadio.value : '';
+            }
+
             function updatePreview() {
-                const selectedResource = resourceSelect.value;
+                const selectedResource = getSelectedResource();
                 const dateFrom = dateFromInput.value;
                 const dateTo = dateToInput.value;
                 const batchSize = batchSizeSelect.value;
@@ -207,8 +245,10 @@
             }
 
             // Update preview when inputs change
-            resourceSelect.addEventListener('change', updatePreview);
-            resourceSelect.addEventListener('change', updateDefaultName);
+            resourceRadios.forEach(radio => {
+                radio.addEventListener('change', updatePreview);
+                radio.addEventListener('change', updateDefaultName);
+            });
             dateFromInput.addEventListener('change', updatePreview);
             dateToInput.addEventListener('change', updatePreview);
             batchSizeSelect.addEventListener('change', updatePreview);
@@ -217,7 +257,7 @@
             const nameInput = document.getElementById('name');
 
             function generateDefaultName() {
-                const selectedResource = resourceSelect.value;
+                const selectedResource = getSelectedResource();
                 const now = new Date();
                 const dateTime = now.toISOString().replace('T', ' ').split('.')[0];
 
