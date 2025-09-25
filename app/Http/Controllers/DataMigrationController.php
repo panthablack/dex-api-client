@@ -59,12 +59,20 @@ class DataMigrationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'resource_types' => 'required|array|min:1',
-            'resource_types.*' => 'in:clients,cases,sessions',
+            'resource_type' => 'required|in:clients,cases,sessions',
             'batch_size' => 'integer|min:10|max:100',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date|after_or_equal:date_from',
         ]);
+
+        // Additional validation for sessions - require existing cases
+        if ($request->resource_type === 'sessions') {
+            if (!MigratedCase::exists()) {
+                $validator->after(function ($validator) {
+                    $validator->errors()->add('resource_type', 'Sessions can only be migrated when cases have been migrated first.');
+                });
+            }
+        }
 
         if ($validator->fails()) {
             return redirect()->back()
@@ -83,7 +91,7 @@ class DataMigrationController extends Controller
 
             $migration = $this->migrationService->createMigration([
                 'name' => $request->name,
-                'resource_types' => $request->resource_types,
+                'resource_types' => [$request->resource_type], // Convert single resource to array
                 'filters' => $filters,
                 'batch_size' => $request->batch_size ?? 100
             ]);

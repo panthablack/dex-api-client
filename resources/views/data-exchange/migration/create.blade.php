@@ -3,6 +3,10 @@
 @section('title', 'Create Data Migration')
 
 @section('content')
+
+@php
+    $hasMigratedCases = \App\Models\MigratedCase::exists();
+@endphp
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
@@ -47,47 +51,33 @@
                     <div class="form-text">Give your migration a descriptive name to help identify it later.</div>
                 </div>
 
-                <!-- Resource Types -->
+                <!-- Resource Type -->
                 <div class="mb-4">
-                    <label class="form-label">Resources to Migrate</label>
-                    <div class="d-flex flex-column gap-3">
-                        <div class="form-check">
-                            <input type="checkbox" name="resource_types[]" value="clients" id="clients"
-                                class="form-check-input"
-                                {{ in_array('clients', old('resource_types', [])) ? 'checked' : '' }}>
-                            <label for="clients" class="form-check-label d-flex align-items-center">
-                                <span>Clients</span>
-                                <span class="badge bg-primary ms-2">
-                                    Client records from DSS
-                                </span>
-                            </label>
-                        </div>
-
-                        <div class="form-check">
-                            <input type="checkbox" name="resource_types[]" value="cases" id="cases"
-                                class="form-check-input"
-                                {{ in_array('cases', old('resource_types', [])) ? 'checked' : '' }}>
-                            <label for="cases" class="form-check-label d-flex align-items-center">
-                                <span>Cases</span>
-                                <span class="badge bg-success ms-2">
-                                    Case records from DSS
-                                </span>
-                            </label>
-                        </div>
-
-                        <div class="form-check">
-                            <input type="checkbox" name="resource_types[]" value="sessions" id="sessions"
-                                class="form-check-input"
-                                {{ in_array('sessions', old('resource_types', [])) ? 'checked' : '' }}>
-                            <label for="sessions" class="form-check-label d-flex align-items-center">
-                                <span>Sessions</span>
-                                <span class="badge bg-info ms-2">
-                                    Session records from DSS
-                                </span>
-                            </label>
-                        </div>
+                    <label for="resource_type" class="form-label">Resource to Migrate</label>
+                    <select name="resource_type" id="resource_type" class="form-select" required>
+                        <option value="">Select a resource type...</option>
+                        <option value="clients" {{ old('resource_type') == 'clients' ? 'selected' : '' }}>
+                            Clients - Client records from DSS
+                        </option>
+                        <option value="cases" {{ old('resource_type') == 'cases' ? 'selected' : '' }}>
+                            Cases - Case records from DSS
+                        </option>
+                        @if($hasMigratedCases)
+                            <option value="sessions" {{ old('resource_type') == 'sessions' ? 'selected' : '' }}>
+                                Sessions - Session records from DSS
+                            </option>
+                        @else
+                            <option value="sessions" disabled title="Sessions require migrated cases to be available">
+                                Sessions - Session records from DSS (requires migrated cases)
+                            </option>
+                        @endif
+                    </select>
+                    <div class="form-text">
+                        Resources can only be migrated one at a time.
+                        @if(!$hasMigratedCases)
+                            Sessions are only available when cases have been migrated first.
+                        @endif
                     </div>
-                    <div class="form-text">Select one or more resource types to include in this migration.</div>
                 </div>
 
                 <!-- Date Range Filters -->
@@ -173,29 +163,26 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const resourceCheckboxes = document.querySelectorAll('input[name="resource_types[]"]');
+            const resourceSelect = document.getElementById('resource_type');
             const dateFromInput = document.getElementById('date_from');
             const dateToInput = document.getElementById('date_to');
             const batchSizeSelect = document.getElementById('batch_size');
             const previewDiv = document.getElementById('migration-preview');
 
             function updatePreview() {
-                const selectedResources = Array.from(resourceCheckboxes)
-                    .filter(cb => cb.checked)
-                    .map(cb => cb.value);
-
+                const selectedResource = resourceSelect.value;
                 const dateFrom = dateFromInput.value;
                 const dateTo = dateToInput.value;
                 const batchSize = batchSizeSelect.value;
 
-                if (selectedResources.length === 0) {
-                    previewDiv.innerHTML = '<p>Select resource types to see migration preview...</p>';
+                if (!selectedResource) {
+                    previewDiv.innerHTML = '<p>Select a resource type to see migration preview...</p>';
                     return;
                 }
 
                 let preview = '<div>';
-                preview +=
-                    `<p><strong>Resources:</strong> ${selectedResources.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')}</p>`;
+                const resourceName = selectedResource.charAt(0).toUpperCase() + selectedResource.slice(1);
+                preview += `<p><strong>Resource:</strong> ${resourceName}</p>`;
 
                 if (dateFrom || dateTo) {
                     let dateRange = 'Date range: ';
@@ -213,17 +200,15 @@
 
                 preview += `<p><strong>Batch size:</strong> ${batchSize} items per batch</p>`;
                 preview +=
-                    `<p><strong>Processing:</strong> Each resource type will be processed in separate batches of ${batchSize} items</p>`;
+                    `<p><strong>Processing:</strong> The ${resourceName.toLowerCase()} data will be processed in batches of ${batchSize} items</p>`;
 
                 preview += '</div>';
                 previewDiv.innerHTML = preview;
             }
 
             // Update preview when inputs change
-            resourceCheckboxes.forEach(cb => {
-                cb.addEventListener('change', updatePreview);
-                cb.addEventListener('change', updateDefaultName);
-            });
+            resourceSelect.addEventListener('change', updatePreview);
+            resourceSelect.addEventListener('change', updateDefaultName);
             dateFromInput.addEventListener('change', updatePreview);
             dateToInput.addEventListener('change', updatePreview);
             batchSizeSelect.addEventListener('change', updatePreview);
@@ -232,16 +217,14 @@
             const nameInput = document.getElementById('name');
 
             function generateDefaultName() {
-                const selectedResources = Array.from(resourceCheckboxes)
-                    .filter(cb => cb.checked)
-                    .map(cb => cb.value.charAt(0).toUpperCase() + cb.value.slice(1));
-
+                const selectedResource = resourceSelect.value;
                 const now = new Date();
                 const dateTime = now.toISOString().replace('T', ' ').split('.')[0];
 
                 let name = 'Data Migration';
-                if (selectedResources.length > 0) {
-                    name = `${selectedResources.join(', ')} Migration`;
+                if (selectedResource) {
+                    const resourceName = selectedResource.charAt(0).toUpperCase() + selectedResource.slice(1);
+                    name = `${resourceName} Migration`;
                 }
                 name += ` - ${dateTime}`;
 
