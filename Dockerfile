@@ -51,7 +51,7 @@ WORKDIR /var/www/html
 FROM base as dependencies
 
 # Copy composer files first for better layer caching
-COPY composer.json composer.lock ./
+COPY --chown=www-data:www-data composer.* ./
 
 # Install PHP dependencies (cached layer if composer files haven't changed)
 RUN composer install \
@@ -80,15 +80,14 @@ RUN composer install \
     --no-autoloader
 
 # Copy application code
-COPY . .
+COPY --chown=www-data:www-data . .
 
 # Generate optimized autoloader and run post-install scripts
 RUN composer dump-autoload --optimize \
     && composer run-script post-autoload-dump
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage \
+RUN chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
 EXPOSE 80
@@ -100,7 +99,7 @@ CMD ["apache2-foreground"]
 FROM dependencies as production
 
 # Copy application code (excluding dev files via .dockerignore)
-COPY . .
+COPY --chown=www-data:www-data . .
 
 # Generate optimized autoloader and run scripts
 RUN composer dump-autoload --optimize --classmap-authoritative \
@@ -113,8 +112,7 @@ RUN php artisan config:cache || true \
     && php artisan view:cache || true
 
 # Set production permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage \
+RUN chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache \
     && find /var/www/html -type f -exec chmod 644 {} \; \
     && find /var/www/html -type d -exec chmod 755 {} \;
@@ -135,6 +133,15 @@ CMD ["apache2-foreground"]
 # =============================================================================
 # Queue Worker Stage - Specialized for queue processing
 # =============================================================================
+FROM development as queue-worker-dev
+
+# Switch back to root for queue worker setup
+USER root
+
+# Queue workers don't need Apache, just PHP CLI
+# Override the CMD to run queue worker instead
+CMD ["php", "artisan", "queue:work", "database", "--queue=data-migration", "--sleep=3", "--tries=3", "--max-time=3600", "--timeout=300"]
+
 FROM production as queue-worker
 
 # Switch back to root for queue worker setup

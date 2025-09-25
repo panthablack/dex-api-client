@@ -20,7 +20,7 @@ services:
     queue:
         build:
             context: .
-            target: queue-worker
+            target: queue-worker-dev
         volumes:
             - .:/var/www/html
         environment:
