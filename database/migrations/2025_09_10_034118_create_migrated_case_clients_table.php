@@ -16,25 +16,23 @@ return new class extends Migration
     {
         Schema::create('migrated_case_clients', function (Blueprint $table) {
             $table->id();
-            $table->string('client_id')->unique()->index();
             $table->foreignIdFor(MigratedCase::class)->constrained()->cascadeOnDelete()->index();
-            $table->string('first_name')->nullable();
-            $table->string('last_name')->nullable();
-            $table->date('date_of_birth')->nullable();
-            $table->boolean('is_birth_date_estimate')->default(false);
-            $table->string('gender')->nullable();
-            $table->string('suburb')->nullable();
-            $table->string('state', 10)->nullable();
-            $table->string('postal_code', 10)->nullable();
-            $table->string('country_of_birth', 10)->nullable();
-            $table->string('primary_language', 10)->nullable();
-            $table->string('indigenous_status', 1)->default('9');
-            $table->boolean('interpreter_required')->default(false);
-            $table->boolean('disability_flag')->default(false);
-            $table->boolean('is_using_pseudonym')->default(false);
+            $table->string('client_id')->unique()->index();
+            $table->string('slk')->nullable();
             $table->boolean('consent_to_provide_details')->default(false);
-            $table->boolean('consent_to_be_contacted')->default(false);
-            $table->string('client_type')->default('Individual');
+            $table->boolean('consented_for_future_contacts')->default(false);
+            $table->string('given_name')->nullable();
+            $table->string('family_name')->nullable();
+            $table->boolean('is_using_psuedonym')->default(false);
+            $table->date('birth_date')->nullable();
+            $table->boolean('is_birth_date_an_estimate')->default(false);
+            $table->string('gender_code')->nullable();
+            $table->string('gender_details')->nullable();
+            $table->json('residential_address')->nullable();
+            $table->string('country_of_birth_code')->nullable();
+            $table->string('language_spoken_at_home_code')->nullable();
+            $table->string('aboriginal_or_torres_strait_islander_origin_code')->nullable();
+            $table->boolean('has_disabilities')->default(false);
             $table->json('api_response')->nullable(); // Store full API response
             $table->foreignIdFor(DataMigrationBatch::class);
             $table->enum('verification_status', [
