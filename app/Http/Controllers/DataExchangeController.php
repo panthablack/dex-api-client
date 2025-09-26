@@ -1845,7 +1845,7 @@ class DataExchangeController extends Controller
                 'GenderCode' => 'M',
                 'ResidentialAddress' => [
                     'State' => 'QLD',
-                    'Postcode' => '4000',
+                    'Postcode' => '4001',
                     'Suburb' => 'Brisbane'
                 ],
                 'CountryOfBirthCode' => 'UK',

@@ -832,21 +832,17 @@ class DataExchangeService
         $isBirthDateEstimate = $fake->boolean(20); // 20% chance of being estimate
         $gender = $fake->randomElement(['M', 'F']);
 
-        // Use real Australian suburbs and appropriate postcodes
+        // Use only confirmed working addresses from existing successful client data
         $locations = [
             ['suburb' => 'Sydney', 'state' => 'NSW', 'postcode' => '2000'],
             ['suburb' => 'Melbourne', 'state' => 'VIC', 'postcode' => '3000'],
-            ['suburb' => 'Brisbane', 'state' => 'QLD', 'postcode' => '4000'],
+            ['suburb' => 'Brisbane', 'state' => 'QLD', 'postcode' => '4001'],
             ['suburb' => 'Perth', 'state' => 'WA', 'postcode' => '6000'],
             ['suburb' => 'Adelaide', 'state' => 'SA', 'postcode' => '5000'],
             ['suburb' => 'Hobart', 'state' => 'TAS', 'postcode' => '7000'],
-            ['suburb' => 'Canberra', 'state' => 'ACT', 'postcode' => '2600'],
-            ['suburb' => 'Darwin', 'state' => 'NT', 'postcode' => '0800'],
-            ['suburb' => 'Parramatta', 'state' => 'NSW', 'postcode' => '2150'],
             ['suburb' => 'Richmond', 'state' => 'VIC', 'postcode' => '3121'],
             ['suburb' => 'Fortitude Valley', 'state' => 'QLD', 'postcode' => '4006'],
             ['suburb' => 'Fremantle', 'state' => 'WA', 'postcode' => '6160'],
-            ['suburb' => 'Norwood', 'state' => 'SA', 'postcode' => '5067'],
             ['suburb' => 'Launceston', 'state' => 'TAS', 'postcode' => '7250']
         ];
 
