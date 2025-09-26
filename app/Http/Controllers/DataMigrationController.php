@@ -527,7 +527,7 @@ class DataMigrationController extends Controller
                 'consented_for_future_contacts' => 'Consented for Future Contacts',
                 'given_name' => 'Given Name',
                 'family_name' => 'Family Name',
-                'is_using_pseudonym' => 'Using Pseudonym',
+                'is_using_psuedonym' => 'Using Pseudonym',
                 'birth_date' => 'Birth Date',
                 'is_birth_date_an_estimate' => 'Birth Date is Estimate',
                 'gender_code' => 'Gender Code',

@@ -251,10 +251,10 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="is_using_pseudonym"
-                                            name="is_using_pseudonym" value="1"
-                                            {{ old('is_using_pseudonym') ? 'checked' : '' }}>
-                                        <label class="form-check-label" for="is_using_pseudonym">
+                                        <input class="form-check-input" type="checkbox" id="is_using_psuedonym"
+                                            name="is_using_psuedonym" value="1"
+                                            {{ old('is_using_psuedonym') ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="is_using_psuedonym">
                                             Using Pseudonym
                                         </label>
                                     </div>

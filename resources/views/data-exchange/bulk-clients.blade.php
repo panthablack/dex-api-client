@@ -66,7 +66,7 @@
                     <div class="card-body">
                         <p><strong>Required CSV Header Row:</strong></p>
                         <div class="bg-light p-2 rounded mb-3" style="font-size: 0.75em; word-break: break-all;">
-                            <code>client_id,first_name,last_name,date_of_birth,is_birth_date_estimate,gender,suburb,state,postal_code,country_of_birth,primary_language,indigenous_status,interpreter_required,disability_flag,is_using_pseudonym,consent_to_provide_details,consent_to_be_contacted</code>
+                            <code>client_id,first_name,last_name,date_of_birth,is_birth_date_estimate,gender,suburb,state,postal_code,country_of_birth,primary_language,indigenous_status,interpreter_required,disability_flag,is_using_psuedonym,consent_to_provide_details,consent_to_be_contacted</code>
                         </div>
 
                         <p><strong>Key Field Requirements:</strong></p>

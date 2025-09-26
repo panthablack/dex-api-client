@@ -121,7 +121,7 @@ class DataExchangeService
             'HasDisabilities' => !empty($data['disability_flag']),
             'ConsentToProvideDetails' => !empty($data['consent_to_provide_details']),
             'ConsentedForFutureContacts' => !empty($data['consent_to_be_contacted']),
-            'IsUsingPsuedonym' => !empty($data['is_using_pseudonym']),
+            'IsUsingPsuedonym' => !empty($data['is_using_psuedonym']),
             'HasValidatedForDuplicateClient' => 'true'
         ];
 
@@ -872,7 +872,7 @@ class DataExchangeService
             'disability_flag' => false, // Disable for now to avoid complications
             'consent_to_provide_details' => true, // Always true for valid submissions
             'consent_to_be_contacted' => true, // Always true to avoid validation issues
-            'is_using_pseudonym' => false // Always false for simplicity
+            'is_using_psuedonym' => false // Always false for simplicity
         ];
 
         return $clientData;

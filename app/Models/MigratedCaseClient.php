@@ -17,7 +17,7 @@ class MigratedCaseClient extends Model
         'consented_for_future_contacts',
         'given_name',
         'family_name',
-        'is_using_pseudonym',
+        'is_using_psuedonym',
         'birth_date',
         'is_birth_date_an_estimate',
         'gender_code',
@@ -37,7 +37,7 @@ class MigratedCaseClient extends Model
     protected $casts = [
         'consent_to_provide_details' => 'boolean',
         'consented_for_future_contacts' => 'boolean',
-        'is_using_pseudonym' => 'boolean',
+        'is_using_psuedonym' => 'boolean',
         'birth_date' => 'date',
         'is_birth_date_an_estimate' => 'boolean',
         'has_disabilities' => 'boolean',

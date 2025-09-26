@@ -629,7 +629,7 @@ class DataMigrationService
                 'consented_for_future_contacts' => $clientData['consented_for_future_contacts'] ?? $clientData['ConsentedForFutureContacts'] ?? false,
                 'given_name' => $clientData['given_name'] ?? $clientData['GivenName'] ?? null,
                 'family_name' => $clientData['family_name'] ?? $clientData['FamilyName'] ?? null,
-                'is_using_pseudonym' => $clientData['is_using_pseudonym'] ?? $clientData['IsUsingPseudonym'] ?? false,
+                'is_using_psuedonym' => $clientData['is_using_psuedonym'] ?? $clientData['IsUsingPsuedonym'] ?? false,
                 'birth_date' => $clientData['birth_date'] ?? $clientData['BirthDate'] ?? null,
                 'is_birth_date_an_estimate' => $clientData['is_birth_date_an_estimate'] ?? $clientData['IsBirthDateAnEstimate'] ?? false,
                 'gender_code' => $clientData['gender_code'] ?? $clientData['GenderCode'] ?? null,

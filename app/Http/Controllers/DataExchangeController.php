@@ -970,7 +970,7 @@ class DataExchangeController extends Controller
             'indigenous_status' => $rowData['indigenous_status'] ?? '9',
             'interpreter_required' => in_array(strtolower($rowData['interpreter_required'] ?? ''), ['true', '1', 'yes']),
             'disability_flag' => in_array(strtolower($rowData['disability_flag'] ?? ''), ['true', '1', 'yes']),
-            'is_using_pseudonym' => in_array(strtolower($rowData['is_using_pseudonym'] ?? ''), ['true', '1', 'yes']),
+            'is_using_psuedonym' => in_array(strtolower($rowData['is_using_psuedonym'] ?? ''), ['true', '1', 'yes']),
             'consent_to_provide_details' => in_array(strtolower($rowData['consent_to_provide_details'] ?? ''), ['true', '1', 'yes']),
             'consent_to_be_contacted' => in_array(strtolower($rowData['consent_to_be_contacted'] ?? ''), ['true', '1', 'yes']),
         ];
