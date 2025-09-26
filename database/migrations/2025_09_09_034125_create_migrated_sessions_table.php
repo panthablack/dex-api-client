@@ -15,16 +15,15 @@ return new class extends Migration
     {
         Schema::create('migrated_sessions', function (Blueprint $table) {
             $table->id();
-            $table->string('session_id')->unique()->index();
             $table->string('case_id')->index();
-            $table->integer('service_type_id');
+            $table->string('session_id')->unique()->index();
             $table->date('session_date');
-            $table->integer('duration_minutes');
-            $table->string('location')->nullable();
-            $table->string('session_status', 50)->nullable();
-            $table->string('attendees')->nullable();
-            $table->text('outcome')->nullable();
-            $table->text('notes')->nullable();
+            $table->integer('service_type_id');
+            $table->integer('total_number_of_unidentified_clients');
+            $table->string('fees_charged')->nullable();
+            $table->string('money_business_community_education_workshop_code')->nullable();
+            $table->boolean('interpreter_present')->default(false);
+            $table->string('service_setting_code')->nullable();
             $table->json('api_response')->nullable(); // Store full API response
             $table->foreignIdFor(DataMigrationBatch::class);
             $table->enum('verification_status', [
