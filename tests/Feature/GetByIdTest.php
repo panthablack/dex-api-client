@@ -148,7 +148,6 @@ class GetByIdTest extends TestCase
             ->andReturn([
                 'SessionId' => 'SESSION123',
                 'CaseId' => 'CASE456',
-                'SessionType' => 'Counselling'
             ]);
 
         // Mock debug methods

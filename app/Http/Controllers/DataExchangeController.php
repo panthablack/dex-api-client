@@ -644,7 +644,6 @@ class DataExchangeController extends Controller
             'case_id',
             'case_id_filter',
             'case_status',
-            'case_type',
             'session_id',
             'session_status',
             'service_type',
@@ -656,7 +655,6 @@ class DataExchangeController extends Controller
             'status',
             'referral_source_code',
             'outlet_activity_id',
-            'client_type',
             'indigenous_status',
             'country_of_birth',
             'primary_language'
@@ -975,7 +973,6 @@ class DataExchangeController extends Controller
             'is_using_pseudonym' => in_array(strtolower($rowData['is_using_pseudonym'] ?? ''), ['true', '1', 'yes']),
             'consent_to_provide_details' => in_array(strtolower($rowData['consent_to_provide_details'] ?? ''), ['true', '1', 'yes']),
             'consent_to_be_contacted' => in_array(strtolower($rowData['consent_to_be_contacted'] ?? ''), ['true', '1', 'yes']),
-            'client_type' => $rowData['client_type'] ?? 'Individual',
         ];
     }
 
@@ -2663,8 +2660,7 @@ class DataExchangeController extends Controller
                 'IndigenousStatusDescription' => 'Indigenous Status',
                 'ResidentialAddress.Suburb' => 'Suburb',
                 'ResidentialAddress.State' => 'State',
-                'ResidentialAddress.Postcode' => 'Postcode',
-                'ClientType.ClientTypeDescription' => 'Client Type'
+                'ResidentialAddress.Postcode' => 'Postcode'
             ],
             ResourceType::CASE => [
                 'CaseId' => 'Case ID',
@@ -2684,7 +2680,6 @@ class DataExchangeController extends Controller
                 'SessionDate' => 'Session Date',
                 'DurationMinutes' => 'Duration (Minutes)',
                 'Location' => 'Location',
-                'SessionStatus' => 'Session Status',
                 'Attendees' => 'Attendees',
                 'Outcome' => 'Outcome'
             ],

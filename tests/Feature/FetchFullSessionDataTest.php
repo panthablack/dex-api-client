@@ -98,7 +98,6 @@ class FetchFullSessionDataTest extends TestCase
                 'Session' => [
                     'SessionId' => 'SESSION001',
                     'CaseId' => 'CASE001',
-                    'SessionType' => 'Counselling',
                     'SessionDate' => '2024-01-01',
                     'SessionDetails' => 'Detailed session 1 info'
                 ]
@@ -118,7 +117,6 @@ class FetchFullSessionDataTest extends TestCase
                 'Session' => [
                     'SessionId' => 'SESSION002',
                     'CaseId' => 'CASE001',
-                    'SessionType' => 'Assessment',
                     'SessionDate' => '2024-01-02',
                     'SessionDetails' => 'Detailed session 2 info'
                 ]
@@ -138,7 +136,6 @@ class FetchFullSessionDataTest extends TestCase
                 'Session' => [
                     'SessionId' => 'SESSION003',
                     'CaseId' => 'CASE002',
-                    'SessionType' => 'Support',
                     'SessionDate' => '2024-01-03',
                     'SessionDetails' => 'Detailed session 3 info'
                 ]
@@ -158,7 +155,6 @@ class FetchFullSessionDataTest extends TestCase
         $session1 = $result[0];
         $this->assertEquals('SESSION001', $session1['SessionId']);
         $this->assertEquals('CASE001', $session1['CaseId']);
-        $this->assertEquals('Counselling', $session1['SessionType']);
         $this->assertArrayHasKey('_case_context', $session1);
         $this->assertEquals('CASE001', $session1['_case_context']['CaseId']);
         $this->assertEquals('Test Outlet 1', $session1['_case_context']['OutletName']);
@@ -166,13 +162,11 @@ class FetchFullSessionDataTest extends TestCase
         // Verify second session
         $session2 = $result[1];
         $this->assertEquals('SESSION002', $session2['SessionId']);
-        $this->assertEquals('Assessment', $session2['SessionType']);
 
         // Verify third session
         $session3 = $result[2];
         $this->assertEquals('SESSION003', $session3['SessionId']);
         $this->assertEquals('CASE002', $session3['CaseId']);
-        $this->assertEquals('Support', $session3['SessionType']);
         $this->assertEquals('Test Outlet 2', $session3['_case_context']['OutletName']);
     }
 
@@ -233,7 +227,6 @@ class FetchFullSessionDataTest extends TestCase
                 'Session' => [
                     'SessionId' => 'SINGLE_SESSION001',
                     'CaseId' => 'SINGLE001',
-                    'SessionType' => 'Individual',
                     'SessionDetails' => 'Single session details'
                 ]
             ]);
@@ -251,7 +244,6 @@ class FetchFullSessionDataTest extends TestCase
         $session = $result[0];
         $this->assertEquals('SINGLE_SESSION001', $session['SessionId']);
         $this->assertEquals('SINGLE001', $session['CaseId']);
-        $this->assertEquals('Individual', $session['SessionType']);
         $this->assertArrayHasKey('_case_context', $session);
     }
 
@@ -418,7 +410,6 @@ class FetchFullSessionDataTest extends TestCase
                 [
                     'SessionId' => 'CONTROLLER001',
                     'CaseId' => 'CASE999',
-                    'SessionType' => 'Group',
                     'SessionDetails' => 'Controller test session',
                     '_case_context' => [
                         'CaseId' => 'CASE999',

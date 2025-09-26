@@ -119,7 +119,6 @@ class DataExchangeService
             'LanguageSpokenAtHomeCode' => $this->mapLanguageCode($data['primary_language'] ?? null),
             'InterpreterRequired' => !empty($data['interpreter_required']),
             'HasDisabilities' => !empty($data['disability_flag']),
-            'ClientType' => $data['client_type'] ?? null,
             'ConsentToProvideDetails' => !empty($data['consent_to_provide_details']),
             'ConsentedForFutureContacts' => !empty($data['consent_to_be_contacted']),
             'IsUsingPsuedonym' => !empty($data['is_using_pseudonym']),
@@ -871,7 +870,6 @@ class DataExchangeService
             'indigenous_status' => $this->getSafeATSIForFakeData(), // Use reference data for valid ATSI status
             'interpreter_required' => $fake->boolean(10), // 10% chance
             'disability_flag' => false, // Disable for now to avoid complications
-            'client_type' => 'Individual', // Always use Individual for consistency
             'consent_to_provide_details' => true, // Always true for valid submissions
             'consent_to_be_contacted' => true, // Always true to avoid validation issues
             'is_using_pseudonym' => false // Always false for simplicity
@@ -2182,7 +2180,6 @@ class DataExchangeService
                     'CaseId' => 'Specific case ID to search for',
                     'ClientId' => 'Client ID associated with cases',
                     'CaseStatus' => 'Status of the case',
-                    'CaseType' => 'Type of case',
                     'CreatedDateFrom' => 'Search from date (ISO format)',
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ]
@@ -2200,7 +2197,6 @@ class DataExchangeService
                     'CaseId' => 'Specific case ID to search for',
                     'ClientId' => 'Client ID associated with cases',
                     'CaseStatus' => 'Status of the case',
-                    'CaseType' => 'Type of case',
                     'CreatedDateFrom' => 'Search from date (ISO format)',
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ],
@@ -2219,7 +2215,6 @@ class DataExchangeService
                     'CaseId' => 'Specific case ID to search for',
                     'ClientId' => 'Client ID associated with cases',
                     'CaseStatus' => 'Status of the case',
-                    'CaseType' => 'Type of case',
                     'CreatedDateFrom' => 'Search from date (ISO format)',
                     'CreatedDateTo' => 'Search to date (ISO format)'
                 ],
@@ -2238,8 +2233,6 @@ class DataExchangeService
                     'SessionId' => 'Specific session ID to search for',
                     'CaseId' => 'Case ID associated with sessions',
                     'ClientId' => 'Client ID associated with sessions',
-                    'SessionType' => 'Type of session',
-                    'SessionStatus' => 'Status of the session',
                     'SessionDateFrom' => 'Search from date (ISO format)',
                     'SessionDateTo' => 'Search to date (ISO format)'
                 ]
@@ -2326,24 +2319,27 @@ class DataExchangeService
         if (!empty($filters['case_id'])) {
             $criteria['CaseId'] = $filters['case_id'];
         }
+
         if (!empty($filters['client_id'])) {
             $criteria['ClientId'] = $filters['client_id'];
         }
+
         if (!empty($filters['case_status'])) {
             $criteria['CaseStatus'] = $filters['case_status'];
         }
-        if (!empty($filters['case_type'])) {
-            $criteria['CaseType'] = $filters['case_type'];
-        }
+
         if (!empty($filters['date_from'])) {
-            $criteria['CreatedDateFrom'] = $filters['date_from'] . 'T00:00:00'; // Add time component
+            $criteria['CreatedDateFrom'] = $filters['date_from'] . 'T00:00:00';
         }
+
         if (!empty($filters['date_to'])) {
-            $criteria['CreatedDateTo'] = $filters['date_to'] . 'T23:59:59'; // Add time component
+            $criteria['CreatedDateTo'] = $filters['date_to'] . 'T23:59:59';
         }
+
         if (!empty($filters['service_start_date'])) {
             $criteria['ServiceStartDateFrom'] = $filters['service_start_date'] . 'T00:00:00';
         }
+
         if (!empty($filters['service_end_date'])) {
             $criteria['ServiceEndDateTo'] = $filters['service_end_date'] . 'T23:59:59';
         }
@@ -2352,7 +2348,6 @@ class DataExchangeService
         if (!empty($filters['end_date_to'])) {
             $criteria['EndDateTo'] = $filters['end_date_to'] . 'T23:59:59';
         }
-
 
         return $criteria;
     }
@@ -2376,27 +2371,31 @@ class DataExchangeService
         if (!empty($filters['session_id'])) {
             $criteria['SessionId'] = $filters['session_id'];
         }
+
         if (!empty($filters['case_id'])) {
             $criteria['CaseId'] = $filters['case_id'];
         }
+
         if (!empty($filters['client_id'])) {
             $criteria['ClientId'] = $filters['client_id'];
         }
+
         if (!empty($filters['service_type'])) {
             $criteria['ServiceType'] = $filters['service_type'];
         }
-        if (!empty($filters['session_status'])) {
-            $criteria['SessionStatus'] = $filters['session_status'];
-        }
+
         if (!empty($filters['date_from'])) {
             $criteria['SessionDateFrom'] = $filters['date_from'] . 'T00:00:00'; // Add time component
         }
+
         if (!empty($filters['date_to'])) {
             $criteria['SessionDateTo'] = $filters['date_to'] . 'T23:59:59'; // Add time component
         }
+
         if (!empty($filters['service_start_date'])) {
             $criteria['ServiceStartDate'] = $filters['service_start_date'] . 'T00:00:00';
         }
+
         if (!empty($filters['service_end_date'])) {
             $criteria['ServiceEndDate'] = $filters['service_end_date'] . 'T23:59:59';
         }

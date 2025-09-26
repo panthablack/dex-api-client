@@ -179,8 +179,8 @@ php artisan dex:client --help
 ## CSV Format for Bulk Upload
 
 ```csv
-client_id,first_name,last_name,date_of_birth,gender,indigenous_status,country_of_birth,postal_code,primary_language,interpreter_required,disability_flag,client_type
-TEST001,John,Doe,1990-01-15,M,N,Australia,2000,English,false,false,Individual
+client_id,first_name,last_name,date_of_birth,gender,indigenous_status,country_of_birth,postal_code,primary_language,interpreter_required,disability_flag
+TEST001,John,Doe,1990-01-15,M,N,Australia,2000,English,false,false
 ```
 
 ## Usage Examples

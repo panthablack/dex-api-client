@@ -863,8 +863,6 @@
                         const topicCode = data.TopicCode || data.SessionDetails?.TopicCode || data.SessionDetail?.TopicCode ||
                             '';
                         const time = data.Time || data.SessionDetails?.Time || data.SessionDetail?.Time || '';
-                        const sessionTypeCode = data.SessionTypeCode || data.SessionDetails?.SessionTypeCode || data
-                            .SessionDetail?.SessionTypeCode || '';
 
                         return `
                         <div class="row">
@@ -872,16 +870,6 @@
                                 <label for="update_session_date" class="form-label">Session Date</label>
                                 <input type="date" class="form-control" id="update_session_date" name="session_date"
                                        value="${sessionDate ? sessionDate.split('T')[0] : ''}" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="update_session_type_code" class="form-label">Session Type</label>
-                                <select class="form-select" id="update_session_type_code" name="session_type_code" required>
-                                    <option value="">Select Session Type</option>
-                                    <option value="COUNSELLING" ${sessionTypeCode === 'COUNSELLING' ? 'selected' : ''}>Counselling</option>
-                                    <option value="GROUP" ${sessionTypeCode === 'GROUP' ? 'selected' : ''}>Group session</option>
-                                    <option value="ASSESSMENT" ${sessionTypeCode === 'ASSESSMENT' ? 'selected' : ''}>Assessment</option>
-                                    <option value="SUPPORT" ${sessionTypeCode === 'SUPPORT' ? 'selected' : ''}>Support</option>
-                                </select>
                             </div>
                         </div>
                         <div class="row">

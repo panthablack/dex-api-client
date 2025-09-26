@@ -66,17 +66,13 @@
                     <div class="card-body">
                         <p><strong>Required CSV Header Row:</strong></p>
                         <div class="bg-light p-2 rounded mb-3" style="font-size: 0.8em;">
-                            <code>case_id,client_id,case_type,case_status,start_date,end_date,case_worker,priority,description,notes</code>
+                            <code>case_id,client_id,case_status,start_date,end_date,case_worker,priority,description,notes</code>
                         </div>
 
                         <p><strong>Field Descriptions:</strong></p>
                         <ul class="small">
                             <li><strong>case_id:</strong> Unique case identifier</li>
                             <li><strong>client_id:</strong> Associated client ID</li>
-                            <li><strong>case_type:</strong> Individual Support, Family Support, Crisis Intervention,
-                                Assessment,
-                                Long-term Care, Other</li>
-                            <li><strong>case_status:</strong> Active, Pending, On Hold, Closed, Transferred</li>
                             <li><strong>start_date:</strong> Format: YYYY-MM-DD</li>
                             <li><strong>end_date:</strong> Format: YYYY-MM-DD (optional)</li>
                             <li><strong>case_worker:</strong> Case worker name (optional)</li>
@@ -86,7 +82,7 @@
                         </ul>
 
                         <div class="alert alert-info mt-3">
-                            <small><strong>Note:</strong> Required fields: case_id, client_id, case_type, case_status,
+                            <small><strong>Note:</strong> Required fields: case_id, client_id, case_status,
                                 start_date. End date must be after or equal to start date if provided.</small>
                         </div>
                     </div>

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Sessions for Case {{ $caseId ?? "Unknown" }} - DSS Data Exchange')
+@section('title', 'Sessions for Case {{ $caseId ?? 'Unknown' }} - DSS Data Exchange')
 
 @section('content')
     <!-- Breadcrumb Navigation -->
@@ -15,7 +15,7 @@
     <div class="row">
         <div class="col-12">
             <!-- Case Information Card -->
-            @if(isset($caseInfo) && $caseInfo)
+            @if (isset($caseInfo) && $caseInfo)
                 <div class="card mb-4">
                     <div class="card-header bg-light">
                         <h5 class="mb-0"><i class="fas fa-folder-open me-2"></i>Case Information</h5>
@@ -51,7 +51,8 @@
                 <div class="d-flex gap-2">
                     <!-- Export Dropdown -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button class="btn btn-outline-success dropdown-toggle" type="button" id="exportDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-download"></i> Export Data
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="exportDropdown">
@@ -103,22 +104,27 @@
         </div>
         <div class="collapse show" id="filtersCollapse">
             <div class="card-body">
-                <form method="GET" action="{{ route('data-exchange.cases.sessions.index', ['caseId' => $caseId ?? '']) }}">
+                <form method="GET"
+                    action="{{ route('data-exchange.cases.sessions.index', ['caseId' => $caseId ?? '']) }}">
                     <div class="row">
                         <div class="col-md-3">
                             <label for="session_status" class="form-label">Session Status</label>
                             <select class="form-select" id="session_status" name="session_status">
                                 <option value="">All Statuses</option>
-                                <option value="Scheduled" {{ request('session_status') === 'Scheduled' ? 'selected' : '' }}>
+                                <option value="Scheduled"
+                                    {{ request('session_status') === 'Scheduled' ? 'selected' : '' }}>
                                     Scheduled</option>
-                                <option value="Completed" {{ request('session_status') === 'Completed' ? 'selected' : '' }}>
+                                <option value="Completed"
+                                    {{ request('session_status') === 'Completed' ? 'selected' : '' }}>
                                     Completed</option>
-                                <option value="Cancelled" {{ request('session_status') === 'Cancelled' ? 'selected' : '' }}>
+                                <option value="Cancelled"
+                                    {{ request('session_status') === 'Cancelled' ? 'selected' : '' }}>
                                     Cancelled</option>
                                 <option value="No Show" {{ request('session_status') === 'No Show' ? 'selected' : '' }}>No
                                     Show</option>
                                 <option value="In Progress"
-                                    {{ request('session_status') === 'In Progress' ? 'selected' : '' }}>In Progress</option>
+                                    {{ request('session_status') === 'In Progress' ? 'selected' : '' }}>In Progress
+                                </option>
                                 <option value="Rescheduled"
                                     {{ request('session_status') === 'Rescheduled' ? 'selected' : '' }}>Rescheduled
                                 </option>
@@ -158,7 +164,8 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-search"></i> Filter
                                 </button>
-                                <a href="{{ route('data-exchange.cases.sessions.index', ['caseId' => $caseId ?? '']) }}" class="btn btn-outline-secondary">
+                                <a href="{{ route('data-exchange.cases.sessions.index', ['caseId' => $caseId ?? '']) }}"
+                                    class="btn btn-outline-secondary">
                                     <i class="fas fa-times"></i> Clear
                                 </a>
                             </div>
@@ -179,8 +186,8 @@
         ['key' => 'SessionDetails.TopicCode', 'label' => 'Topic'],
         ['key' => 'CreatedDateTime', 'label' => 'Created Date', 'format' => 'date'],
         ['key' => 'SessionDetails.TotalNumberOfUnidentifiedClients', 'label' => 'Unidentified Clients'],
-    ]" :loading="$loading ?? false"
-        empty-message="No sessions found. Try adjusting your filters or add a new session." />
+    ]"
+        :loading="$loading ?? false" empty-message="No sessions found. Try adjusting your filters or add a new session." />
 
     <!-- Pagination -->
     <x-pagination :pagination="$pagination ?? null" />
@@ -220,9 +227,6 @@
             const filters = new URLSearchParams();
 
             // Add current filter values
-            const sessionStatusSelect = document.getElementById('session_status');
-            if (sessionStatusSelect && sessionStatusSelect.value) filters.append('session_status', sessionStatusSelect.value);
-
             const serviceTypeSelect = document.getElementById('service_type_id');
             if (serviceTypeSelect && serviceTypeSelect.value) filters.append('service_type_id', serviceTypeSelect.value);
 
@@ -233,7 +237,7 @@
             filters.append('format', format);
 
             // Get case ID from the page context
-            const caseId = '{{ $caseId ?? "" }}';
+            const caseId = '{{ $caseId ?? '' }}';
             if (!caseId) {
                 alert('Case ID is required for session export.');
                 return;

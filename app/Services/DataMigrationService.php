@@ -600,16 +600,45 @@ class DataMigrationService
      */
     protected function storeClient(array $clientData, int|string $batchId)
     {
+        // Prepare residential address JSON from individual fields
+        $residentialAddress = null;
+        if (isset($clientData['ResidentialAddress']) && is_array($clientData['ResidentialAddress'])) {
+            $residentialAddress = $clientData['ResidentialAddress'];
+        } else {
+            // Fallback for individual fields if they exist
+            $addressFields = [];
+            if (isset($clientData['suburb']) || isset($clientData['Suburb'])) {
+                $addressFields['Suburb'] = $clientData['suburb'] ?? $clientData['Suburb'];
+            }
+            if (isset($clientData['state']) || isset($clientData['State'])) {
+                $addressFields['State'] = $clientData['state'] ?? $clientData['State'];
+            }
+            if (isset($clientData['postal_code']) || isset($clientData['Postcode'])) {
+                $addressFields['Postcode'] = $clientData['postal_code'] ?? $clientData['Postcode'];
+            }
+            if (!empty($addressFields)) {
+                $residentialAddress = $addressFields;
+            }
+        }
+
         $res = MigratedClient::updateOrCreate(
             ['client_id' => $clientData['client_id'] ?? $clientData['ClientId']],
             [
-                'first_name' => $clientData['first_name'] ?? $clientData['GivenName'] ?? null,
-                'last_name' => $clientData['last_name'] ?? $clientData['FamilyName'] ?? null,
-                'date_of_birth' => $clientData['date_of_birth'] ?? $clientData['BirthDate'] ?? null,
-                'gender' => $clientData['gender'] ?? $clientData['GenderCode'] ?? null,
-                'suburb' => $clientData['suburb'] ?? $clientData['ResidentialAddress']['Suburb'] ?? null,
-                'state' => $clientData['state'] ?? $clientData['ResidentialAddress']['State'] ?? null,
-                'postal_code' => $clientData['postal_code'] ?? $clientData['ResidentialAddress']['Postcode'] ?? null,
+                'slk' => $clientData['slk'] ?? $clientData['SLK'] ?? null,
+                'consent_to_provide_details' => $clientData['consent_to_provide_details'] ?? $clientData['ConsentToProvideDetails'] ?? false,
+                'consented_for_future_contacts' => $clientData['consented_for_future_contacts'] ?? $clientData['ConsentedForFutureContacts'] ?? false,
+                'given_name' => $clientData['given_name'] ?? $clientData['GivenName'] ?? null,
+                'family_name' => $clientData['family_name'] ?? $clientData['FamilyName'] ?? null,
+                'is_using_pseudonym' => $clientData['is_using_pseudonym'] ?? $clientData['IsUsingPseudonym'] ?? false,
+                'birth_date' => $clientData['birth_date'] ?? $clientData['BirthDate'] ?? null,
+                'is_birth_date_an_estimate' => $clientData['is_birth_date_an_estimate'] ?? $clientData['IsBirthDateAnEstimate'] ?? false,
+                'gender_code' => $clientData['gender_code'] ?? $clientData['GenderCode'] ?? null,
+                'gender_details' => $clientData['gender_details'] ?? $clientData['GenderDetails'] ?? null,
+                'residential_address' => $residentialAddress,
+                'country_of_birth_code' => $clientData['country_of_birth_code'] ?? $clientData['CountryOfBirthCode'] ?? null,
+                'language_spoken_at_home_code' => $clientData['language_spoken_at_home_code'] ?? $clientData['LanguageSpokenAtHomeCode'] ?? null,
+                'aboriginal_or_torres_strait_islander_origin_code' => $clientData['aboriginal_or_torres_strait_islander_origin_code'] ?? $clientData['AboriginalOrTorresStraitIslanderOriginCode'] ?? null,
+                'has_disabilities' => $clientData['has_disabilities'] ?? $clientData['HasDisabilities'] ?? false,
                 'api_response' => $clientData,
                 'data_migration_batch_id' => $batchId,
             ]

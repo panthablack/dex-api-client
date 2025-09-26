@@ -143,34 +143,6 @@
                                 </div>
                             </div>
 
-                            <!-- Case Optional Filters -->
-                            <div class="row mb-3" id="caseOptionalFilters" style="display: none;">
-                                <div class="col-md-6">
-                                    <label for="case_status" class="form-label">Case Status</label>
-                                    <input type="text" class="form-control" id="case_status" name="case_status"
-                                        value="{{ old('case_status') }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="case_type" class="form-label">Case Type</label>
-                                    <input type="text" class="form-control" id="case_type" name="case_type"
-                                        value="{{ old('case_type') }}">
-                                </div>
-                            </div>
-
-                            <!-- Session Optional Filters -->
-                            <div class="row mb-3" id="sessionOptionalFilters" style="display: none;">
-                                <div class="col-md-6">
-                                    <label for="service_type_id" class="form-label">Session Type</label>
-                                    <input type="text" class="form-control" id="service_type_id"
-                                        name="service_type_id" value="{{ old('service_type_id') }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="session_status" class="form-label">Session Status</label>
-                                    <input type="text" class="form-control" id="session_status" name="session_status"
-                                        value="{{ old('session_status') }}">
-                                </div>
-                            </div>
-
                             <!-- Date Range Filters (always available) -->
                             <div class="row mb-3" id="dateFilters">
                                 <div class="col-md-6">

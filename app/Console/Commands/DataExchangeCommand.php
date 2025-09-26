@@ -240,7 +240,6 @@ class DataExchangeCommand extends Command
             'primary_language' => $this->ask('Primary Language', 'English'),
             'interpreter_required' => $this->confirm('Interpreter Required?', false),
             'disability_flag' => $this->confirm('Has Disability?', false),
-            'client_type' => $this->choice('Client Type', ['Individual', 'Family', 'Group', ''], 0)
         ];
     }
 
@@ -303,8 +302,7 @@ class DataExchangeCommand extends Command
                 'postal_code' => $data[7] ?? null,
                 'primary_language' => $data[8] ?? null,
                 'interpreter_required' => $data[9] === 'true' ? true : false,
-                'disability_flag' => $data[10] === 'true' ? true : false,
-                'client_type' => $data[11] ?? null,
+                'disability_flag' => $data[10] === 'true' ? true : false
             ];
         }
 

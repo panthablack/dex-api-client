@@ -51,7 +51,6 @@ class FetchFullCaseDataTest extends TestCase
                     'CaseId' => 'CASE001',
                     'Status' => 'Open',
                     'ClientId' => 'CLIENT123',
-                    'CaseType' => 'Counselling',
                     'CreatedDate' => '2024-01-01',
                     'DetailedInfo' => 'Full case details for CASE001'
                 ]
@@ -71,7 +70,6 @@ class FetchFullCaseDataTest extends TestCase
                     'CaseId' => 'CASE002',
                     'Status' => 'Closed',
                     'ClientId' => 'CLIENT456',
-                    'CaseType' => 'Support',
                     'CreatedDate' => '2024-01-02',
                     'DetailedInfo' => 'Full case details for CASE002'
                 ]
@@ -194,7 +192,7 @@ class FetchFullCaseDataTest extends TestCase
         // Cases may be an empty array or contain empty structure
         $this->assertTrue(
             empty($result['Cases']) ||
-            (isset($result['Cases']['Case']) && empty($result['Cases']['Case']))
+                (isset($result['Cases']['Case']) && empty($result['Cases']['Case']))
         );
     }
 

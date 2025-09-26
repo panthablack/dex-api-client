@@ -358,8 +358,8 @@ class VerificationService
         // ensure key fields match
         return
             $dssId == $client->client_id &&
-            $dssFirstName == $client->first_name &&
-            $dssFamilyName == $client->last_name;
+            $dssFirstName == $client->given_name &&
+            $dssFamilyName == $client->family_name;
     }
 
     /**

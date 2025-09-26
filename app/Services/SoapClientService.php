@@ -86,23 +86,6 @@ class SoapClientService
     }
 
     /**
-     * Get SOAP client types
-     */
-    public function getTypes()
-    {
-        try {
-            $this->ensureClientInitialized();
-            return $this->client ? $this->client->__getTypes() : [];
-        } catch (SoapFault $e) {
-            $this->log('Failed to get SOAP types', ['error' => $e->getMessage()], 'error');
-            return [];
-        } catch (\Exception $e) {
-            $this->log('Failed to get SOAP types', ['error' => $e->getMessage()], 'error');
-            return [];
-        }
-    }
-
-    /**
      * Make a SOAP call
      */
     public function call($method, $parameters = [])
@@ -349,15 +332,12 @@ class SoapClientService
     {
         try {
             $functions = $this->getFunctions();
-            $types = $this->getTypes();
 
             return [
                 'status' => 'success',
                 'message' => 'Connection successful',
                 'functions_count' => count($functions),
-                'types_count' => count($types),
                 'functions' => $functions,
-                'types' => $types
             ];
         } catch (\Exception $e) {
             return [

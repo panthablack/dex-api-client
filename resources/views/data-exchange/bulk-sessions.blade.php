@@ -73,9 +73,6 @@
                         <ul class="small">
                             <li><strong>session_id:</strong> Unique session identifier</li>
                             <li><strong>case_id:</strong> Associated case ID</li>
-                            <li><strong>service_type_id:</strong> Individual Counselling, Group Counselling, Assessment,
-                                Support
-                                Group, Case Review, Therapy, Crisis Intervention, Other</li>
                             <li><strong>session_date:</strong> Format: YYYY-MM-DD</li>
                             <li><strong>duration_minutes:</strong> Session duration in minutes</li>
                             <li><strong>location:</strong> Session location (optional)</li>
