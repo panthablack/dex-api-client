@@ -132,15 +132,15 @@
                         detailsDiv.innerHTML = `
                     <div class="row">
                         <div class="col-md-6">
-                            <h6>Available Functions (${data.functions_count})</h6>
+                            <h6>Available Functions (${data.functions_count || 0})</h6>
                             <div class="small text-muted" style="max-height: 200px; overflow-y: auto;">
-                                ${data.functions.map(func => `<div>${func}</div>`).join('')}
+                                ${(data.functions || []).map(func => `<div>${func}</div>`).join('')}
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <h6>Available Types (${data.types_count})</h6>
+                            <h6>Available Types (${data.types_count || 0})</h6>
                             <div class="small text-muted" style="max-height: 200px; overflow-y: auto;">
-                                ${data.types.map(type => `<div>${type}</div>`).join('')}
+                                ${(data.types || []).map(type => `<div>${type}</div>`).join('')}
                             </div>
                         </div>
                     </div>
