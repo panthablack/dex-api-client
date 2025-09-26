@@ -372,11 +372,46 @@ class VerificationService
             $dssData = json_decode(json_encode($dssData), true);
         }
 
-        // Basic validation - ensure key fields match
-        return isset($dssData['case_id']) &&
-            $dssData['case_id'] == $case->case_id &&
-            isset($dssData['client_id']) &&
-            $dssData['client_id'] == $case->client_id;
+        // Basic validation - ensure case ID matches
+        if (!isset($dssData['case_id']) || $dssData['case_id'] != $case->case_id) {
+            return false;
+        }
+
+        // Validate client IDs - check if DSS response contains any of the client IDs from our array
+        if ($case->client_ids && is_array($case->client_ids)) {
+            // If DSS returns single client_id, check if it's in our array
+            if (isset($dssData['client_id'])) {
+                return in_array($dssData['client_id'], $case->client_ids);
+            }
+
+            // If DSS returns client_ids array, check for overlap
+            if (isset($dssData['client_ids']) && is_array($dssData['client_ids'])) {
+                return !empty(array_intersect($dssData['client_ids'], $case->client_ids));
+            }
+
+            // If DSS has nested client structure, extract client IDs
+            if (isset($dssData['Clients']['CaseClient'])) {
+                $dssClientIds = [];
+                $caseClients = $dssData['Clients']['CaseClient'];
+
+                if (isset($caseClients['ClientId'])) {
+                    // Single client
+                    $dssClientIds[] = $caseClients['ClientId'];
+                } elseif (is_array($caseClients)) {
+                    // Multiple clients
+                    foreach ($caseClients as $client) {
+                        if (isset($client['ClientId'])) {
+                            $dssClientIds[] = $client['ClientId'];
+                        }
+                    }
+                }
+
+                return !empty($dssClientIds) && !empty(array_intersect($dssClientIds, $case->client_ids));
+            }
+        }
+
+        // Fallback to true if no client validation is possible
+        return true;
     }
 
     /**

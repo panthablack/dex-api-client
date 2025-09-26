@@ -11,24 +11,26 @@ class MigratedCase extends Model
 {
     protected $fillable = [
         'case_id',
-        'client_id',
-        'data_migration_batch_id',
+        'outlet_name',
+        'client_ids',
         'outlet_activity_id',
-        'referral_source_code',
-        'reasons_for_assistance',
-        'total_unidentified_clients',
+        'total_number_of_unidentified_clients',
         'client_attendance_profile_code',
+        'created_date_time',
         'end_date',
         'exit_reason_code',
         'ag_business_type_code',
+        'program_activity_name',
         'api_response',
+        'data_migration_batch_id',
         'verification_status',
         'verified_at',
         'verification_error'
     ];
 
     protected $casts = [
-        'reasons_for_assistance' => 'array',
+        'client_ids' => 'array',
+        'created_date_time' => 'date',
         'end_date' => 'date',
         'api_response' => 'array',
         'verification_status' => VerificationStatus::class,
@@ -40,9 +42,14 @@ class MigratedCase extends Model
         return $this->belongsTo(DataMigration::class);
     }
 
-    public function client(): BelongsTo
+    public function clients()
     {
-        return $this->belongsTo(MigratedClient::class, 'client_id', 'client_id');
+        // Return collection of clients based on client_ids array
+        if (!$this->client_ids) {
+            return collect();
+        }
+
+        return MigratedClient::whereIn('client_id', $this->client_ids)->get();
     }
 
     public function sessions(): HasMany

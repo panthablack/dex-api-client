@@ -657,34 +657,70 @@ class DataMigrationService
             throw new \Exception("Could not extract case ID from case data: " . json_encode($caseData));
         }
 
-        // Extract client ID from various possible locations
-        $clientId = $this->extractClientId($caseData);
+        // Extract client IDs array from various possible locations
+        $clientIds = $this->extractClientIds($caseData);
 
         // Extract other fields with robust fallbacks
+        $outletName = $caseData['outlet_name']
+            ?? $caseData['OutletName']
+            ?? data_get($caseData, 'CaseDetail.OutletName')
+            ?? null;
+
         $outletActivityId = $caseData['outlet_activity_id']
             ?? $caseData['OutletActivityId']
             ?? data_get($caseData, 'CaseDetail.OutletActivityId')
             ?? 0;
 
-        $referralSourceCode = $caseData['referral_source_code']
-            ?? $caseData['ReferralSourceCode']
-            ?? data_get($caseData, 'Clients.CaseClient.ReferralSourceCode')
-            ?? '';
+        $totalNumberOfUnidentifiedClients = $caseData['total_number_of_unidentified_clients']
+            ?? $caseData['TotalNumberOfUnidentifiedClients']
+            ?? data_get($caseData, 'CaseDetail.TotalNumberOfUnidentifiedClients')
+            ?? null;
 
-        $reasonsForAssistance = $caseData['reasons_for_assistance']
-            ?? $caseData['ReasonsForAssistance']
-            ?? data_get($caseData, 'CaseDetail.ReasonsForAssistance')
-            ?? [];
+        $clientAttendanceProfileCode = $caseData['client_attendance_profile_code']
+            ?? $caseData['ClientAttendanceProfileCode']
+            ?? data_get($caseData, 'CaseDetail.ClientAttendanceProfileCode')
+            ?? null;
 
-        Log::info("Storing case: {$caseId} with client: {$clientId}");
+        $createdDateTime = $caseData['created_date_time']
+            ?? $caseData['CreatedDateTime']
+            ?? data_get($caseData, 'CaseDetail.CreatedDateTime')
+            ?? null;
+
+        $endDate = $caseData['end_date']
+            ?? $caseData['EndDate']
+            ?? data_get($caseData, 'CaseDetail.EndDate')
+            ?? null;
+
+        $exitReasonCode = $caseData['exit_reason_code']
+            ?? $caseData['ExitReasonCode']
+            ?? data_get($caseData, 'CaseDetail.ExitReasonCode')
+            ?? null;
+
+        $agBusinessTypeCode = $caseData['ag_business_type_code']
+            ?? $caseData['AgBusinessTypeCode']
+            ?? data_get($caseData, 'CaseDetail.AgBusinessTypeCode')
+            ?? null;
+
+        $programActivityName = $caseData['program_activity_name']
+            ?? $caseData['ProgramActivityName']
+            ?? data_get($caseData, 'CaseDetail.ProgramActivityName')
+            ?? null;
+
+        Log::info("Storing case: {$caseId} with clients: " . json_encode($clientIds));
 
         MigratedCase::updateOrCreate(
             ['case_id' => $caseId],
             [
-                'client_id' => $clientId,
+                'outlet_name' => $outletName,
+                'client_ids' => $clientIds,
                 'outlet_activity_id' => $outletActivityId,
-                'referral_source_code' => $referralSourceCode,
-                'reasons_for_assistance' => $reasonsForAssistance,
+                'total_number_of_unidentified_clients' => $totalNumberOfUnidentifiedClients,
+                'client_attendance_profile_code' => $clientAttendanceProfileCode,
+                'created_date_time' => $createdDateTime,
+                'end_date' => $endDate,
+                'exit_reason_code' => $exitReasonCode,
+                'ag_business_type_code' => $agBusinessTypeCode,
+                'program_activity_name' => $programActivityName,
                 'api_response' => $caseData,
                 'data_migration_batch_id' => $batchId,
             ]
@@ -711,6 +747,48 @@ class DataMigrationService
             ?? $caseData['ClientId']
             ?? data_get($caseData, 'Clients.CaseClient.ClientId')
             ?? null;
+    }
+
+    /**
+     * Extract client IDs array from various data structures
+     */
+    protected function extractClientIds(array $caseData): ?array
+    {
+        // Try to extract as array first
+        if (isset($caseData['client_ids']) && is_array($caseData['client_ids'])) {
+            return $caseData['client_ids'];
+        }
+
+        if (isset($caseData['ClientIds']) && is_array($caseData['ClientIds'])) {
+            return $caseData['ClientIds'];
+        }
+
+        // Check for nested client data structures
+        $clientsData = data_get($caseData, 'Clients');
+        if ($clientsData && is_array($clientsData)) {
+            $clientIds = [];
+
+            // Handle various nested structures
+            if (isset($clientsData['CaseClient'])) {
+                if (is_array($clientsData['CaseClient']) && isset($clientsData['CaseClient'][0])) {
+                    // Multiple clients
+                    foreach ($clientsData['CaseClient'] as $client) {
+                        if ($clientId = $client['ClientId'] ?? null) {
+                            $clientIds[] = $clientId;
+                        }
+                    }
+                } elseif (isset($clientsData['CaseClient']['ClientId'])) {
+                    // Single client
+                    $clientIds[] = $clientsData['CaseClient']['ClientId'];
+                }
+            }
+
+            return !empty($clientIds) ? $clientIds : null;
+        }
+
+        // Fallback to single client ID as array
+        $singleClientId = $this->extractClientId($caseData);
+        return $singleClientId ? [$singleClientId] : null;
     }
 
     /**
