@@ -9,18 +9,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MigratedSession extends Model
 {
     protected $fillable = [
-        'session_id',
         'case_id',
-        'data_migration_batch_id',
-        'service_type_id',
+        'session_id',
         'session_date',
-        'duration_minutes',
-        'location',
-        'session_status',
-        'attendees',
-        'outcome',
-        'notes',
+        'service_type_id',
+        'total_number_of_unidentified_clients',
+        'fees_charged',
+        'money_business_community_education_workshop_code',
+        'interpreter_present',
+        'service_setting_code',
         'api_response',
+        'data_migration_batch_id',
         'verification_status',
         'verified_at',
         'verification_error'
@@ -28,6 +27,7 @@ class MigratedSession extends Model
 
     protected $casts = [
         'session_date' => 'date',
+        'interpreter_present' => 'boolean',
         'api_response' => 'array',
         'verification_status' => VerificationStatus::class,
         'verified_at' => 'datetime'

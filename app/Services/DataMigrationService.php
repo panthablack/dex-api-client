@@ -796,14 +796,52 @@ class DataMigrationService
      */
     protected function storeSession(array $sessionData, string $batchId, int $migrationId): void
     {
+        // Extract session date with fallback to current date if null (required field)
+        $sessionDate = $sessionData['session_date']
+            ?? $sessionData['SessionDate']
+            ?? now()->toDateString();
+
+        // Extract total number of unidentified clients with default 0 (required field)
+        $totalNumberOfUnidentifiedClients = $sessionData['total_number_of_unidentified_clients']
+            ?? $sessionData['TotalNumberOfUnidentifiedClients']
+            ?? data_get($sessionData, 'SessionDetail.TotalNumberOfUnidentifiedClients')
+            ?? 0;
+
+        // Extract fees charged
+        $feesCharged = $sessionData['fees_charged']
+            ?? $sessionData['FeesCharged']
+            ?? data_get($sessionData, 'SessionDetail.FeesCharged')
+            ?? null;
+
+        // Extract money/business/community education workshop code
+        $workshopCode = $sessionData['money_business_community_education_workshop_code']
+            ?? $sessionData['MoneyBusinessCommunityEducationWorkshopCode']
+            ?? data_get($sessionData, 'SessionDetail.MoneyBusinessCommunityEducationWorkshopCode')
+            ?? null;
+
+        // Extract interpreter present flag
+        $interpreterPresent = $sessionData['interpreter_present']
+            ?? $sessionData['InterpreterPresent']
+            ?? data_get($sessionData, 'SessionDetail.InterpreterPresent')
+            ?? false;
+
+        // Extract service setting code
+        $serviceSettingCode = $sessionData['service_setting_code']
+            ?? $sessionData['ServiceSettingCode']
+            ?? data_get($sessionData, 'SessionDetail.ServiceSettingCode')
+            ?? null;
+
         MigratedSession::updateOrCreate(
             ['session_id' => $sessionData['session_id'] ?? $sessionData['SessionId']],
             [
                 'case_id' => $sessionData['case_id'] ?? $sessionData['CaseId'],
+                'session_date' => $sessionDate,
                 'service_type_id' => $sessionData['service_type_id'] ?? $sessionData['ServiceTypeId'] ?? 0,
-                'session_date' => $sessionData['session_date'] ?? $sessionData['SessionDate'] ?? null,
-                'duration_minutes' => $sessionData['duration_minutes'] ?? $sessionData['DurationMinutes'] ?? 0,
-                'location' => $sessionData['location'] ?? $sessionData['Location'] ?? null,
+                'total_number_of_unidentified_clients' => $totalNumberOfUnidentifiedClients,
+                'fees_charged' => $feesCharged,
+                'money_business_community_education_workshop_code' => $workshopCode,
+                'interpreter_present' => $interpreterPresent,
+                'service_setting_code' => $serviceSettingCode,
                 'api_response' => $sessionData,
                 'data_migration_batch_id' => $batchId,
             ]
