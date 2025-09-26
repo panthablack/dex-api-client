@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Sessions for Case {{ $caseId ?? 'Unknown' }} - DSS Data Exchange')
+@section('title', 'Sessions for Case ' . ($caseId ?? 'Unknown') . ' - DSS Data Exchange')
 
 @section('content')
     <!-- Breadcrumb Navigation -->
