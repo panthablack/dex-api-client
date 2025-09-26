@@ -14,6 +14,8 @@ class DataExchangeController extends Controller
 {
     protected $dataExchangeService;
 
+    const ATTENDANCE_PROFILE_CODES = ['FAMILY', 'COMMEVENT', 'PSGROUP', 'COUPLE', 'COHABITANTS'];
+
     public function __construct(DataExchangeService $dataExchangeService)
     {
         $this->dataExchangeService = $dataExchangeService;
@@ -191,6 +193,7 @@ class DataExchangeController extends Controller
      */
     public function submitCaseData(Request $request)
     {
+
         $validator = Validator::make($request->all(), [
             // Required DSS fields
             'case_id' => 'required|string|max:50',
@@ -202,7 +205,7 @@ class DataExchangeController extends Controller
             // Optional DSS fields - Client ID is now optional
             'client_id' => 'nullable|string|max:50',
             'total_unidentified_clients' => 'nullable|integer|min:0|max:100',
-            'client_attendance_profile_code' => 'nullable|string|in:PSGROUP,INDIVIDUAL,FAMILY',
+            'client_attendance_profile_code' => 'nullable|string|in:' . implode(',', self::ATTENDANCE_PROFILE_CODES),
             'end_date' => 'nullable|date|before:today|after:' . now()->subDays(60)->format('Y-m-d'),
             'exit_reason_code' => 'nullable|string|in:NOLONGERASSIST,CANNOTASSIST,HIGHERASSISTANCE,MOVED,QUITSERVICE,DECEASED,NEEDSMET,NOLONGERELIGIBLE,OTHER',
             'ag_business_type_code' => 'nullable|string|max:10',
@@ -1865,7 +1868,7 @@ class DataExchangeController extends Controller
                 'client_id' => 'CLIENT_001',
                 'outlet_activity_id' => '61936',
                 'referral_source_code' => 'SELF',
-                'client_attendance_profile_code' => 'INDIVIDUAL',
+                'client_attendance_profile_code' => 'COMMEVENT',
                 'end_date' => '2024-01-15',
                 'exit_reason_code' => 'COMPLETED',
                 'total_unidentified_clients' => 0
@@ -2101,7 +2104,7 @@ class DataExchangeController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'referral_source_code' => 'required|string|max:50',
-            'client_attendance_profile_code' => 'sometimes|string|max:50'
+            'client_attendance_profile_code' => 'sometimes|string|max:50|in:' . implode(',', self::ATTENDANCE_PROFILE_CODES)
         ]);
 
         if ($validator->fails()) {

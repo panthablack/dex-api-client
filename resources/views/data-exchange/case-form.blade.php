@@ -403,7 +403,7 @@
                             outlet_activity_id: '61936',
                             referral_source_code: 'COMMUNITY',
                             total_unidentified_clients: '1', // Default to 1 unidentified client
-                            client_attendance_profile_code: 'INDIVIDUAL',
+                            client_attendance_profile_code: 'FAMILY',
                             end_date: '',
                             exit_reason_code: '',
                             ag_business_type_code: ''

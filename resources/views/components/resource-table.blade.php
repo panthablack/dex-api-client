@@ -825,7 +825,7 @@
 
                     generateCaseUpdateFields(data) {
                         const referralSourceCode = data.ReferralSourceCode || data.Clients?.CaseClient?.ReferralSourceCode ||
-                        '';
+                            '';
                         const attendanceProfileCode = data.ClientAttendanceProfileCode || data.CaseDetail
                             ?.ClientAttendanceProfileCode || '';
 
@@ -845,9 +845,11 @@
                                 <label for="update_client_attendance_profile_code" class="form-label">Attendance Profile</label>
                                 <select class="form-select" id="update_client_attendance_profile_code" name="client_attendance_profile_code">
                                     <option value="">Select Profile</option>
-                                    <option value="REGULAR" ${attendanceProfileCode === 'REGULAR' ? 'selected' : ''}>Regular</option>
-                                    <option value="IRREGULAR" ${attendanceProfileCode === 'IRREGULAR' ? 'selected' : ''}>Irregular</option>
-                                    <option value="ONEOFF" ${attendanceProfileCode === 'ONEOFF' ? 'selected' : ''}>One-off</option>
+                                    <option value="FAMILY" ${attendanceProfileCode === 'FAMILY' ? 'selected' : ''}>Family</option>
+                                    <option value="COMMEVENT" ${attendanceProfileCode === 'COMMEVENT' ? 'selected' : ''}>Community event</option>
+                                    <option value="PSGROUP" ${attendanceProfileCode === 'PSGROUP' ? 'selected' : ''}>Peer support group</option>
+                                    <option value="COUPLE" ${attendanceProfileCode === 'COUPLE' ? 'selected' : ''}>Couple</option>
+                                    <option value="COHABITANTS" ${attendanceProfileCode === 'COHABITANTS' ? 'selected' : ''}>Cohabitants</option>
                                 </select>
                             </div>
                         </div>

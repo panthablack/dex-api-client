@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\ResourceType;
 use App\Helpers\ReferenceData;
+use App\Http\Controllers\DataExchangeController;
+use App\Http\Controllers\DataMigrationController;
 use App\Services\SoapClientService;
 use Illuminate\Support\Facades\Log;
 
@@ -912,9 +914,6 @@ class DataExchangeService
             'total_unidentified_clients' => $fake->numberBetween(1, 20),
             'client_attendance_profile_code' => $this->getSafeAttendanceProfileForFakeData(),
             'end_date' => $fake->boolean(40) ? $fake->dateTimeBetween('-60 days', 'yesterday')->format('Y-m-d') : null,
-            // Removed business type code temporarily as there are strange validations based on the
-            // outlet activity that aren't documented properly
-            // 'ag_business_type_code' => $fake->boolean(10) ? '0111' : null,
             'exit_reason_code' => $fake->boolean(30) ? $this->getSafeExitReasonForFakeData() : null,
         ];
 
@@ -2868,20 +2867,7 @@ class DataExchangeService
      */
     protected function getSafeAttendanceProfileForFakeData()
     {
-        try {
-            $attendanceProfiles = \App\Helpers\ReferenceData::attendanceProfile();
-            if (!empty($attendanceProfiles)) {
-                // Otherwise random attendance profile
-                // return $attendanceProfiles[array_rand($attendanceProfiles)]->Code;
-                return "FAMILY";
-            }
-        } catch (\Exception $e) {
-            // Log error but continue with fallback
-            Log::warning('Failed to get attendance profiles from ReferenceData helper: ' . $e->getMessage());
-        }
-
-        // Fallback to individual
-        return 'INDIVIDUAL';
+        return fake()->randomElement(DataExchangeController::ATTENDANCE_PROFILE_CODES);
     }
 
     /**
