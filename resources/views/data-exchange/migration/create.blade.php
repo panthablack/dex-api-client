@@ -4,9 +4,9 @@
 
 @section('content')
 
-@php
-    $hasMigratedCases = \App\Models\MigratedCase::exists();
-@endphp
+    @php
+        $hasMigratedCases = \App\Models\MigratedCase::exists();
+    @endphp
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
@@ -57,37 +57,59 @@
                     <div class="d-flex flex-column gap-3">
                         <div class="form-check">
                             <input type="radio" name="resource_type" value="clients" id="clients"
-                                class="form-check-input"
-                                {{ old('resource_type', 'clients') == 'clients' ? 'checked' : '' }} required>
+                                class="form-check-input" {{ old('resource_type', 'clients') == 'clients' ? 'checked' : '' }}
+                                required>
                             <label for="clients" class="form-check-label d-flex align-items-center">
                                 <span>Clients</span>
                                 <span class="badge bg-primary ms-2">
-                                    Client records from DSS
+                                    Client (All)
                                 </span>
                             </label>
                         </div>
 
                         <div class="form-check">
                             <input type="radio" name="resource_type" value="cases" id="cases"
-                                class="form-check-input"
-                                {{ old('resource_type') == 'cases' ? 'checked' : '' }} required>
+                                class="form-check-input" {{ old('resource_type') == 'cases' ? 'checked' : '' }} required>
                             <label for="cases" class="form-check-label d-flex align-items-center">
                                 <span>Cases</span>
                                 <span class="badge bg-success ms-2">
-                                    Case records from DSS
+                                    Cases (Open)
                                 </span>
                             </label>
                         </div>
 
-                        @if($hasMigratedCases)
+                        <div class="form-check">
+                            <input type="radio" name="resource_type" value="closed_cases" id="closed_cases"
+                                class="form-check-input" {{ old('resource_type') == 'closed_cases' ? 'checked' : '' }}
+                                required>
+                            <label for="closed_cases" class="form-check-label d-flex align-items-center">
+                                <span>Closed Cases</span>
+                                <span class="badge bg-success ms-2">
+                                    Closed Cases
+                                </span>
+                            </label>
+                        </div>
+
+                        @if ($hasMigratedCases)
                             <div class="form-check">
                                 <input type="radio" name="resource_type" value="sessions" id="sessions"
-                                    class="form-check-input"
-                                    {{ old('resource_type') == 'sessions' ? 'checked' : '' }} required>
+                                    class="form-check-input" {{ old('resource_type') == 'sessions' ? 'checked' : '' }}
+                                    required>
                                 <label for="sessions" class="form-check-label d-flex align-items-center">
                                     <span>Sessions</span>
                                     <span class="badge bg-info ms-2">
-                                        Session records from DSS
+                                        Sessions (From Cases)
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="resource_type" value="case_clients" id="case_clients"
+                                    class="form-check-input" {{ old('resource_type') == 'case_clients' ? 'checked' : '' }}
+                                    required>
+                                <label for="case_clients" class="form-check-label d-flex align-items-center">
+                                    <span>Case Clients</span>
+                                    <span class="badge bg-info ms-2">
+                                        Clients associated with migrated Cases
                                     </span>
                                 </label>
                             </div>
@@ -103,11 +125,22 @@
                                     </span>
                                 </label>
                             </div>
+                            <div class="form-check">
+                                <input type="radio" name="resource_type" value="case_clients" id="case_clients"
+                                    class="form-check-input" disabled
+                                    title="Sessions require migrated cases to be available">
+                                <label for="case_clients" class="form-check-label d-flex align-items-center text-muted">
+                                    <span>Case Clients</span>
+                                    <span class="badge bg-secondary ms-2">
+                                        Clients associated with migrated Cases (requires migrated cases)
+                                    </span>
+                                </label>
+                            </div>
                         @endif
                     </div>
                     <div class="form-text">
                         Resources can only be migrated one at a time.
-                        @if(!$hasMigratedCases)
+                        @if (!$hasMigratedCases)
                             Sessions are only available when cases have been migrated first.
                         @endif
                     </div>
@@ -272,7 +305,8 @@
             }
 
             function updateDefaultName() {
-                if (!nameInput.value || nameInput.value.includes('Data Migration - ') || nameInput.value.includes(' Migration - ')) {
+                if (!nameInput.value || nameInput.value.includes('Data Migration - ') || nameInput.value.includes(
+                        ' Migration - ')) {
                     nameInput.value = generateDefaultName();
                 }
             }

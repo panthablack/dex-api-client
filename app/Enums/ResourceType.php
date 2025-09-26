@@ -6,6 +6,8 @@ enum ResourceType: string
 {
     case CLIENT = 'CLIENT';
     case CASE = 'CASE';
+    case CASE_CLIENT = 'CASE_CLIENT';
+    case CLOSED_CASE = 'CLOSED_CASE';
     case SESSION = 'SESSION';
     case FULL_CLIENT = 'FULL_CLIENT';
     case FULL_CASE = 'FULL_CASE';
@@ -40,6 +42,32 @@ enum ResourceType: string
             'CASE',
             'CASES',
         ])) return self::CASE;
+
+        if (in_array($type, [
+            self::CLOSED_CASE,
+            self::CLOSED_CASE->value,
+            'closed_case',
+            'closed_cases',
+            'closed-case',
+            'closed-cases',
+            'CLOSED_CASE',
+            'CLOSED_CASES',
+            'CLOSED-CASE',
+            'CLOSED-CASES',
+        ])) return self::CLOSED_CASE;
+
+        if (in_array($type, [
+            self::CASE_CLIENT,
+            self::CASE_CLIENT->value,
+            'case_client',
+            'case_clients',
+            'case-client',
+            'case-clients',
+            'CASE_CLIENT',
+            'CASE_CLIENTS',
+            'CASE-CLIENT',
+            'CASE-CLIENTS',
+        ])) return self::CASE_CLIENT;
 
         if (in_array($type, [
             self::CLIENT,
