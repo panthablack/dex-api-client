@@ -143,4 +143,19 @@ enum ResourceType: string
         $resolvedType = self::resolve($type);
         return in_array($resolvedType, self::MIGRATABLE_RESOURCES);
     }
+
+    public static function getValues(): array
+    {
+        return [
+            self::CLIENT->value,
+            self::CASE->value,
+            self::CASE_CLIENT->value,
+            self::CLOSED_CASE->value,
+            self::SESSION->value,
+            self::FULL_CLIENT->value,
+            self::FULL_CASE->value,
+            self::FULL_SESSION->value,
+            self::UNKNOWN->value,
+        ];
+    }
 }

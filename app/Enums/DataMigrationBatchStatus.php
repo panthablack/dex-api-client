@@ -47,7 +47,7 @@ enum DataMigrationBatchStatus: string
         return self::UNKNOWN;
     }
 
-    public static function statusValues(): array
+    public static function getValues(): array
     {
         return [
             self::IN_PROGRESS->value,

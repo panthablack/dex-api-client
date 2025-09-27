@@ -219,39 +219,40 @@ class VerificationService
         ];
 
         // Get stats for each resource type
-        foreach ($migration->resource_types as $resourceType) {
-            // Convert string resource type to enum value for database queries
-            $enumResourceType = ResourceType::resolve($resourceType);
-            $enumValue = $enumResourceType->value;
+        $resourceType = $migration->resource_type;
 
-            $modelClass = $this->getModelClass($enumValue);
+        // Convert string resource type to enum value for database queries
+        $enumResourceType = ResourceType::resolve($resourceType);
+        $enumValue = $enumResourceType->value;
 
-            if ($modelClass) {
-                // Get the batch IDs for this migration and resource type
-                $batchIds = $migration->batches()
-                    ->where('resource_type', $enumValue)
-                    ->where('status', 'completed')
-                    ->pluck('id')
-                    ->toArray();
+        $modelClass = $this->getModelClass($enumValue);
 
-                $query = $modelClass::whereIn('data_migration_batch_id', $batchIds);
+        if ($modelClass) {
+            // Get the batch IDs for this migration and resource type
+            $batchIds = $migration->batches()
+                ->where('resource_type', $enumValue)
+                ->where('status', 'completed')
+                ->pluck('id')
+                ->toArray();
 
-                $total = $query->count();
-                $verified = $query->where('verification_status', VerificationStatus::VERIFIED)->count();
-                $failed = $query->where('verification_status', VerificationStatus::FAILED)->count();
+            $query = $modelClass::whereIn('data_migration_batch_id', $batchIds);
 
-                $stats['results'][$resourceType] = [
-                    'total' => $total,
-                    'verified' => $verified,
-                    'failed' => $failed,
-                    'success_rate' => $total > 0 ? round(($verified / $total) * 100) : 0
-                ];
+            $total = $query->count();
+            $verified = $query->where('verification_status', VerificationStatus::VERIFIED)->count();
+            $failed = $query->where('verification_status', VerificationStatus::FAILED)->count();
 
-                $stats['total'] += $total;
-                $stats['verified'] += $verified;
-                $stats['failed'] += $failed;
-            }
+            $stats['results'][$resourceType] = [
+                'total' => $total,
+                'verified' => $verified,
+                'failed' => $failed,
+                'success_rate' => $total > 0 ? round(($verified / $total) * 100) : 0
+            ];
+
+            $stats['total'] += $total;
+            $stats['verified'] += $verified;
+            $stats['failed'] += $failed;
         }
+
 
         $stats['success_rate'] = $stats['total'] > 0 ? round(($stats['verified'] / $stats['total']) * 100) : 0;
 
@@ -265,41 +266,39 @@ class VerificationService
     {
         $results = [];
 
-        foreach ($migration->resource_types as $resourceType) {
-            // Convert string resource type to enum value for database queries
-            $enumResourceType = ResourceType::resolve($resourceType);
-            $enumValue = $enumResourceType->value;
+        // Convert string resource type to enum value for database queries
+        $resourceType = $migration->resource_type;
+        $enumResourceType = ResourceType::resolve($resourceType);
+        $enumValue = $enumResourceType->value;
+        $modelClass = $this->getModelClass($enumValue);
 
-            $modelClass = $this->getModelClass($enumValue);
+        if ($modelClass) {
+            // Get the batch IDs for this migration and resource type
+            $batchIds = $migration->batches()
+                ->where('resource_type', $enumValue)
+                ->where('status', 'completed')
+                ->pluck('id')
+                ->toArray();
 
-            if ($modelClass) {
-                // Get the batch IDs for this migration and resource type
-                $batchIds = $migration->batches()
-                    ->where('resource_type', $enumValue)
-                    ->where('status', 'completed')
-                    ->pluck('id')
-                    ->toArray();
+            $records = $modelClass::whereIn('data_migration_batch_id', $batchIds)
+                ->inRandomOrder()
+                ->limit($sampleSize)
+                ->get();
 
-                $records = $modelClass::whereIn('data_migration_batch_id', $batchIds)
-                    ->inRandomOrder()
-                    ->limit($sampleSize)
-                    ->get();
-
-                $verified = 0;
-                foreach ($records as $record) {
-                    if ($this->verifyRecord($enumResourceType, $record)) {
-                        $verified++;
-                    }
+            $verified = 0;
+            foreach ($records as $record) {
+                if ($this->verifyRecord($enumResourceType, $record)) {
+                    $verified++;
                 }
-
-                $results[$resourceType] = [
-                    'total_checked' => $records->count(),
-                    'verified' => $verified,
-                    'failed' => $records->count() - $verified,
-                    'success_rate' => $records->count() > 0 ? round(($verified / $records->count()) * 100) : 0,
-                    'status' => $records->count() > 0 ? DataMigrationBatchStatus::COMPLETED->value : 'no_data'
-                ];
             }
+
+            $results[$resourceType] = [
+                'total_checked' => $records->count(),
+                'verified' => $verified,
+                'failed' => $records->count() - $verified,
+                'success_rate' => $records->count() > 0 ? round(($verified / $records->count()) * 100) : 0,
+                'status' => $records->count() > 0 ? DataMigrationBatchStatus::COMPLETED->value : 'no_data'
+            ];
         }
 
         return [

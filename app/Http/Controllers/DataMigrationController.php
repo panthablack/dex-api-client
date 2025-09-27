@@ -100,7 +100,7 @@ class DataMigrationController extends Controller
 
             $migration = $this->migrationService->createMigration([
                 'name' => $request->name,
-                'resource_types' => [$request->resource_type], // Convert single resource to array
+                'resource_type' => $request->resource_type,
                 'filters' => $filters,
                 'batch_size' => $request->batch_size ?? 100
             ]);
@@ -266,7 +266,7 @@ class DataMigrationController extends Controller
                         'status' => $migration->status,
                         'progress_percentage' => $migration->progress_percentage,
                         'success_rate' => $migration->success_rate,
-                        'resource_types' => $migration->resource_types,
+                        'resource_type' => $migration->resource_type,
                         'created_at' => $migration->created_at->toISOString(),
                         'total_batches' => $migration->batches->count(),
                         'completed_batches' => $migration->batches->where('status', 'completed')->count(),

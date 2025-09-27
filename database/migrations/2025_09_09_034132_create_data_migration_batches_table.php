@@ -19,11 +19,10 @@ return new class extends Migration
             $table->integer('batch_number'); // Sequential batch number
             $table->integer('page_index'); // DSS API page index
             $table->integer('page_size')->default(100);
-            $table->enum('status', DataMigrationBatchStatus::statusValues())->default('pending');
+            $table->enum('status', DataMigrationBatchStatus::getValues())->default('pending');
             $table->integer('items_requested')->default(0);
             $table->integer('items_received')->default(0);
             $table->integer('items_stored')->default(0);
-            $table->text('error_message')->nullable();
             $table->json('api_filters')->nullable(); // Filters sent to API
             $table->json('api_response_summary')->nullable(); // Summary of API response
             $table->timestamp('started_at')->nullable();

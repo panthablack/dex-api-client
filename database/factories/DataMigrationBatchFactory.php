@@ -36,7 +36,6 @@ class DataMigrationBatchFactory extends Factory
             'items_requested' => 50,
             'items_received' => 50,
             'items_stored' => 45,
-            'error_message' => null,
             'api_filters' => [],
             'api_response_summary' => null,
             'started_at' => fake()->dateTimeBetween('-1 day', '-1 hour'),
@@ -80,7 +79,6 @@ class DataMigrationBatchFactory extends Factory
             'status' => DataMigrationBatchStatus::FAILED,
             'items_received' => fake()->numberBetween(1, $attributes['items_requested'] ?? 50),
             'items_stored' => 0,
-            'error_message' => 'Batch processing failed',
             'completed_at' => null,
         ]);
     }

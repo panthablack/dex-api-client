@@ -23,11 +23,11 @@ class DataMigrationFactory extends Factory
     {
         return [
             'name' => 'Clients, Cases, Sessions Migration - ' . fake()->dateTimeThisMonth()->format('Y-m-d H:i:s'),
-            'resource_types' => [
-                ResourceType::CLIENT,
-                ResourceType::CASE,
-                ResourceType::SESSION
-            ],
+            'resource_type' => fake()->randomElement([
+                ResourceType::CLIENT->value,
+                ResourceType::CASE->value,
+                ResourceType::SESSION->value
+            ]),
             'filters' => [
                 'date_from' => fake()->date('Y-m-d'),
                 'date_to' => fake()->date('Y-m-d'),
@@ -35,7 +35,6 @@ class DataMigrationFactory extends Factory
             'status' => DataMigrationStatus::COMPLETED,
             'total_items' => 100,
             'batch_size' => 50,
-            'error_message' => null,
             'summary' => null,
             'started_at' => fake()->dateTimeBetween('-1 day', 'now'),
             'completed_at' => fake()->dateTimeBetween('-1 hour', 'now'),

@@ -138,14 +138,20 @@
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1 flex-wrap">
-                                            @foreach ($migration->resource_types as $type)
+                                            @foreach ([$migration->resource_type] as $type)
                                                 @php
                                                     $resourceEnum = \App\Enums\ResourceType::resolve($type);
-                                                    $badgeClass = match($resourceEnum) {
-                                                        \App\Enums\ResourceType::CLIENT, \App\Enums\ResourceType::FULL_CLIENT => 'bg-primary',
-                                                        \App\Enums\ResourceType::CASE, \App\Enums\ResourceType::FULL_CASE => 'bg-success',
-                                                        \App\Enums\ResourceType::SESSION, \App\Enums\ResourceType::FULL_SESSION => 'bg-info',
-                                                        default => 'bg-secondary'
+                                                    $badgeClass = match ($resourceEnum) {
+                                                        \App\Enums\ResourceType::CLIENT,
+                                                        \App\Enums\ResourceType::FULL_CLIENT
+                                                            => 'bg-primary',
+                                                        \App\Enums\ResourceType::CASE,
+                                                        \App\Enums\ResourceType::FULL_CASE
+                                                            => 'bg-success',
+                                                        \App\Enums\ResourceType::SESSION,
+                                                        \App\Enums\ResourceType::FULL_SESSION
+                                                            => 'bg-info',
+                                                        default => 'bg-secondary',
                                                     };
                                                 @endphp
                                                 <span class="badge {{ $badgeClass }}">
@@ -156,16 +162,17 @@
                                     </td>
                                     <td>
                                         @php
-                                            $statusClass = match($migration->status) {
+                                            $statusClass = match ($migration->status) {
                                                 \App\Enums\DataMigrationStatus::COMPLETED => 'bg-success',
                                                 \App\Enums\DataMigrationStatus::IN_PROGRESS => 'bg-warning text-dark',
                                                 \App\Enums\DataMigrationStatus::FAILED => 'bg-danger',
                                                 \App\Enums\DataMigrationStatus::PENDING => 'bg-secondary',
                                                 \App\Enums\DataMigrationStatus::CANCELLED => 'bg-dark',
-                                                default => 'bg-light text-dark'
+                                                default => 'bg-light text-dark',
                                             };
                                         @endphp
-                                        <span class="badge {{ $statusClass }}" data-status="{{ $migration->status->value }}">
+                                        <span class="badge {{ $statusClass }}"
+                                            data-status="{{ $migration->status->value }}">
                                             {{ ucfirst(str_replace('_', ' ', strtolower($migration->status->value))) }}
                                         </span>
                                     </td>
@@ -375,7 +382,8 @@
 
                             // Update progress bar and percentage text
                             const progressBar = row.querySelector('.progress-bar');
-                            const progressText = row.querySelector('.progress + small.text-muted, .progress ~ small.text-muted');
+                            const progressText = row.querySelector(
+                                '.progress + small.text-muted, .progress ~ small.text-muted');
                             if (progressBar && progressText) {
                                 progressBar.style.width = migration.progress_percentage + '%';
                                 progressBar.setAttribute('aria-valuenow', migration.progress_percentage);
@@ -387,7 +395,8 @@
                             if (statusBadge) {
                                 // Remove old background classes
                                 statusBadge.className = statusBadge.className.replace(
-                                    /bg-(success|warning|danger|secondary|primary|info|light|dark)\s*(text-dark)?/g, '');
+                                    /bg-(success|warning|danger|secondary|primary|info|light|dark)\s*(text-dark)?/g,
+                                    '');
 
                                 // Add new status class
                                 const statusClass = this.getStatusClass(migration.status);
@@ -402,9 +411,9 @@
 
                             // Update resource type badges
                             const resourceContainer = row.querySelector('td:nth-child(2) .d-flex');
-                            if (resourceContainer && migration.resource_types) {
+                            if (resourceContainer && migration.resource_type) {
                                 resourceContainer.innerHTML = '';
-                                migration.resource_types.forEach(resourceType => {
+                                [migration.resource_type].forEach(resourceType => {
                                     const badge = document.createElement('span');
                                     badge.className = 'badge ' + getResourceTypeClass(resourceType);
                                     badge.textContent = formatResourceTypeName(resourceType);

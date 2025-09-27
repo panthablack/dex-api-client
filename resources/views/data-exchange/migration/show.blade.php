@@ -186,7 +186,7 @@
                         <h5 class="card-title mb-0">Resource Types</h5>
                     </div>
                     <div class="card-body">
-                        @foreach ($migration->resource_types as $type)
+                        @foreach ([$migration->resource_type] as $type)
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span
@@ -279,7 +279,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Batch Details</h5>
                 <div class="btn-group btn-group-sm" role="group">
-                    @foreach ($migration->resource_types as $type)
+                    @foreach ([$migration->resource_type] as $type)
                         <button @click="setResourceFilter('{{ $type }}')" class="btn"
                             :class="resourceFilter === '{{ $type }}' ? 'btn-secondary' : 'btn-outline-secondary'">
                             {{ ucfirst($type) }}
@@ -333,12 +333,6 @@
                                         <span class="badge" :class="getStatusClass(batch.status)"
                                             x-text="batch.status.charAt(0).toUpperCase() + batch.status.slice(1)">
                                         </span>
-                                        <div x-show="batch.error_message" class="mt-1">
-                                            <button @click="showError(batch.error_message)"
-                                                class="btn btn-link btn-sm text-danger p-0">
-                                                View Error
-                                            </button>
-                                        </div>
                                     </td>
                                     <td>
                                         <div>
@@ -379,7 +373,7 @@
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            @foreach ($migration->resource_types as $type)
+                            @foreach ([$migration->resource_type] as $type)
                                 @php
                                     // Convert string type to enum value for database comparison
                                     $enumType = match ($type) {
@@ -549,7 +543,8 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <a href="{{ route('data-migration.verification', $migration) }}" class="btn btn-primary">Run Full Verification</a>
+                            <a href="{{ route('data-migration.verification', $migration) }}" class="btn btn-primary">Run
+                                Full Verification</a>
                         </div>
                     </div>
                 </div>

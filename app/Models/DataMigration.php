@@ -10,25 +10,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class DataMigration extends Model
 {
     use HasFactory;
     protected $fillable = [
         'name',
-        'resource_types',
+        'resource_type',
         'filters',
         'status',
         'total_items',
         'batch_size',
-        'error_message',
         'summary',
         'started_at',
         'completed_at'
     ];
 
     protected $casts = [
-        'resource_types' => 'array',
+        'resource_type' => ResourceType::class,
         'filters' => 'array',
         'summary' => 'array',
         'status' => DataMigrationStatus::class,
@@ -62,9 +62,9 @@ class DataMigration extends Model
      */
     public function onFail(\Throwable $e): void
     {
+        Log::error($e);
         $this->update([
             'status' => DataMigrationStatus::FAILED,
-            'error_message' => $e->getMessage(),
             'completed_at' => now()
         ]);
     }

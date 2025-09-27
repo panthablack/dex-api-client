@@ -53,7 +53,7 @@ enum DataMigrationStatus: string
         return self::UNKNOWN;
     }
 
-    public static function statusValues(): array
+    public static function getValues(): array
     {
         return [
             self::CANCELLED->value,

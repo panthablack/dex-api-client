@@ -35,18 +35,17 @@ class DataMigrationService
         $totalItems = 0;
         $filters = $data['filters'] ?? [];
 
-        foreach ($data['resource_types'] as $resourceType) {
-            $resolvedType = ResourceType::resolve($resourceType);
-            $resourceTotal = $this->getTotalItemsForResource($resolvedType, $filters);
-            $totalItems += $resourceTotal;
-            Log::info("Found {$resourceTotal} items for {$resourceType}");
-        }
+        $resourceType = $data['resource_type'];
+        $resolvedType = ResourceType::resolve($resourceType);
+        $resourceTotal = $this->getTotalItemsForResource($resolvedType, $filters);
+        $totalItems += $resourceTotal;
+        Log::info("Found {$resourceTotal} items for {$resourceType}");
 
         Log::info("Total items to migrate: {$totalItems}");
 
         return DataMigration::create([
             'name' => $data['name'],
-            'resource_types' => $data['resource_types'],
+            'resource_type' => $data['resource_type'],
             'filters' => $data['filters'] ?? [],
             'batch_size' => $data['batch_size'] ?? 100,
             'total_items' => $totalItems,  // Set total items immediately
@@ -66,11 +65,9 @@ class DataMigrationService
             ]);
 
             // Create batches for all resource types, but respect dependencies
-            $orderedResourceTypes = $this->getOrderedResourceTypes($migration->resource_types);
-            foreach ($orderedResourceTypes as $resourceType) {
-                $resolvedType = ResourceType::resolve($resourceType);
-                $this->createBatchesForResource($migration, $resolvedType);
-            }
+            $resourceType = $migration->resource_type;
+            $resolvedType = ResourceType::resolve($resourceType);
+            $this->createBatchesForResource($migration, $resolvedType);
         });
 
         // Refresh the migration to ensure we have the latest batch data
@@ -265,43 +262,6 @@ class DataMigrationService
     }
 
     /**
-     * Get resource types ordered by dependencies
-     */
-    protected function getOrderedResourceTypes(array $resourceTypes): array
-    {
-        $dependencies = [
-            ResourceType::CLIENT->value => [],
-            ResourceType::CASE->value => [],
-            ResourceType::SESSION->value => [ResourceType::CASE] // Sessions depend on cases
-        ];
-
-        $ordered = [];
-        $processed = [];
-
-        // Function to add a resource type and its dependencies
-        $addResourceType = function ($resourceType) use (&$addResourceType, $dependencies, &$ordered, &$processed, $resourceTypes) {
-            if (in_array($resourceType, $processed) || !in_array($resourceType, $resourceTypes)) {
-                return;
-            }
-
-            // Add dependencies first
-            foreach ($dependencies[$resourceType] ?? [] as $dependency) {
-                $addResourceType($dependency);
-            }
-
-            $ordered[] = $resourceType;
-            $processed[] = $resourceType;
-        };
-
-        // Process all requested resource types
-        foreach ($resourceTypes as $resourceType) {
-            $addResourceType($resourceType);
-        }
-
-        return $ordered;
-    }
-
-    /**
      * Dispatch batches for independent resource types (no dependencies)
      */
     protected function dispatchDependentBatches(DataMigration $migration, int $limit = 3): void
@@ -309,41 +269,6 @@ class DataMigrationService
         $dependentTypes = [ResourceType::SESSION => ResourceType::CASE];
 
         Log::debug("Dispatching batches for " . implode(', ', $dependentTypes));
-
-        // $pendingBatches = $migration->batches()
-        //     ->whereIn('resource_type', $independentTypes)
-        //     ->where('status', 'pending')
-        //     ->orderBy('resource_type')
-        //     ->orderBy('batch_number')
-        //     ->limit($limit)
-        //     ->get();
-
-        // Log::info("Found {$pendingBatches->count()} pending batches for independent types: " . implode(', ', $independentTypes));
-
-        // foreach ($pendingBatches as $batch) {
-        //     Log::info("Dispatching independent batch: {$batch->resource_type} batch {$batch->batch_number} (ID: {$batch->id})");
-
-        //     try {
-        //         // For debugging, try synchronous processing if dispatch fails
-        //         ProcessDataMigrationBatch::dispatch($batch);
-        //         $batch->update(['status' => 'processing']);
-        //         Log::info("Successfully dispatched and marked batch {$batch->id} as processing");
-        //     } catch (\Exception $e) {
-        //         Log::error("Failed to dispatch batch {$batch->id}: " . $e->getMessage());
-        //         Log::info("Attempting synchronous processing as fallback for batch {$batch->id}");
-
-        //         try {
-        //             $this->processBatch($batch);
-        //             Log::info("Successfully processed batch {$batch->id} synchronously");
-        //         } catch (\Exception $syncError) {
-        //             Log::error("Synchronous processing also failed for batch {$batch->id}: " . $syncError->getMessage());
-        //         }
-        //     }
-        // }
-
-        // if (count($pendingBatches) === 0) {
-        //     Log::warning("No independent batches found to dispatch for migration {$migration->id}. Available resource types in migration: " . implode(', ', $migration->resource_types));
-        // }
     }
 
     /**
@@ -380,7 +305,7 @@ class DataMigrationService
         }
 
         if (count($pendingBatches) === 0) {
-            Log::warning("No independent batches found to dispatch for migration {$migration->id}. Available resource types in migration: " . implode(', ', $migration->resource_types));
+            Log::warning("No independent batches found to dispatch for migration {$migration->id}. Available resource type for migration: " . $migration->resource_type);
         }
     }
 
@@ -507,11 +432,12 @@ class DataMigrationService
                 $status = DataMigrationBatchStatus::COMPLETED;
             }
 
+            if ($errorMessage) Log::error($errorMessage);
+
             $batch->update([
                 'status' => $status,
                 'items_received' => $receivedCount,
                 'items_stored' => $storedCount,
-                'error_message' => $errorMessage,
                 'completed_at' => now()
             ]);
 
@@ -1019,16 +945,16 @@ class DataMigrationService
             'resources' => []
         ];
 
-        foreach ($migration->resource_types as $resourceType) {
-            $batches = $migration->batches()->where('resource_type', $resourceType);
+        $resourceType = $migration->resource_type
+        ;
+        $batches = $migration->batches()->where('resource_type', $resourceType);
 
-            $summary['resources'][$resourceType] = [
-                'total_batches' => $batches->count(),
-                'completed_batches' => $batches->where('status', 'completed')->count(),
-                'failed_batches' => $batches->where('status', 'failed')->count(),
-                'items_migrated' => $batches->where('status', 'completed')->sum('items_stored')
-            ];
-        }
+        $summary['resources'][$resourceType] = [
+            'total_batches' => $batches->count(),
+            'completed_batches' => $batches->where('status', 'completed')->count(),
+            'failed_batches' => $batches->where('status', 'failed')->count(),
+            'items_migrated' => $batches->where('status', 'completed')->sum('items_stored')
+        ];
 
         return $summary;
     }
@@ -1071,7 +997,7 @@ class DataMigrationService
             'total_items' => $migration->total_items,
             'started_at' => $migration->started_at?->toISOString(),
             'completed_at' => $migration->completed_at?->toISOString(),
-            'resource_types' => $migration->resource_types,
+            'resource_type' => $migration->resource_type,
             'batches' => $migration->batches->map(function ($batch) {
                 return [
                     'id' => $batch->id,
@@ -1082,7 +1008,6 @@ class DataMigrationService
                     'items_received' => $batch->items_received ?? 0,
                     'items_stored' => $batch->items_stored ?? 0,
                     'success_rate' => $batch->success_rate,
-                    'error_message' => $batch->error_message,
                     'started_at' => $batch->started_at?->toISOString(),
                     'completed_at' => $batch->completed_at?->toISOString()
                 ];
@@ -1116,7 +1041,6 @@ class DataMigrationService
         foreach ($failedBatches as $batch) {
             $batch->update([
                 'status' => DataMigrationBatchStatus::PENDING,
-                'error_message' => null,
                 'started_at' => null,
                 'completed_at' => null
             ]);

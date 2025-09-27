@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
 
 class DataMigrationBatch extends Model
 {
@@ -23,7 +24,6 @@ class DataMigrationBatch extends Model
         'items_requested',
         'items_received',
         'items_stored',
-        'error_message',
         'api_filters',
         'api_response_summary',
         'started_at',
@@ -48,9 +48,9 @@ class DataMigrationBatch extends Model
      */
     public function onFail(\Throwable $e): void
     {
+        Log::error($e);
         $this->update([
             'status' => DataMigrationBatchStatus::FAILED,
-            'error_message' => $e->getMessage(),
             'completed_at' => now()
         ]);
     }
