@@ -45,7 +45,7 @@ class DataMigrationService
 
         return DataMigration::create([
             'name' => $data['name'],
-            'resource_type' => $data['resource_type'],
+            'resource_type' => ResourceType::resolve($data['resource_type']),
             'filters' => $data['filters'] ?? [],
             'batch_size' => $data['batch_size'] ?? 100,
             'total_items' => $totalItems,  // Set total items immediately
@@ -945,8 +945,7 @@ class DataMigrationService
             'resources' => []
         ];
 
-        $resourceType = $migration->resource_type
-        ;
+        $resourceType = $migration->resource_type;
         $batches = $migration->batches()->where('resource_type', $resourceType);
 
         $summary['resources'][$resourceType] = [

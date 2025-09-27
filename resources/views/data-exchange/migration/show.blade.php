@@ -191,21 +191,15 @@
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span
                                         class="badge
-                                {{ $type === 'clients' ? 'bg-primary' : '' }}
-                                {{ $type === 'cases' ? 'bg-success' : '' }}
-                                {{ $type === 'sessions' ? 'bg-info' : '' }}">
-                                        {{ ucfirst($type) }}
+                                {{ $type === \App\Enums\ResourceType::CLIENT ? 'bg-primary' : '' }}
+                                {{ $type === \App\Enums\ResourceType::CASE ? 'bg-success' : '' }}
+                                {{ $type === \App\Enums\ResourceType::CASE_CLIENT ? 'bg-primary' : '' }}
+                                {{ $type === \App\Enums\ResourceType::CLOSED_CASE ? 'bg-warning' : '' }}
+                                {{ $type === \App\Enums\ResourceType::SESSION ? 'bg-info' : '' }}">
+                                        {{ ucfirst($type->value) }}
                                     </span>
                                     @php
-                                        // Convert string type to enum value for database comparison
-                                        $enumType = match ($type) {
-                                            'clients' => \App\Enums\ResourceType::CLIENT->value,
-                                            'cases' => \App\Enums\ResourceType::CASE->value,
-                                            'sessions' => \App\Enums\ResourceType::SESSION->value,
-                                            default => strtoupper($type),
-                                        };
-
-                                        $typeBatches = $migration->batches->where('resource_type', $enumType);
+                                        $typeBatches = $migration->batches->where('resource_type', $type);
                                         $typeCompleted = $typeBatches->where(
                                             'status',
                                             \App\Enums\DataMigrationBatchStatus::COMPLETED,
@@ -282,7 +276,7 @@
                     @foreach ([$migration->resource_type] as $type)
                         <button @click="setResourceFilter('{{ $type }}')" class="btn"
                             :class="resourceFilter === '{{ $type }}' ? 'btn-secondary' : 'btn-outline-secondary'">
-                            {{ ucfirst($type) }}
+                            {{ ucfirst($type->value) }}
                         </button>
                     @endforeach
                     <button @click="setResourceFilter('all')" class="btn"
