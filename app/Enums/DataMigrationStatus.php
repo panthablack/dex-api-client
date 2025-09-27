@@ -11,7 +11,7 @@ enum DataMigrationStatus: string
     case PENDING = 'PENDING';
     case UNKNOWN = 'UNKNOWN';
 
-    public static function resolve(string $type): DataMigrationStatus
+    public static function resolve(string | DataMigrationStatus $type): DataMigrationStatus
     {
         if (in_array($type, [
             self::CANCELLED,

@@ -40,7 +40,7 @@ enum ResourceType: string
         else throw new \Exception('Resource type not supported by getTableName');
     }
 
-    public static function resolve(string $type): ResourceType
+    public static function resolve(string | ResourceType $type): ResourceType
     {
         if (in_array($type, [
             self::CASE,

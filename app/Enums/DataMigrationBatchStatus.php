@@ -10,7 +10,7 @@ enum DataMigrationBatchStatus: string
     case PENDING = 'PENDING';
     case UNKNOWN = 'UNKNOWN';
 
-    public static function resolve(string $type): DataMigrationBatchStatus
+    public static function resolve(string | DataMigrationBatchStatus $type): DataMigrationBatchStatus
     {
         if (in_array($type, [
             self::IN_PROGRESS,
