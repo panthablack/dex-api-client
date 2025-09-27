@@ -59,11 +59,20 @@ class DataMigrationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'resource_type' => 'required|in:clients,cases,sessions',
+            'resource_type' => 'required',
             'batch_size' => 'integer|min:10|max:100',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date|after_or_equal:date_from',
         ]);
+
+        $resourceType = $request->resource_type;
+
+        // Additional validation to check resource is migratable
+        if (!ResourceType::isMigratable($resourceType)) {
+            $validator->after(function ($validator) use ($resourceType) {
+                $validator->errors()->add('resource_type', "The resource type '$resourceType' cannot be migrated.");
+            });
+        }
 
         // Additional validation for sessions - require existing cases
         if ($request->resource_type === 'sessions') {

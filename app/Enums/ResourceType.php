@@ -14,6 +14,14 @@ enum ResourceType: string
     case FULL_SESSION = 'FULL_SESSION';
     case UNKNOWN = 'UNKNOWN';
 
+    public const MIGRATABLE_RESOURCES = [
+        ResourceType::CLIENT,
+        ResourceType::CASE,
+        ResourceType::SESSION,
+        ResourceType::CLOSED_CASE,
+        ResourceType::CASE_CLIENT,
+    ];
+
     public static function getDependentResourceTypes(): array
     {
         return [self::SESSION];
@@ -128,5 +136,11 @@ enum ResourceType: string
 
         // If cannot resolve, return unknown
         return self::UNKNOWN;
+    }
+
+    public static function isMigratable($type): bool
+    {
+        $resolvedType = self::resolve($type);
+        return in_array($resolvedType, self::MIGRATABLE_RESOURCES);
     }
 }
