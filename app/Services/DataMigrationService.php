@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\DataMigrationStatus;
 use App\Enums\DataMigrationBatchStatus;
+use App\Enums\FilterType;
 use App\Enums\ResourceType;
 use App\Models\DataMigration;
 use App\Models\DataMigrationBatch;
@@ -12,6 +13,7 @@ use App\Models\MigratedCase;
 use App\Models\MigratedSession;
 use App\Services\DataExchangeService;
 use App\Jobs\ProcessDataMigrationBatch;
+use App\Resources\Filters;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
@@ -31,23 +33,18 @@ class DataMigrationService
      */
     public function createMigration(array $data): DataMigration
     {
-        // Calculate total items upfront using the fixed getTotalItemsForResource method
-        $totalItems = 0;
         $filters = $data['filters'] ?? [];
+        $resourceType = ResourceType::resolve($data['resource_type']);;
 
-        $resourceType = $data['resource_type'];
-        $resolvedType = ResourceType::resolve($resourceType);
-        $resourceTotal = $this->getTotalItemsForResource($resolvedType, $filters);
-        $totalItems += $resourceTotal;
-        Log::info("Found {$resourceTotal} items for {$resourceType}");
-
-        Log::info("Total items to migrate: {$totalItems}");
+        // Calculate total items upfront using the fixed getTotalItemsForResource method
+        $totalItems = $this->getTotalItemsForResource($resourceType, $filters);
+        Log::info("Found {$totalItems} items for {$resourceType}");
 
         return DataMigration::create([
             'name' => $data['name'],
-            'resource_type' => ResourceType::resolve($data['resource_type']),
-            'filters' => $data['filters'] ?? [],
-            'batch_size' => $data['batch_size'] ?? 100,
+            'resource_type' => $resourceType,
+            'filters' => $data['filters'],
+            'batch_size' => $data['batch_size'],
             'total_items' => $totalItems,  // Set total items immediately
             'status' => DataMigrationStatus::PENDING
         ]);
@@ -161,32 +158,26 @@ class DataMigrationService
     /**
      * Calculate total items to be processed for a resource type using Search APIs
      */
-    protected function getTotalItemsForResource(ResourceType $resourceType, array $filters): int
+    protected function getTotalItemsForResource(ResourceType $resourceType, Filters $filters): int
     {
         try {
-            // Use Search APIs with PageSize=1 to get accurate TotalCount metadata
-            $searchFilters = array_merge($filters, [
-                'page_index' => 1,
-                'page_size' => 1 // Just get one item to extract TotalCount from metadata
-            ]);
+            // add minimum filter parameters to extract metadata from the api
+            $filters->set(FilterType::PAGE_INDEX, 1);
+            $filters->set(FilterType::PAGE_SIZE, 1);
 
-            Log::info("Getting total items count for {$resourceType->value}", ['filters' => $searchFilters]);
+            Log::info("Getting total items count for {$resourceType->value}", ['filters' => $filters->all]);
 
-            switch ($resourceType) {
-                case ResourceType::CLIENT:
-                    // Use SearchClient API directly for accurate count
-                    $response = $this->dataExchangeService->getClientData($searchFilters);
-                    break;
-                case ResourceType::CASE:
-                    // Use SearchCase API directly for accurate count
-                    $response = $this->dataExchangeService->getCaseData($searchFilters);
-                    break;
-                case ResourceType::SESSION:
-                    // Sessions require case_id filtering via SearchCase
-                    $response = $this->dataExchangeService->getSessionData($searchFilters);
-                    break;
-                default:
-                    throw new \InvalidArgumentException("Unknown resource type: {$resourceType->value}");
+            $response = null;
+            if ($resourceType === ResourceType::CLIENT) {
+                $response = $this->dataExchangeService->getClientData($filters);
+            } else if ($resourceType === ResourceType::CASE) {
+                $response = $this->dataExchangeService->getCaseData($filters);
+            } else if ($resourceType === ResourceType::SESSION) {
+                $response = $this->dataExchangeService->getSessionData($filters);
+            } else {
+                throw new \InvalidArgumentException(
+                    "Unknown resource type: {$resourceType->value}"
+                );
             }
 
             // Extract TotalCount from SOAP response metadata

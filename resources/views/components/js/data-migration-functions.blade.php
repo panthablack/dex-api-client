@@ -9,7 +9,6 @@
         FAILED: 'FAILED',
         IN_PROGRESS: 'IN_PROGRESS',
         PENDING: 'PENDING',
-        UNKNOWN: 'UNKNOWN',
     }
 
     /**
@@ -21,7 +20,6 @@
         COMPLETED: 'COMPLETED',
         FAILED: 'FAILED',
         PENDING: 'PENDING',
-        UNKNOWN: 'UNKNOWN',
     }
 
     /**
@@ -33,13 +31,11 @@
         [DataMigrationStatus.COMPLETED]: 'bg-success',
         [DataMigrationStatus.FAILED]: 'bg-danger',
         [DataMigrationStatus.CANCELLED]: 'bg-secondary',
-        [DataMigrationStatus.UNKNOWN]: 'bg-light',
 
         [DataMigrationBatchStatus.PENDING]: 'bg-secondary',
         [DataMigrationBatchStatus.IN_PROGRESS]: 'bg-warning',
         [DataMigrationBatchStatus.COMPLETED]: 'bg-success',
         [DataMigrationBatchStatus.FAILED]: 'bg-danger',
-        [DataMigrationBatchStatus.UNKNOWN]: 'bg-light',
     }
 
     /**

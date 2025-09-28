@@ -3,43 +3,39 @@
  * These constants match the PHP DataMigrationStatus enum values
  */
 export const DataMigrationStatus = {
-    CANCELLED: 'CANCELLED',
-    COMPLETED: 'COMPLETED',
-    FAILED: 'FAILED',
-    IN_PROGRESS: 'IN_PROGRESS',
-    PENDING: 'PENDING',
-    UNKNOWN: 'UNKNOWN'
-};
+  CANCELLED: 'CANCELLED',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  PENDING: 'PENDING',
+}
 
 /**
  * Data Migration Batch Status Constants
  * These constants match the PHP DataMigrationBatchStatus enum values
  */
 export const DataMigrationBatchStatus = {
-    IN_PROGRESS: 'IN_PROGRESS',
-    COMPLETED: 'COMPLETED',
-    FAILED: 'FAILED',
-    PENDING: 'PENDING',
-    UNKNOWN: 'UNKNOWN'
-};
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  PENDING: 'PENDING',
+}
 
 /**
  * Status to CSS class mappings for consistent styling
  */
 export const StatusColorMappings = {
-    [DataMigrationStatus.PENDING]: 'bg-secondary',
-    [DataMigrationStatus.IN_PROGRESS]: 'bg-warning',
-    [DataMigrationStatus.COMPLETED]: 'bg-success',
-    [DataMigrationStatus.FAILED]: 'bg-danger',
-    [DataMigrationStatus.CANCELLED]: 'bg-secondary',
-    [DataMigrationStatus.UNKNOWN]: 'bg-light',
+  [DataMigrationStatus.PENDING]: 'bg-secondary',
+  [DataMigrationStatus.IN_PROGRESS]: 'bg-warning',
+  [DataMigrationStatus.COMPLETED]: 'bg-success',
+  [DataMigrationStatus.FAILED]: 'bg-danger',
+  [DataMigrationStatus.CANCELLED]: 'bg-secondary',
 
-    [DataMigrationBatchStatus.PENDING]: 'bg-secondary',
-    [DataMigrationBatchStatus.IN_PROGRESS]: 'bg-warning',
-    [DataMigrationBatchStatus.COMPLETED]: 'bg-success',
-    [DataMigrationBatchStatus.FAILED]: 'bg-danger',
-    [DataMigrationBatchStatus.UNKNOWN]: 'bg-light'
-};
+  [DataMigrationBatchStatus.PENDING]: 'bg-secondary',
+  [DataMigrationBatchStatus.IN_PROGRESS]: 'bg-warning',
+  [DataMigrationBatchStatus.COMPLETED]: 'bg-success',
+  [DataMigrationBatchStatus.FAILED]: 'bg-danger',
+}
 
 /**
  * Helper function to get CSS class for a status
@@ -47,7 +43,7 @@ export const StatusColorMappings = {
  * @returns {string} The corresponding CSS class
  */
 export function getStatusClass(status) {
-    return StatusColorMappings[status] || 'bg-light';
+  return StatusColorMappings[status] || 'bg-light'
 }
 
 /**
@@ -56,7 +52,7 @@ export function getStatusClass(status) {
  * @returns {boolean} True if status indicates active processing
  */
 export function isActiveStatus(status) {
-    return [DataMigrationStatus.PENDING, DataMigrationStatus.IN_PROGRESS].includes(status);
+  return [DataMigrationStatus.PENDING, DataMigrationStatus.IN_PROGRESS].includes(status)
 }
 
 /**
@@ -65,7 +61,7 @@ export function isActiveStatus(status) {
  * @returns {boolean} True if status indicates successful completion
  */
 export function isCompletedStatus(status) {
-    return status === DataMigrationStatus.COMPLETED || status === DataMigrationBatchStatus.COMPLETED;
+  return status === DataMigrationStatus.COMPLETED || status === DataMigrationBatchStatus.COMPLETED
 }
 
 /**
@@ -74,5 +70,5 @@ export function isCompletedStatus(status) {
  * @returns {boolean} True if status indicates failure
  */
 export function isFailedStatus(status) {
-    return status === DataMigrationStatus.FAILED || status === DataMigrationBatchStatus.FAILED;
+  return status === DataMigrationStatus.FAILED || status === DataMigrationBatchStatus.FAILED
 }

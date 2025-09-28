@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\FilterType;
 use App\Enums\ResourceType;
 use App\Helpers\ReferenceData;
 use App\Http\Controllers\DataExchangeController;
 use App\Http\Controllers\DataMigrationController;
+use App\Resources\Filters;
 use App\Services\SoapClientService;
 use Illuminate\Support\Facades\Log;
 
@@ -1096,9 +1098,9 @@ class DataExchangeService
     /**
      * Retrieve client data from DSS Data Exchange
      */
-    public function getClientData($filters = [])
+    public function getClientData(Filters $filters)
     {
-        $criteria = $this->formatSearchCriteria($filters);
+        $criteria = $this->formatSearchCriteria($filters, ResourceType::CLIENT);
         $parameters = [
             'Criteria' => $criteria
         ];
@@ -2262,19 +2264,23 @@ class DataExchangeService
     }
 
     /**
-     * Format search criteria for SearchClient calls
+     * Format search criteria
      */
-    protected function formatSearchCriteria($filters)
+    protected function formatSearchCriteria(Filters $filters, ResourceType $type)
     {
+
         $criteria = [];
 
+        foreach ($filters->byResource($type) as $key => $value) {
+            $criteria[FilterType::getDexFilter($key)] = $value;
+        }
         // Required pagination parameters (from SearchCriteriaBase)
         $criteria['PageIndex'] = $filters['page_index'] ?? 1; // 1-based page index
         $criteria['PageSize'] = $filters['page_size'] ?? 100; // Default 100 records per page
         $criteria['IsAscending'] = $filters['is_ascending'] ?? true; // Default ascending sort
+        $criteria['SortColumn'] = $filters['sort_column'] ?? 'ClientId'; // Default sort by ClientId
 
         // Required sort column (from ClientSearchCriteriaBase)
-        $criteria['SortColumn'] = $filters['sort_column'] ?? 'ClientId'; // Default sort by ClientId
 
         // Map common filters to DSS ClientSearchCriteria fields (all optional)
         if (!empty($filters['client_id'])) {

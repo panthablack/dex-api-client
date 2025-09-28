@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\DataMigrationStatus;
 use App\Enums\DataMigrationBatchStatus;
+use App\Enums\FilterType;
 use App\Enums\ResourceType;
 use App\Enums\VerificationStatus;
 use App\Helpers\ArrayHelpers;
+use App\Resources\Filters;
 use App\Models\DataMigration;
 use App\Services\DataMigrationService;
 use App\Services\VerificationService;
@@ -65,7 +67,7 @@ class DataMigrationController extends Controller
             'date_to' => 'nullable|date|after_or_equal:date_from',
         ]);
 
-        $resourceType = $request->resource_type;
+        $resourceType = ResourceType::resolve($request->resource_type);
 
         // Additional validation to check resource is migratable
         if (!ResourceType::isMigratable($resourceType)) {
@@ -90,17 +92,20 @@ class DataMigrationController extends Controller
         }
 
         try {
-            $filters = [];
-            if ($request->date_from) {
-                $filters['date_from'] = $request->date_from;
-            }
-            if ($request->date_to) {
-                $filters['date_to'] = $request->date_to;
-            }
+            $filters = new Filters();
+
+            if (
+                $request->date_from &&
+                FilterType::resolve($request->date_from) === FilterType::CREATED_DATE_FROM
+            ) $filters->set(FilterType::CREATED_DATE_FROM, $request->date_from);
+            if (
+                $request->date_to &&
+                FilterType::resolve($request->date_to) === FilterType::CREATED_DATE_TO
+            ) $filters->set(FilterType::CREATED_DATE_TO, $request->date_to);
 
             $migration = $this->migrationService->createMigration([
                 'name' => $request->name,
-                'resource_type' => $request->resource_type,
+                'resource_type' => $resourceType,
                 'filters' => $filters,
                 'batch_size' => $request->batch_size ?? 100
             ]);
@@ -633,7 +638,7 @@ class DataMigrationController extends Controller
             MigratedClient::class => ResourceType::CLIENT,
             MigratedCase::class => ResourceType::CASE,
             MigratedSession::class => ResourceType::SESSION,
-            default => ResourceType::UNKNOWN
+            default => throw new \Exception('Invalid type')
         };
     }
 

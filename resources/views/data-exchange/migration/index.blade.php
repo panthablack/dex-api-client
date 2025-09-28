@@ -251,7 +251,6 @@
             FAILED: 'FAILED',
             IN_PROGRESS: 'IN_PROGRESS',
             PENDING: 'PENDING',
-            UNKNOWN: 'UNKNOWN'
         };
 
         const StatusColorMappings = {
@@ -260,7 +259,6 @@
             [DataMigrationStatus.COMPLETED]: 'bg-success',
             [DataMigrationStatus.FAILED]: 'bg-danger',
             [DataMigrationStatus.CANCELLED]: 'bg-secondary',
-            [DataMigrationStatus.UNKNOWN]: 'bg-light'
         };
 
         function getStatusClass(status) {
