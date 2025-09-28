@@ -23,10 +23,9 @@ class FetchFullCaseDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call (returns basic case info - using arrays for consistency)
-        // Note: fetchFullCaseData now uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->times(3)
+            ->times(1)
             ->andReturn([
                 'Cases' => [
                     'Case' => [
@@ -112,10 +111,9 @@ class FetchFullCaseDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call (returns single case)
-        // Note: fetchFullCaseData now uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->times(3)
+            ->times(1)
             ->andReturn([
                 'Cases' => [
                     'Case' => ['CaseId' => 'SINGLE001', 'Status' => 'Open']
@@ -171,10 +169,9 @@ class FetchFullCaseDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call (returns no cases)
-        // Note: fetchFullCaseData now uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->times(3)
+            ->times(1)
             ->andReturn([
                 'Cases' => []
             ]);
@@ -205,10 +202,9 @@ class FetchFullCaseDataTest extends TestCase
         $mockSoapClient = Mockery::mock(SoapClientService::class);
 
         // Mock SearchCase call
-        // Note: fetchFullCaseData now uses dual strategy with 3 SearchCase calls
         $mockSoapClient->shouldReceive('call')
             ->with('SearchCase', Mockery::any())
-            ->times(3)
+            ->times(1)
             ->andReturn([
                 'Cases' => [
                     'Case' => [

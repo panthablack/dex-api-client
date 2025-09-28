@@ -3,6 +3,7 @@
 namespace App\Enums;
 
 use \App\Helpers\EnumHelpers;
+use App\Models\MigratedCase;
 
 enum ResourceType: string
 {
@@ -21,6 +22,11 @@ enum ResourceType: string
         ResourceType::SESSION,
         ResourceType::CLOSED_CASE,
         ResourceType::CASE_CLIENT,
+    ];
+
+    public const RESOURCE_DEPENDENCIES = [
+        ResourceType::SESSION->value => ResourceType::CASE,
+        ResourceType::CASE_CLIENT->value => ResourceType::CASE,
     ];
 
     public static function getDependentResourceTypes(): array
@@ -46,10 +52,31 @@ enum ResourceType: string
         return EnumHelpers::resolveEnum(ResourceType::class, $type, true);
     }
 
+    public static function hasDependency(ResourceType $type): bool
+    {
+        return in_array($type->value, array_keys(self::RESOURCE_DEPENDENCIES));
+    }
+
+    public static function resourcesAvailable(ResourceType $type): bool
+    {
+        if ($type === self::CASE) return MigratedCase::count() > 0;
+        else return false;
+    }
+
     public static function isMigratable($type): bool
     {
         $resolvedType = self::resolve($type);
-        return in_array($resolvedType, self::MIGRATABLE_RESOURCES);
+
+        // return false if not a migratable type
+        if (!in_array($resolvedType, self::MIGRATABLE_RESOURCES)) return false;
+
+        // if resource is dependent on another type and there are no resources available, return false
+        if (self::hasDependency($resolvedType)) {
+            if (!self::resourcesAvailable(self::RESOURCE_DEPENDENCIES[$resolvedType->value]))
+                return false;
+        }
+
+        return true;
     }
 
     public static function getValues(): array

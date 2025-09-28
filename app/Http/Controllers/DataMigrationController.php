@@ -76,15 +76,6 @@ class DataMigrationController extends Controller
             });
         }
 
-        // Additional validation for sessions - require existing cases
-        if ($request->resource_type === 'sessions') {
-            if (!MigratedCase::exists()) {
-                $validator->after(function ($validator) {
-                    $validator->errors()->add('resource_type', 'Sessions can only be migrated when cases have been migrated first.');
-                });
-            }
-        }
-
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
@@ -94,10 +85,17 @@ class DataMigrationController extends Controller
         try {
             $filters = new Filters();
 
+            $filters->set(FilterType::IS_ASCENDING, true);
+            $filters->set(
+                FilterType::SORT_COLUMN,
+                DataMigrationService::getDexSortColumn($resourceType)
+            );
+
             if (
                 $request->date_from &&
                 FilterType::resolve($request->date_from) === FilterType::CREATED_DATE_FROM
             ) $filters->set(FilterType::CREATED_DATE_FROM, $request->date_from);
+
             if (
                 $request->date_to &&
                 FilterType::resolve($request->date_to) === FilterType::CREATED_DATE_TO

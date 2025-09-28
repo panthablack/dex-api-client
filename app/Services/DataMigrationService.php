@@ -38,7 +38,8 @@ class DataMigrationService
 
         // Calculate total items upfront using the fixed getTotalItemsForResource method
         $totalItems = $this->getTotalItemsForResource($resourceType, $filters);
-        Log::info("Found {$totalItems} items for {$resourceType}");
+        if (env('DETAILED_LOGGING'))
+            Log::info("Found {$totalItems} items for {$resourceType}");
 
         return DataMigration::create([
             'name' => $data['name'],
@@ -71,7 +72,8 @@ class DataMigrationService
         $migration->refresh();
 
         // Dispatch first batch of independent resource types only
-        Log::info("Starting to dispatch independent batches for migration {$migration->id}");
+        if (env('DETAILED_LOGGING'))
+            Log::info("Starting to dispatch independent batches for migration {$migration->id}");
 
         // get independent batches
         $independentBatches = $this->getIndependentBatches($migration);
@@ -127,13 +129,15 @@ class DataMigrationService
         $totalItems = $this->getTotalItemsForResource($resourceType, $migration->filters);
 
         if ($totalItems === 0) {
-            Log::info("No items found for resource type: {$resourceType->value}");
+            if (env('DETAILED_LOGGING'))
+                Log::info("No items found for resource type: {$resourceType->value}");
             return;
         }
 
         $totalBatches = ceil($totalItems / $migration->batch_size);
 
-        Log::info("Creating {$totalBatches} batches for {$resourceType->value} ({$totalItems} total items)");
+        if (env('DETAILED_LOGGING'))
+            Log::info("Creating {$totalBatches} batches for {$resourceType->value} ({$totalItems} total items)");
 
         for ($batchNumber = 1; $batchNumber <= $totalBatches; $batchNumber++) {
             $pageIndex = $batchNumber; // DSS API uses 1-based indexing
@@ -152,7 +156,24 @@ class DataMigrationService
             ]);
         }
 
-        Log::info("Created {$totalBatches} batches for {$resourceType->value} (total items already set during migration creation)");
+        if (env('DETAILED_LOGGING'))
+            Log::info("Created {$totalBatches} batches for {$resourceType->value} (total items already set during migration creation)");
+    }
+
+    /**
+     * Get the sort column for a resource type for filtering Search calls via to the Dex API
+     */
+    public static function getDexSortColumn(ResourceType $resourceType): string | null
+    {
+        if (
+            $resourceType === ResourceType::CLIENT ||
+            $resourceType === ResourceType::CASE_CLIENT
+        ) return 'ClientId';
+        else if (
+            $resourceType === ResourceType::CASE ||
+            $resourceType === ResourceType::CLOSED_CASE
+        ) return 'CaseId';
+        else return null;
     }
 
     /**
@@ -165,7 +186,8 @@ class DataMigrationService
             $filters->set(FilterType::PAGE_INDEX, 1);
             $filters->set(FilterType::PAGE_SIZE, 1);
 
-            Log::info("Getting total items count for {$resourceType->value}", ['filters' => $filters->all]);
+            if (env('DETAILED_LOGGING'))
+                Log::info("Getting total items count for {$resourceType->value}", ['filters' => $filters->all]);
 
             $response = null;
             if ($resourceType === ResourceType::CLIENT) {
@@ -184,7 +206,8 @@ class DataMigrationService
             $totalCount = $this->extractTotalCountFromResponse($response);
 
             if ($totalCount > 0) {
-                Log::info("Found {$totalCount} total items for {$resourceType->value}");
+                if (env('DETAILED_LOGGING'))
+                    Log::info("Found {$totalCount} total items for {$resourceType->value}");
                 return $totalCount;
             }
 
@@ -259,7 +282,8 @@ class DataMigrationService
     {
         $dependentTypes = [ResourceType::SESSION => ResourceType::CASE];
 
-        Log::debug("Dispatching batches for " . implode(', ', $dependentTypes));
+        if (env('DETAILED_LOGGING'))
+            Log::debug("Dispatching batches for " . implode(', ', $dependentTypes));
     }
 
     /**
@@ -269,7 +293,8 @@ class DataMigrationService
     {
         $independentTypes = [ResourceType::CLIENT->value, ResourceType::CASE->value];
 
-        Log::debug("Dispatching batches for " . implode(', ', $independentTypes));
+        if (env('DETAILED_LOGGING'))
+            Log::debug("Dispatching batches for " . implode(', ', $independentTypes));
 
         $pendingBatches = $migration->batches()
             ->whereIn('resource_type', $independentTypes)
@@ -279,16 +304,19 @@ class DataMigrationService
             ->limit($limit)
             ->get();
 
-        Log::info("Found {$pendingBatches->count()} pending batches for independent types: " . implode(', ', $independentTypes));
+        if (env('DETAILED_LOGGING'))
+            Log::info("Found {$pendingBatches->count()} pending batches for independent types: " . implode(', ', $independentTypes));
 
         foreach ($pendingBatches as $batch) {
-            Log::info("Dispatching independent batch: {$batch->resource_type} batch {$batch->batch_number} (ID: {$batch->id})");
+            if (env('DETAILED_LOGGING'))
+                Log::info("Dispatching independent batch: {$batch->resource_type} batch {$batch->batch_number} (ID: {$batch->id})");
 
             try {
                 // For debugging, try synchronous processing if dispatch fails
                 ProcessDataMigrationBatch::dispatch($batch);
                 $batch->update(['status' => DataMigrationBatchStatus::IN_PROGRESS]);
-                Log::info("Successfully dispatched and marked batch {$batch->id} as processing");
+                if (env('DETAILED_LOGGING'))
+                    Log::info("Successfully dispatched and marked batch {$batch->id} as processing");
             } catch (\Exception $e) {
                 Log::error("Failed to dispatch batch {$batch->id}: " . $e->getMessage());
                 $batch->failed($e);
@@ -333,7 +361,8 @@ class DataMigrationService
      */
     public function restartMigration(DataMigration $migration): void
     {
-        Log::info("Restarting migration {$migration->id}");
+        if (env('DETAILED_LOGGING'))
+            Log::info("Restarting migration {$migration->id}");
 
         $migration->update([
             'status' => DataMigrationStatus::IN_PROGRESS,
@@ -382,14 +411,17 @@ class DataMigrationService
                 $batch->update(['status' => DataMigrationBatchStatus::IN_PROGRESS]);
                 $dispatchedCount++;
 
-                Log::info("Dispatched {$batch->resource_type} batch {$batch->batch_number} (dependencies satisfied)");
+                if (env('DETAILED_LOGGING'))
+                    Log::info("Dispatched {$batch->resource_type} batch {$batch->batch_number} (dependencies satisfied)");
             } else {
-                Log::info("Waiting for dependencies: {$batch->resource_type} batch {$batch->batch_number}");
+                if (env('DETAILED_LOGGING'))
+                    Log::info("Waiting for dependencies: {$batch->resource_type} batch {$batch->batch_number}");
             }
         }
 
         if ($dispatchedCount === 0) {
-            Log::info("No batches ready for dispatch - waiting for dependencies to complete");
+            if (env('DETAILED_LOGGING'))
+                Log::info("No batches ready for dispatch - waiting for dependencies to complete");
         }
     }
 
@@ -404,7 +436,8 @@ class DataMigrationService
                 'started_at' => now()
             ]);
 
-            Log::info("Processing batch {$batch->batch_number} for {$batch->resource_type}");
+            if (env('DETAILED_LOGGING'))
+                Log::info("Processing batch {$batch->batch_number} for {$batch->resource_type}");
 
             $data = $this->fetchDataForBatch($batch);
             $storedCount = $this->storeData($batch, $data);
@@ -623,7 +656,8 @@ class DataMigrationService
             ?? data_get($caseData, 'CaseDetail.ProgramActivityName')
             ?? null;
 
-        Log::info("Storing case: {$caseId} with clients: " . json_encode($clientIds));
+        if (env('DETAILED_LOGGING'))
+            Log::info("Storing case: {$caseId} with clients: " . json_encode($clientIds));
 
         MigratedCase::updateOrCreate(
             ['case_id' => $caseId],
@@ -868,7 +902,8 @@ class DataMigrationService
             ->get();
 
         if ($migratedCases->isEmpty()) {
-            Log::info("No migrated cases found for session batch {$batch->batch_number}");
+            if (env('DETAILED_LOGGING'))
+                Log::info("No migrated cases found for session batch {$batch->batch_number}");
             return [];
         }
 
@@ -885,7 +920,8 @@ class DataMigrationService
 
                 if (!empty($caseSessions)) {
                     $allSessions = array_merge($allSessions, $caseSessions);
-                    Log::info("Found " . count($caseSessions) . " sessions for case {$migratedCase->case_id}");
+                    if (env('DETAILED_LOGGING'))
+                        Log::info("Found " . count($caseSessions) . " sessions for case {$migratedCase->case_id}");
                 }
             } catch (\Exception $e) {
                 Log::warning("Failed to fetch sessions for case {$migratedCase->case_id}: " . $e->getMessage());
@@ -893,7 +929,8 @@ class DataMigrationService
             }
         }
 
-        Log::info("Session batch {$batch->batch_number}: processed " . count($migratedCases) . " cases, found " . count($allSessions) . " total sessions");
+        if (env('DETAILED_LOGGING'))
+            Log::info("Session batch {$batch->batch_number}: processed " . count($migratedCases) . " cases, found " . count($allSessions) . " total sessions");
 
         return $allSessions;
     }
@@ -920,7 +957,8 @@ class DataMigrationService
                 'summary' => $this->generateMigrationSummary($migration)
             ]);
 
-            Log::info("Data migration {$migration->id} completed with status: {$status->value}");
+            if (env('DETAILED_LOGGING'))
+                Log::info("Data migration {$migration->id} completed with status: {$status->value}");
         }
     }
 

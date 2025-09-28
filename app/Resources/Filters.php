@@ -3,12 +3,21 @@
 namespace App\Resources;
 
 use App\Enums\FilterType;
+use App\Enums\ResourceType;
+use Exception;
 
 class Filters
 {
     private array $filters = [];
 
-    public function __construct() {}
+    public function __construct(array $filters = [])
+    {
+        foreach ($filters as $key => $value) {
+            $resolvedType = FilterType::resolve($key);
+            if (!$resolvedType) throw new \Exception("Cannot resolve filter type: $key");
+            else $this->set($resolvedType, $value);
+        }
+    }
 
     public function __get($name)
     {
@@ -23,12 +32,14 @@ class Filters
 
     public function set(FilterType $type, $value): void
     {
-        $this->filters[$type->value] = $value;
+        $resolved = FilterType::resolve($type);
+        $this->filters[$resolved->value] = $value;
     }
 
-    public function get(FilterType $type): mixed
+    public function get(string | FilterType $type): mixed
     {
-        return $this->filters[$type->value] ?? null;
+        $resolved = FilterType::resolve($type);
+        return $this->filters[$resolved->value] ?? null;
     }
 
     public function all(): mixed
@@ -36,8 +47,17 @@ class Filters
         return $this->filters;
     }
 
-    public function byResource(): array
+    public function byResource(ResourceType $type): array
     {
-        return array_map(fn($f) => $this->$f, FilterType::CLIENT_FILTERS);
+        $filters = [];
+        if ($type === ResourceType::CLIENT || $type === ResourceType::CASE_CLIENT)
+            $filters = FilterType::CLIENT_FILTERS;
+        else if ($type === ResourceType::CASE || $type === ResourceType::CLOSED_CASE)
+            $filters = FilterType::CASE_FILTERS;
+        return array_reduce($filters, function (array $acc, FilterType $filter) {
+            if (isset($this->filters[$filter->value]))
+                $acc[$filter->value] = $this->get($filter);
+            return $acc;
+        }, []);
     }
 }

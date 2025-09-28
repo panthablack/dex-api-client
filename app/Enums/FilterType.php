@@ -6,6 +6,8 @@ use \App\Helpers\EnumHelpers;
 
 enum FilterType: string
 {
+    case CLIENT_ID = 'CLIENT_ID';
+    case CASE_ID = 'CASE_ID';
     case PAGE_INDEX = 'PAGE_INDEX';
     case PAGE_SIZE = 'PAGE_SIZE';
     case IS_ASCENDING = 'IS_ASCENDING';
@@ -14,8 +16,13 @@ enum FilterType: string
     case CREATED_DATE_TO = 'CREATED_DATE_TO';
     case END_DATE_FROM = 'END_DATE_FROM';
     case END_DATE_TO = 'END_DATE_TO';
+    case GIVEN_NAME = 'GIVEN_NAME';
+    case FAMILY_NAME = 'FAMILY_NAME';
 
     public const CLIENT_FILTERS = [
+        FilterType::CLIENT_ID,
+        FilterType::GIVEN_NAME,
+        FilterType::FAMILY_NAME,
         FilterType::PAGE_INDEX,
         FilterType::PAGE_SIZE,
         FilterType::IS_ASCENDING,
@@ -25,6 +32,7 @@ enum FilterType: string
     ];
 
     public const CASE_FILTERS = [
+        FilterType::CASE_ID,
         FilterType::PAGE_INDEX,
         FilterType::PAGE_SIZE,
         FilterType::IS_ASCENDING,
@@ -35,18 +43,11 @@ enum FilterType: string
         FilterType::END_DATE_TO,
     ];
 
-    public const SESSION_FILTERS = [
-        FilterType::PAGE_INDEX,
-        FilterType::PAGE_SIZE,
-        FilterType::IS_ASCENDING,
-        FilterType::SORT_COLUMN,
-        FilterType::CREATED_DATE_FROM,
-        FilterType::CREATED_DATE_TO,
-    ];
-
     public static function getDexFilter(string|FilterType $filter): string
     {
         $resolvedFilter = self::resolve($filter);
+        if ($resolvedFilter === self::CLIENT_ID) return 'ClientId';
+        if ($resolvedFilter === self::CASE_ID) return 'CaseId';
         if ($resolvedFilter === self::PAGE_INDEX) return 'PageIndex';
         if ($resolvedFilter === self::PAGE_SIZE) return 'PageSize';
         if ($resolvedFilter === self::IS_ASCENDING) return 'IsAscending';
@@ -55,6 +56,8 @@ enum FilterType: string
         if ($resolvedFilter === self::CREATED_DATE_TO) return 'CreatedDateTo';
         if ($resolvedFilter === self::END_DATE_FROM) return 'EndDateFrom';
         if ($resolvedFilter === self::END_DATE_TO) return 'EndDateTo';
+        if ($resolvedFilter === self::GIVEN_NAME) return 'GivenName';
+        if ($resolvedFilter === self::FAMILY_NAME) return 'FamilyName';
         throw new \Exception('Filter type not supported for getDexFilter');
     }
 

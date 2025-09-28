@@ -34,11 +34,13 @@ class ProcessDataMigrationBatch implements ShouldQueue
      */
     public function handle(DataMigrationService $migrationService): void
     {
-        Log::info("Processing data migration batch {$this->batch->id} for {$this->batch->resource_type}");
+        if (env('DETAILED_LOGGING'))
+            Log::info("Processing data migration batch {$this->batch->id} for {$this->batch->resource_type}");
 
         try {
             $migrationService->processBatch($this->batch);
-            Log::info("Successfully processed data migration batch {$this->batch->id}");
+            if (env('DETAILED_LOGGING'))
+                Log::info("Successfully processed data migration batch {$this->batch->id}");
         } catch (\Exception $e) {
             Log::error("Failed to process data migration batch {$this->batch->id}: " . $e->getMessage());
             throw $e;

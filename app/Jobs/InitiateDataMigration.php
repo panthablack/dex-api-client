@@ -33,11 +33,13 @@ class InitiateDataMigration implements ShouldQueue
      */
     public function handle(DataMigrationService $migrationService): void
     {
-        Log::info("Initiating data migration {$this->migration->id}: {$this->migration->name}");
+        if (env('DETAILED_LOGGING'))
+            Log::info("Initiating data migration {$this->migration->id}: {$this->migration->name}");
 
         try {
             $migrationService->startMigration($this->migration);
-            Log::info("Successfully initiated data migration {$this->migration->id}");
+            if (env('DETAILED_LOGGING'))
+                Log::info("Successfully initiated data migration {$this->migration->id}");
         } catch (\Exception $e) {
             Log::error("Failed to initiate data migration {$this->migration->id}: " . $e->getMessage());
             $this->migration->failed($e);

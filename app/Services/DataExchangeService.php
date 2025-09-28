@@ -265,22 +265,6 @@ class DataExchangeService
             ]);
         }
 
-        // Debug SLK generation for troubleshooting
-        Log::info('Generated SLK', [
-            'first_name' => $data['first_name'] ?? '',
-            'last_name' => $data['last_name'] ?? '',
-            'date_of_birth' => $data['date_of_birth'] ?? '',
-            'gender' => $data['gender'] ?? '',
-            'cleaned_first_name' => $firstName,
-            'cleaned_last_name' => $lastName,
-            'last_name_part' => $lastNamePart,
-            'first_name_part' => $firstNamePart,
-            'date_part' => $datePart,
-            'gender_code' => $genderCode,
-            'final_slk' => $slk,
-            'is_valid' => $this->validateSLK($slk)
-        ]);
-
         return $slk;
     }
 
@@ -715,12 +699,13 @@ class DataExchangeService
      */
     public function bulkSubmitCaseData($caseDataArray)
     {
-        Log::info('Starting bulk AddCase submission', [
-            'total_cases' => count($caseDataArray),
-            'case_ids' => array_map(function ($case) {
-                return $case['case_id'] ?? 'unknown';
-            }, $caseDataArray)
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('Starting bulk AddCase submission', [
+                'total_cases' => count($caseDataArray),
+                'case_ids' => array_map(function ($case) {
+                    return $case['case_id'] ?? 'unknown';
+                }, $caseDataArray)
+            ]);
 
         $results = [];
         $successCount = 0;
@@ -760,12 +745,13 @@ class DataExchangeService
             }
         }
 
-        Log::info('Bulk AddCase submission completed', [
-            'total_cases' => count($caseDataArray),
-            'successful_cases' => $successCount,
-            'failed_cases' => $errorCount,
-            'success_rate' => count($caseDataArray) > 0 ? round(($successCount / count($caseDataArray)) * 100, 2) . '%' : '0%'
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('Bulk AddCase submission completed', [
+                'total_cases' => count($caseDataArray),
+                'successful_cases' => $successCount,
+                'failed_cases' => $errorCount,
+                'success_rate' => count($caseDataArray) > 0 ? round(($successCount / count($caseDataArray)) * 100, 2) . '%' : '0%'
+            ]);
 
         return $results;
     }
@@ -1106,11 +1092,12 @@ class DataExchangeService
         ];
 
         // Log the exact parameters being sent
-        Log::info('SearchClient Request Parameters:', [
-            'filters_received' => $filters,
-            'formatted_criteria' => $criteria,
-            'full_parameters' => $parameters
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('SearchClient Request Parameters:', [
+                'filters_received' => $filters,
+                'formatted_criteria' => $criteria,
+                'full_parameters' => $parameters
+            ]);
 
         return $this->soapClient->call('SearchClient', $parameters);
     }
@@ -1118,7 +1105,7 @@ class DataExchangeService
     /**
      * Get client data with pagination metadata - for controllers
      */
-    public function getClientDataWithPagination($filters = [])
+    public function getClientDataWithPagination(Filters $filters)
     {
         $result = $this->getClientData($filters);
         return $this->addPaginationMetadata($result, $filters);
@@ -1127,7 +1114,7 @@ class DataExchangeService
     /**
      * Add pagination metadata to DSS API response
      */
-    protected function addPaginationMetadata($result, $filters)
+    protected function addPaginationMetadata($result, Filters $filters)
     {
         // Convert result to array for consistent handling
         if (is_object($result)) {
@@ -1138,8 +1125,8 @@ class DataExchangeService
 
         // Extract pagination info from DSS response
         $totalCount = $resultArray['TotalCount'] ?? null;
-        $currentPage = $filters['page_index'] ?? 1;
-        $perPage = $filters['page_size'] ?? config('features.pagination.default_page_size', 10);
+        $currentPage = $filters->get('page_index') ?? 1;
+        $perPage = $filters->get('page_size') ?? config('features.pagination.default_page_size', 10);
 
         // Calculate pagination details
         $lastPage = $totalCount ? max(1, intval(ceil($totalCount / $perPage))) : 1;
@@ -1182,10 +1169,11 @@ class DataExchangeService
         ];
 
         // Log the exact parameters being sent
-        Log::info('GetClient Request Parameters:', [
-            'client_id_received' => $clientId,
-            'full_parameters' => $parameters
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('GetClient Request Parameters:', [
+                'client_id_received' => $clientId,
+                'full_parameters' => $parameters
+            ]);
 
         return $this->soapClient->call('GetClient', $parameters);
     }
@@ -1193,7 +1181,7 @@ class DataExchangeService
     /**
      * Search cases using SearchCase SOAP method
      */
-    public function getCaseData($filters = [])
+    public function getCaseData(Filters $filters)
     {
         $criteria = $this->formatCaseSearchCriteria($filters);
         $parameters = [
@@ -1201,241 +1189,20 @@ class DataExchangeService
         ];
 
         // Log the exact parameters being sent
-        Log::info('SearchCase Request Parameters:', [
-            'filters_received' => $filters,
-            'formatted_criteria' => $criteria,
-            'full_parameters' => $parameters
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('SearchCase Request Parameters:', [
+                'filters_received' => $filters,
+                'formatted_criteria' => $criteria,
+                'full_parameters' => $parameters
+            ]);
 
         return $this->soapClient->call('SearchCase', $parameters);
     }
 
     /**
-     * Get exploratory data landscape for dual SearchCase strategy
-     *
-     * Makes two quick calls to understand the data distribution:
-     * 1. Cases without end dates (Call A)
-     * 2. Cases with end dates (Call B)
-     */
-    protected function getDataLandscape($filters = [])
-    {
-        $exploratoryFilters = array_merge($filters, [
-            'page_index' => 1,
-            'page_size' => 1  // We only need the total count, not the actual data
-        ]);
-
-        $withoutEndDateCount = 0;
-        $withEndDateCount = 0;
-
-        try {
-            // Call A: No EndDateTo (cases without end dates)
-            $resultA = $this->getCaseData($exploratoryFilters);
-            if (is_object($resultA)) {
-                $resultA = json_decode(json_encode($resultA), true);
-            }
-            $withoutEndDateCount = (int)($resultA['TotalCount'] ?? 0);
-        } catch (\Exception $e) {
-            Log::error('Error in exploratory Call A (no EndDate)', ['error' => $e->getMessage()]);
-        }
-
-        try {
-            // Call B: With EndDateTo (cases with end dates)
-            $farFuture = (new \DateTime())->add(new \DateInterval('P10Y'))->format('Y-m-d');
-            $filtersB = array_merge($exploratoryFilters, ['end_date_to' => $farFuture]);
-            $resultB = $this->getCaseData($filtersB);
-            if (is_object($resultB)) {
-                $resultB = json_decode(json_encode($resultB), true);
-            }
-            $withEndDateCount = (int)($resultB['TotalCount'] ?? 0);
-        } catch (\Exception $e) {
-            Log::error('Error in exploratory Call B (with EndDate)', ['error' => $e->getMessage()]);
-        }
-
-        $totalCount = $withoutEndDateCount + $withEndDateCount;
-
-        Log::info('Data landscape explored', [
-            'without_end_date_count' => $withoutEndDateCount,
-            'with_end_date_count' => $withEndDateCount,
-            'total_count' => $totalCount
-        ]);
-
-        return [
-            'without_end_date_count' => $withoutEndDateCount,
-            'with_end_date_count' => $withEndDateCount,
-            'total_count' => $totalCount
-        ];
-    }
-
-    /**
-     * Get case data using dual SearchCase strategy to fetch ALL cases
-     *
-     * This method makes two SearchCase calls:
-     * 1. Without EndDate filtering (gets cases without end dates)
-     * 2. With EndDateTo=today (gets cases with end dates)
-     *
-     * Then merges the results to ensure we get all cases from DSS
-     */
-    public function getCaseDataDual($filters = [])
-    {
-        Log::info('Starting smart dual SearchCase strategy', ['filters' => $filters]);
-
-        $requestedPage = $filters['page_index'] ?? 1;
-        $requestedPerPage = $filters['page_size'] ?? 10;
-
-        // Step 1: Get data landscape to understand distribution
-        $landscape = $this->getDataLandscape($filters);
-        $withoutEndDateCount = $landscape['without_end_date_count'];
-        $withEndDateCount = $landscape['with_end_date_count'];
-        $totalCount = $landscape['total_count'];
-
-        // Step 2: Calculate pagination boundaries
-        $startPosition = ($requestedPage - 1) * $requestedPerPage + 1; // 1-based position
-        $endPosition = $startPosition + $requestedPerPage - 1;
-
-        Log::info('Pagination calculation', [
-            'requested_page' => $requestedPage,
-            'requested_per_page' => $requestedPerPage,
-            'start_position' => $startPosition,
-            'end_position' => $endPosition,
-            'without_end_date_count' => $withoutEndDateCount,
-            'with_end_date_count' => $withEndDateCount,
-            'total_count' => $totalCount
-        ]);
-
-        // Step 3: Determine which calls are needed
-        $needCallA = false; // Cases without end dates (positions 1 to $withoutEndDateCount)
-        $needCallB = false; // Cases with end dates (positions $withoutEndDateCount+1 to $totalCount)
-
-        $casesFromA = [];
-        $casesFromB = [];
-
-        // Check if we need Call A (cases without end dates)
-        if ($startPosition <= $withoutEndDateCount) {
-            $needCallA = true;
-            $aStartPosition = $startPosition;
-            $aEndPosition = min($endPosition, $withoutEndDateCount);
-            $aPageSize = $aEndPosition - $aStartPosition + 1;
-            $aPageIndex = ceil($aStartPosition / 100); // DSS API page index (1-based)
-            $aOffsetInPage = (($aStartPosition - 1) % 100) + 1;
-
-            // Adjust for API pagination - get enough to cover our range
-            $aApiPageSize = min(100, $aOffsetInPage + $aPageSize - 1);
-
-            Log::info('Call A needed', [
-                'a_start_position' => $aStartPosition,
-                'a_end_position' => $aEndPosition,
-                'a_page_index' => $aPageIndex,
-                'a_api_page_size' => $aApiPageSize,
-                'a_offset_in_page' => $aOffsetInPage
-            ]);
-
-            try {
-                $filtersA = array_merge($filters, [
-                    'page_index' => $aPageIndex,
-                    'page_size' => $aApiPageSize
-                ]);
-                $resultA = $this->getCaseData($filtersA);
-                if (is_object($resultA)) {
-                    $resultA = json_decode(json_encode($resultA), true);
-                }
-
-                if (isset($resultA['Cases']['Case'])) {
-                    $allCasesA = $resultA['Cases']['Case'];
-                    if (!is_array($allCasesA) || (is_array($allCasesA) && isset($allCasesA['CaseId']))) {
-                        $allCasesA = [$allCasesA];
-                    }
-
-                    // Extract only the cases we need from this page
-                    $neededFromA = $aEndPosition - $aStartPosition + 1;
-                    $startIdx = $aOffsetInPage - 1; // Convert to 0-based
-                    $casesFromA = array_slice($allCasesA, $startIdx, $neededFromA);
-                }
-            } catch (\Exception $e) {
-                Log::error('Error in Call A', ['error' => $e->getMessage()]);
-            }
-        }
-
-        // Check if we need Call B (cases with end dates)
-        if ($endPosition > $withoutEndDateCount) {
-            $needCallB = true;
-            $bStartPosition = max(1, $startPosition - $withoutEndDateCount);
-            $bEndPosition = $endPosition - $withoutEndDateCount;
-            $bPageSize = $bEndPosition - $bStartPosition + 1;
-            $bPageIndex = ceil($bStartPosition / 100);
-            $bOffsetInPage = (($bStartPosition - 1) % 100) + 1;
-
-            $bApiPageSize = min(100, $bOffsetInPage + $bPageSize - 1);
-
-            Log::info('Call B needed', [
-                'b_start_position' => $bStartPosition,
-                'b_end_position' => $bEndPosition,
-                'b_page_index' => $bPageIndex,
-                'b_api_page_size' => $bApiPageSize,
-                'b_offset_in_page' => $bOffsetInPage
-            ]);
-
-            try {
-                $farFuture = (new \DateTime())->add(new \DateInterval('P10Y'))->format('Y-m-d');
-                $filtersB = array_merge($filters, [
-                    'page_index' => $bPageIndex,
-                    'page_size' => $bApiPageSize,
-                    'end_date_to' => $farFuture
-                ]);
-                $resultB = $this->getCaseData($filtersB);
-                if (is_object($resultB)) {
-                    $resultB = json_decode(json_encode($resultB), true);
-                }
-
-                if (isset($resultB['Cases']['Case'])) {
-                    $allCasesB = $resultB['Cases']['Case'];
-                    if (!is_array($allCasesB) || (is_array($allCasesB) && isset($allCasesB['CaseId']))) {
-                        $allCasesB = [$allCasesB];
-                    }
-
-                    // Extract only the cases we need from this page
-                    $neededFromB = $bEndPosition - $bStartPosition + 1;
-                    $startIdx = $bOffsetInPage - 1;
-                    $casesFromB = array_slice($allCasesB, $startIdx, $neededFromB);
-                }
-            } catch (\Exception $e) {
-                Log::error('Error in Call B', ['error' => $e->getMessage()]);
-            }
-        }
-
-        // Step 4: Combine results in correct order (A first, then B)
-        $finalCases = array_merge($casesFromA, $casesFromB);
-
-        Log::info('Smart dual SearchCase completed', [
-            'need_call_a' => $needCallA,
-            'need_call_b' => $needCallB,
-            'cases_from_a' => count($casesFromA),
-            'cases_from_b' => count($casesFromB),
-            'final_cases' => count($finalCases),
-            'total_count' => $totalCount
-        ]);
-
-        return [
-            'TransactionStatus' => 'Success',
-            'Cases' => [
-                'Case' => $finalCases
-            ],
-            'TotalCount' => $totalCount,
-            'DualSearchInfo' => [
-                'without_end_date_count' => $withoutEndDateCount,
-                'with_end_date_count' => $withEndDateCount,
-                'need_call_a' => $needCallA,
-                'need_call_b' => $needCallB,
-                'cases_from_a' => count($casesFromA),
-                'cases_from_b' => count($casesFromB),
-                'final_cases' => count($finalCases)
-            ]
-        ];
-    }
-
-    /**
      * Get case data with pagination metadata - for controllers
      */
-    public function getCaseDataWithPagination($filters = [])
+    public function getCaseDataWithPagination(Filters $filters)
     {
         $result = $this->getCaseData($filters);
         return $this->addPaginationMetadata($result, $filters);
@@ -1454,10 +1221,11 @@ class DataExchangeService
         ];
 
         // Log the exact parameters being sent
-        Log::info('GetCase Request Parameters:', [
-            'case_id_received' => $caseId,
-            'full_parameters' => $parameters
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('GetCase Request Parameters:', [
+                'case_id_received' => $caseId,
+                'full_parameters' => $parameters
+            ]);
 
         return $this->soapClient->call('GetCase', $parameters);
     }
@@ -1467,18 +1235,18 @@ class DataExchangeService
      * This provides richer case information compared to SearchCase alone
      * Returns the same structure as getCaseDataWithPagination but with enriched case data
      */
-    public function fetchFullCaseData($filters = [])
+    public function fetchFullCaseData(Filters $filters)
     {
         try {
-            // Use dual SearchCase strategy to get ALL cases (with and without end dates)
-            Log::info('Fetching full case data - starting with dual SearchCase strategy', [
-                'filters' => $filters
-            ]);
+            // Use SearchCase strategy to get all cases
+            if (env('DETAILED_LOGGING'))
+                Log::info('Fetching full case data - starting with SearchCase strategy', [
+                    'filters' => $filters
+                ]);
 
-            // Get the search result using dual strategy
-            $searchResult = $this->getCaseDataDual($filters);
+            $searchResult = $this->getCaseData($filters);
 
-            // Add pagination metadata to the dual result
+            // Add pagination metadata to the result
             $searchResult = $this->addPaginationMetadata($searchResult, $filters);
 
             // Convert objects to arrays for consistent handling
@@ -1497,15 +1265,17 @@ class DataExchangeService
             }
 
             if (empty($cases)) {
-                Log::info('No cases found in search result');
+                if (env('DETAILED_LOGGING'))
+                    Log::info('No cases found in search result');
                 // Add pagination metadata to empty result and return
                 return $this->addPaginationMetadata($searchResult, $filters);
             }
 
-            Log::info('Found cases, now fetching full data', [
-                'cases_count' => count($cases),
-                'first_case_id' => isset($cases[0]['CaseId']) ? $cases[0]['CaseId'] : 'unknown'
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Found cases, now fetching full data', [
+                    'cases_count' => count($cases),
+                    'first_case_id' => isset($cases[0]['CaseId']) ? $cases[0]['CaseId'] : 'unknown'
+                ]);
 
             // Now get detailed data for each case using GetCase
             $enrichedCases = [];
@@ -1524,14 +1294,16 @@ class DataExchangeService
 
                 // Skip invalid data - only process actual case IDs
                 if (!$caseId) {
-                    Log::info('Skipping case with missing ID', [
-                        'case_info_type' => gettype($caseInfo)
-                    ]);
+                    if (env('DETAILED_LOGGING'))
+                        Log::info('Skipping case with missing ID', [
+                            'case_info_type' => gettype($caseInfo)
+                        ]);
                     continue;
                 }
 
                 try {
-                    Log::info('Fetching full data for case', ['case_id' => $caseId]);
+                    if (env('DETAILED_LOGGING'))
+                        Log::info('Fetching full data for case', ['case_id' => $caseId]);
 
                     // Get detailed case data using GetCase
                     $fullCaseResult = $this->getCaseById($caseId);
@@ -1558,11 +1330,12 @@ class DataExchangeService
                 }
             }
 
-            Log::info('Fetch full case data completed', [
-                'total_cases_found' => count($cases),
-                'successful_fetches' => $successCount,
-                'errors' => count($errors)
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Fetch full case data completed', [
+                    'total_cases_found' => count($cases),
+                    'successful_fetches' => $successCount,
+                    'errors' => count($errors)
+                ]);
 
             // Replace the cases in the original search result with enriched data
             if (isset($searchResult['Cases']['Case'])) {
@@ -1598,8 +1371,7 @@ class DataExchangeService
                 isset($soapResponse['TransactionStatus']['TransactionStatusCode']) &&
                 $soapResponse['TransactionStatus']['TransactionStatusCode'] !== 'Success'
             ) {
-
-                Log::info('Case retrieval failed', [
+                Log::error('Case retrieval failed', [
                     'status' => $soapResponse['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
                     'message' => $soapResponse['TransactionStatus']['Messages']['Message']['MessageDescription'] ?? 'No message'
                 ]);
@@ -1612,7 +1384,8 @@ class DataExchangeService
             }
 
             // If no proper case structure, return null
-            Log::info('No case data found in response structure');
+            if (env('DETAILED_LOGGING'))
+                Log::info('No case data found in response structure');
             return null;
         } catch (\Exception $e) {
             Log::error('Error extracting clean case data', [
@@ -1626,13 +1399,14 @@ class DataExchangeService
      * Fetch Full Session Data - First fetches all cases using fetchFullCaseData, then gets detailed session data for each session in each case
      * This provides the richest session information by combining SearchCase + GetCase + GetSession calls
      */
-    public function fetchFullSessionData($filters = [])
+    public function fetchFullSessionData(Filters $filters)
     {
         try {
             // First, get all full case data
-            Log::info('Fetching full session data - starting with fetchFullCaseData', [
-                'filters' => $filters
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Fetching full session data - starting with fetchFullCaseData', [
+                    'filters' => $filters
+                ]);
 
             $fullCaseResult = $this->fetchFullCaseData($filters);
 
@@ -1647,13 +1421,15 @@ class DataExchangeService
             }
 
             if (empty($fullCaseData)) {
-                Log::info('No cases found, returning empty session array');
+                if (env('DETAILED_LOGGING'))
+                    Log::info('No cases found, returning empty session array');
                 return [];
             }
 
-            Log::info('Found cases, now extracting sessions', [
-                'cases_count' => count($fullCaseData)
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Found cases, now extracting sessions', [
+                    'cases_count' => count($fullCaseData)
+                ]);
 
             // Extract all sessions from all cases and fetch detailed session data
             $fullSessionData = [];
@@ -1673,23 +1449,26 @@ class DataExchangeService
                 $sessionIds = $this->extractSessionIdsFromCase($caseData);
 
                 if (empty($sessionIds)) {
-                    Log::info('No sessions found in case', ['case_id' => $caseId]);
+                    if (env('DETAILED_LOGGING'))
+                        Log::info('No sessions found in case', ['case_id' => $caseId]);
                     continue;
                 }
 
-                Log::info('Processing sessions for case', [
-                    'case_id' => $caseId,
-                    'session_count' => count($sessionIds)
-                ]);
+                if (env('DETAILED_LOGGING'))
+                    Log::info('Processing sessions for case', [
+                        'case_id' => $caseId,
+                        'session_count' => count($sessionIds)
+                    ]);
 
                 foreach ($sessionIds as $sessionId) {
                     $totalSessions++;
 
                     try {
-                        Log::info('Fetching full data for session', [
-                            'session_id' => $sessionId,
-                            'case_id' => $caseId
-                        ]);
+                        if (env('DETAILED_LOGGING'))
+                            Log::info('Fetching full data for session', [
+                                'session_id' => $sessionId,
+                                'case_id' => $caseId
+                            ]);
 
                         // Get detailed session data using GetSession
                         $fullSessionResult = $this->getSessionById($sessionId, $caseId);
@@ -1725,12 +1504,13 @@ class DataExchangeService
                 }
             }
 
-            Log::info('Fetch full session data completed', [
-                'cases_processed' => count($fullCaseData),
-                'total_sessions_found' => $totalSessions,
-                'successful_sessions' => $successfulSessions,
-                'errors' => count($errors)
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Fetch full session data completed', [
+                    'cases_processed' => count($fullCaseData),
+                    'total_sessions_found' => $totalSessions,
+                    'successful_sessions' => $successfulSessions,
+                    'errors' => count($errors)
+                ]);
 
             // Return successful sessions (maintain backward compatibility by returning simple array)
             return $fullSessionData;
@@ -1754,9 +1534,10 @@ class DataExchangeService
     public function fetchSessionData($caseId)
     {
         try {
-            Log::info('Fetching session data for specific case', [
-                'case_id' => $caseId
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Fetching session data for specific case', [
+                    'case_id' => $caseId
+                ]);
 
             // Get the case data using getCaseById
             $caseResult = $this->getCaseById($caseId);
@@ -1783,14 +1564,16 @@ class DataExchangeService
             $sessionIds = $this->extractSessionIdsFromCase($caseData);
 
             if (empty($sessionIds)) {
-                Log::info('No sessions found in case', ['case_id' => $caseId]);
+                if (env('DETAILED_LOGGING'))
+                    Log::info('No sessions found in case', ['case_id' => $caseId]);
                 return [];
             }
 
-            Log::info('Processing sessions for case', [
-                'case_id' => $caseId,
-                'session_count' => count($sessionIds)
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Processing sessions for case', [
+                    'case_id' => $caseId,
+                    'session_count' => count($sessionIds)
+                ]);
 
             $sessionData = [];
             $successfulSessions = 0;
@@ -1799,10 +1582,11 @@ class DataExchangeService
             // Fetch detailed data for each session
             foreach ($sessionIds as $sessionId) {
                 try {
-                    Log::info('Fetching full data for session', [
-                        'session_id' => $sessionId,
-                        'case_id' => $caseId
-                    ]);
+                    if (env('DETAILED_LOGGING'))
+                        Log::info('Fetching full data for session', [
+                            'session_id' => $sessionId,
+                            'case_id' => $caseId
+                        ]);
 
                     // Get detailed session data using GetSession
                     $fullSessionResult = $this->getSessionById($sessionId, $caseId);
@@ -1837,12 +1621,13 @@ class DataExchangeService
                 }
             }
 
-            Log::info('Fetch session data completed', [
-                'case_id' => $caseId,
-                'total_sessions_found' => count($sessionIds),
-                'successful_sessions' => $successfulSessions,
-                'errors' => count($errors)
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Fetch session data completed', [
+                    'case_id' => $caseId,
+                    'total_sessions_found' => count($sessionIds),
+                    'successful_sessions' => $successfulSessions,
+                    'errors' => count($errors)
+                ]);
 
             return $sessionData;
         } catch (\Exception $e) {
@@ -1915,11 +1700,11 @@ class DataExchangeService
                 isset($soapResponse['TransactionStatus']['TransactionStatusCode']) &&
                 $soapResponse['TransactionStatus']['TransactionStatusCode'] !== 'Success'
             ) {
-
-                Log::info('Session retrieval failed', [
-                    'status' => $soapResponse['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
-                    'message' => $soapResponse['TransactionStatus']['Messages']['Message']['MessageDescription'] ?? 'No message'
-                ]);
+                if (env('DETAILED_LOGGING'))
+                    Log::info('Session retrieval failed', [
+                        'status' => $soapResponse['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
+                        'message' => $soapResponse['TransactionStatus']['Messages']['Message']['MessageDescription'] ?? 'No message'
+                    ]);
                 return null;
             }
 
@@ -1929,7 +1714,8 @@ class DataExchangeService
             }
 
             // If no proper session structure, return null
-            Log::info('No session data found in response structure');
+            if (env('DETAILED_LOGGING'))
+                Log::info('No session data found in response structure');
             return null;
         } catch (\Exception $e) {
             Log::error('Error extracting clean session data', [
@@ -1942,21 +1728,23 @@ class DataExchangeService
     /**
      * Get sessions/services data - Sessions are linked to Cases and require a Case ID
      */
-    public function getSessionData($filters = [])
+    public function getSessionData(Filters $filters)
     {
         // Debug logging
-        Log::info('getSessionData called with filters:', [
-            'filters' => $filters,
-            'case_id_present' => isset($filters['case_id']),
-            'case_id_value' => $filters['case_id'] ?? 'not set',
-            'case_id_empty' => empty($filters['case_id'])
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('getSessionData called with filters:', [
+                'filters' => $filters,
+                'case_id_present' => isset($filters['case_id']),
+                'case_id_value' => $filters['case_id'] ?? 'not set',
+                'case_id_empty' => empty($filters['case_id'])
+            ]);
 
         // Check if a Case ID is provided - this is required for session retrieval
         if (!empty($filters['case_id'])) {
-            Log::info('Getting sessions for specific case: ' . $filters['case_id']);
+            if (env('DETAILED_LOGGING'))
+                Log::info('Getting sessions for specific case: ' . $filters['case_id']);
             // Use SearchCase to get the case data, which may include session information
-            $caseFilters = ['case_id' => $filters['case_id']];
+            $caseFilters = new Filters(['case_id' => $filters['case_id']]);
             $caseResult = $this->fetchFullCaseData($caseFilters);
 
             // Check if the case result contains session data
@@ -1978,12 +1766,14 @@ class DataExchangeService
             $sessions = $this->getSessionsFromCases($cases);
 
             if (!empty($sessions)) {
-                Log::info('Found session data in case result');
+                if (env('DETAILED_LOGGING'))
+                    Log::info('Found session data in case result');
                 return $sessions;
             }
 
             // If no session data found in case, return informative message
-            Log::info('No session data found for case: ' . $filters['case_id']);
+            if (env('DETAILED_LOGGING'))
+                Log::info('No session data found for case: ' . $filters['case_id']);
             return [
                 'message' => 'No session data found for Case ID: ' . $filters['case_id'],
                 'case_id' => $filters['case_id'],
@@ -2003,16 +1793,17 @@ class DataExchangeService
     {
         // Check if Sessions key exists
         if (!isset($case['Sessions'])) {
-            Log::debug('getSessionsFromCase - no Sessions key found in case:', [
-                'case_keys' => is_array($case) ? array_keys($case) : 'not_array',
-                'case_sample' => array_slice($case, 0, 3) // Only show first 3 keys to avoid large logs
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::debug('getSessionsFromCase - no Sessions key found in case:', [
+                    'case_keys' => is_array($case) ? array_keys($case) : 'not_array',
+                    'case_sample' => array_slice($case, 0, 3) // Only show first 3 keys to avoid large logs
+                ]);
             return [];
         }
 
         $caseSessionId = $case['Sessions']['SessionId'];
         if (!($caseSessionId ?? null)) {
-            Log::debug('getSessionsFromCase failing - case structure:', [
+            Log::error('getSessionsFromCase failing - case structure:', [
                 'case_keys' => is_array($case) ? array_keys($case) : 'not_array',
                 'has_sessions' => isset($case['Sessions']),
                 'sessions_structure' => $case['Sessions'] ?? 'null',
@@ -2066,11 +1857,12 @@ class DataExchangeService
         }
 
         // Log the exact parameters being sent
-        Log::info('GetSession Request Parameters:', [
-            'session_id_received' => $sessionId,
-            'case_id_received' => $caseId,
-            'full_parameters' => $parameters
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('GetSession Request Parameters:', [
+                'session_id_received' => $sessionId,
+                'case_id_received' => $caseId,
+                'full_parameters' => $parameters
+            ]);
 
         return $this->soapClient->call('GetSession', $parameters);
     }
@@ -2082,10 +1874,10 @@ class DataExchangeService
      * Retrieve services for a specific client
      * Note: Services are called "Sessions" and are linked via Cases in DSS system
      */
-    public function getClientServices($clientId, $filters = [])
+    public function getClientServices($clientId, Filters $filters)
     {
         // Search for cases related to this client first
-        $searchFilters = array_merge($filters, ['ClientId' => $clientId]);
+        $searchFilters = new Filters(array_merge($filters->byResource(ResourceType::CLIENT), ['ClientId' => $clientId]));
         $parameters = [
             'OrganisationId' => config('soap.dss.organisation_id'),
             'Filters' => $this->formatFilters($searchFilters)
@@ -2097,7 +1889,7 @@ class DataExchangeService
     /**
      * Get data export in specified format
      */
-    public function exportData($resourceType, $filters = [], $format = 'xml')
+    public function exportData($resourceType, Filters $filters, $format = 'xml')
     {
         $parameters = [
             'OrganisationId' => config('soap.dss.organisation_id'),
@@ -2246,7 +2038,7 @@ class DataExchangeService
     /**
      * Format filters for API calls
      */
-    protected function formatFilters($filters)
+    protected function formatFilters(Filters $filters)
     {
         $formattedFilters = [];
 
@@ -2268,35 +2060,12 @@ class DataExchangeService
      */
     protected function formatSearchCriteria(Filters $filters, ResourceType $type)
     {
-
         $criteria = [];
 
-        foreach ($filters->byResource($type) as $key => $value) {
+        $resourceFilters = $filters->byResource($type);
+
+        foreach ($resourceFilters as $key => $value) {
             $criteria[FilterType::getDexFilter($key)] = $value;
-        }
-        // Required pagination parameters (from SearchCriteriaBase)
-        $criteria['PageIndex'] = $filters['page_index'] ?? 1; // 1-based page index
-        $criteria['PageSize'] = $filters['page_size'] ?? 100; // Default 100 records per page
-        $criteria['IsAscending'] = $filters['is_ascending'] ?? true; // Default ascending sort
-        $criteria['SortColumn'] = $filters['sort_column'] ?? 'ClientId'; // Default sort by ClientId
-
-        // Required sort column (from ClientSearchCriteriaBase)
-
-        // Map common filters to DSS ClientSearchCriteria fields (all optional)
-        if (!empty($filters['client_id'])) {
-            $criteria['ClientId'] = $filters['client_id'];
-        }
-        if (!empty($filters['first_name'])) {
-            $criteria['GivenName'] = $filters['first_name']; // DSS uses GivenName
-        }
-        if (!empty($filters['last_name'])) {
-            $criteria['FamilyName'] = $filters['last_name']; // DSS uses FamilyName
-        }
-        if (!empty($filters['date_from'])) {
-            $criteria['CreatedDateFrom'] = $filters['date_from'] . 'T00:00:00'; // Add time component
-        }
-        if (!empty($filters['date_to'])) {
-            $criteria['CreatedDateTo'] = $filters['date_to'] . 'T23:59:59'; // Add time component
         }
 
         return $criteria;
@@ -2346,7 +2115,6 @@ class DataExchangeService
             $criteria['ServiceEndDateTo'] = $filters['service_end_date'] . 'T23:59:59';
         }
 
-        // EndDateTo filter for dual SearchCase strategy
         if (!empty($filters['end_date_to'])) {
             $criteria['EndDateTo'] = $filters['end_date_to'] . 'T23:59:59';
         }
@@ -2915,12 +2683,12 @@ class DataExchangeService
         if ($cachedClientIds === null) {
             try {
                 // Search for clients with minimal criteria to get a broad set
-                $searchResult = $this->getClientData([
+                $searchResult = $this->getClientData(new Filters([
                     'page_index' => 1,
                     'page_size' => $limit,
                     'sort_column' => 'ClientId',
                     'is_ascending' => true
-                ]);
+                ]));
 
                 $clientIds = [];
 
@@ -2947,10 +2715,11 @@ class DataExchangeService
                 $cachedClientIds = !empty($clientIds) ? $clientIds : false;
 
                 if ($cachedClientIds) {
-                    Log::info('Retrieved existing client IDs for fake data', [
-                        'count' => count($cachedClientIds),
-                        'sample_ids' => array_slice($cachedClientIds, 0, 5)
-                    ]);
+                    if (env('DETAILED_LOGGING'))
+                        Log::info('Retrieved existing client IDs for fake data', [
+                            'count' => count($cachedClientIds),
+                            'sample_ids' => array_slice($cachedClientIds, 0, 5)
+                        ]);
                 } else {
                     Log::warning('No existing client IDs found in DSS system');
                 }
@@ -2973,12 +2742,12 @@ class DataExchangeService
         if ($cachedCaseIds === null) {
             try {
                 // Search for cases with minimal criteria to get a broad set
-                $searchResult = $this->getCaseData([
+                $searchResult = $this->getCaseData(new Filters([
                     'page_index' => 1,
                     'page_size' => $limit,
                     'sort_column' => 'CaseId',
                     'is_ascending' => true
-                ]);
+                ]));
 
                 $caseIds = [];
 
@@ -3007,10 +2776,11 @@ class DataExchangeService
                 $cachedCaseIds = !empty($caseIds) ? $caseIds : false;
 
                 if ($cachedCaseIds) {
-                    Log::info('Retrieved existing case IDs for fake data', [
-                        'count' => count($cachedCaseIds),
-                        'sample_ids' => array_slice($cachedCaseIds, 0, 5)
-                    ]);
+                    if (env('DETAILED_LOGGING'))
+                        Log::info('Retrieved existing case IDs for fake data', [
+                            'count' => count($cachedCaseIds),
+                            'sample_ids' => array_slice($cachedCaseIds, 0, 5)
+                        ]);
                 } else {
                     Log::warning('No existing case IDs found in DSS system');
                 }
@@ -3125,11 +2895,12 @@ class DataExchangeService
      */
     public function submitCaseData($caseData)
     {
-        Log::info('Starting AddCase request', [
-            'case_id' => $caseData['case_id'] ?? 'unknown',
-            'input_data_keys' => array_keys($caseData),
-            'clients_count' => isset($caseData['clients']) ? count($caseData['clients']) : 0
-        ]);
+        if (env('DETAILED_LOGGING'))
+            Log::info('Starting AddCase request', [
+                'case_id' => $caseData['case_id'] ?? 'unknown',
+                'input_data_keys' => array_keys($caseData),
+                'clients_count' => isset($caseData['clients']) ? count($caseData['clients']) : 0
+            ]);
 
         try {
             $formattedCase = $this->formatCaseData($caseData);
@@ -3140,12 +2911,13 @@ class DataExchangeService
                 'Clients' => $formattedClients
             ];
 
-            Log::info('AddCase formatted parameters', [
-                'case_id' => $caseData['case_id'] ?? 'unknown',
-                'formatted_case_keys' => array_keys($formattedCase),
-                'formatted_clients_count' => count($formattedClients),
-                'full_parameters' => $parameters
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('AddCase formatted parameters', [
+                    'case_id' => $caseData['case_id'] ?? 'unknown',
+                    'formatted_case_keys' => array_keys($formattedCase),
+                    'formatted_clients_count' => count($formattedClients),
+                    'full_parameters' => $parameters
+                ]);
 
             $result = $this->soapClient->call('AddCase', $parameters);
 
@@ -3159,13 +2931,14 @@ class DataExchangeService
             $success = isset($resultArray['TransactionStatus']['TransactionStatusCode']) &&
                 $resultArray['TransactionStatus']['TransactionStatusCode'] === 'Success';
 
-            Log::info('AddCase response received', [
-                'case_id' => $caseData['case_id'] ?? 'unknown',
-                'success' => $success,
-                'status_code' => $resultArray['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
-                'messages' => $resultArray['TransactionStatus']['Messages'] ?? null,
-                'full_response' => $resultArray
-            ]);
+            if (env('DETAILED_LOGGING'))
+                Log::info('AddCase response received', [
+                    'case_id' => $caseData['case_id'] ?? 'unknown',
+                    'success' => $success,
+                    'status_code' => $resultArray['TransactionStatus']['TransactionStatusCode'] ?? 'unknown',
+                    'messages' => $resultArray['TransactionStatus']['Messages'] ?? null,
+                    'full_response' => $resultArray
+                ]);
 
             if (!$success) {
                 Log::error('AddCase failed', [
@@ -3254,7 +3027,7 @@ class DataExchangeService
     /**
      * Generate report based on report type and filters
      */
-    public function generateReport($reportType, $filters = [])
+    public function generateReport($reportType, Filters $filters)
     {
         $parameters = [
             'OrganisationId' => config('soap.dss.organisation_id'),

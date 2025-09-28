@@ -98,10 +98,11 @@ class VerificationService
                     // Success - reset circuit breaker
                     if ($circuitState['failures'] > 0) {
                         Cache::forget($circuitBreakerKey);
-                        Log::info('Circuit breaker reset after successful verification', [
-                            'type' => $type,
-                            'record_id' => $this->getRecordId($record)
-                        ]);
+                        if (env('DETAILED_LOGGING'))
+                            Log::info('Circuit breaker reset after successful verification', [
+                                'type' => $type,
+                                'record_id' => $this->getRecordId($record)
+                            ]);
                     }
 
                     $record->update([

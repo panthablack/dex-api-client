@@ -6,6 +6,7 @@ use App\Enums\ResourceType;
 use Illuminate\Http\Request;
 use App\Services\DataExchangeService;
 use App\Helpers\ReferenceData;
+use App\Resources\Filters;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -474,26 +475,6 @@ class DataExchangeController extends Controller
                     $data = $this->dataExchangeService->fetchFullSessionData($filters);
                     break;
                 case 'session':
-                    // Debug logging
-                    Log::info('Session request debug', [
-                        'request_case_id' => $request->case_id,
-                        'request_has_case_id' => $request->has('case_id'),
-                        'request_case_id_empty' => empty($request->case_id),
-                        'filters' => $filters,
-                        'filters_has_case_id' => isset($filters['case_id']),
-                        'all_request_data' => $request->all()
-                    ]);
-
-                    if (empty($request->case_id)) {
-                        throw new \Exception('Case ID is required for session data retrieval. Sessions are linked to specific cases in the DSS system. Received case_id: "' . ($request->case_id ?? 'null') . '" (type: ' . gettype($request->case_id) . ')');
-                    }
-
-                    // Ensure case_id is in filters even if buildFilters missed it
-                    if (!isset($filters['case_id']) && $request->case_id) {
-                        $filters['case_id'] = $request->case_id;
-                        Log::info('Added case_id to filters manually: ' . $request->case_id);
-                    }
-
                     $data = $this->dataExchangeService->getSessionData($filters);
                     break;
                 case 'client_by_id':
@@ -503,15 +484,6 @@ class DataExchangeController extends Controller
                     $data = $this->dataExchangeService->getClientById($request->client_id);
                     break;
                 case 'case_by_id':
-                    // Debug logging for case_by_id
-                    Log::info('Case by ID request debug', [
-                        'request_case_id' => $request->case_id,
-                        'request_has_case_id' => $request->has('case_id'),
-                        'request_case_id_empty' => empty($request->case_id),
-                        'request_case_id_value' => $request->get('case_id'),
-                        'all_request_data' => $request->all()
-                    ]);
-
                     if (empty($request->case_id)) {
                         throw new \Exception('Case ID is required for case lookup. Received: "' . ($request->case_id ?? 'null') . '" (type: ' . gettype($request->case_id) . ')');
                     }
@@ -629,7 +601,7 @@ class DataExchangeController extends Controller
     /**
      * Build filters from request
      */
-    protected function buildFilters(Request $request)
+    protected function buildFilters(Request $request): Filters
     {
         $filters = [];
 
@@ -688,7 +660,7 @@ class DataExchangeController extends Controller
         $filters['sort_column'] = $request->get('sort_by', $this->getDefaultSortColumn($request));
         $filters['is_ascending'] = $request->get('sort_direction', 'asc') === 'asc';
 
-        return $filters;
+        return new Filters($filters);
     }
 
     /**
@@ -1207,7 +1179,7 @@ class DataExchangeController extends Controller
             }
 
             // Fallback: try to find the case_id by searching through all sessions
-            $allSessionsData = $this->dataExchangeService->getSessionData([]);
+            $allSessionsData = $this->dataExchangeService->getSessionData(new Filters());
             $foundCaseId = null;
 
             if (isset($allSessionsData['sessions'])) {

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Resources\Filters;
 use Illuminate\Console\Command;
 use App\Services\DataExchangeService;
 
@@ -364,7 +365,7 @@ class DataExchangeCommand extends Command
         return $this->handleDataOutput($result, "{$resourceType}_export", $format);
     }
 
-    protected function buildFiltersFromOptions()
+    protected function buildFiltersFromOptions(): Filters
     {
         $filters = [];
 
@@ -387,7 +388,7 @@ class DataExchangeCommand extends Command
             }
         }
 
-        return $filters;
+        return new Filters($filters);
     }
 
     protected function buildReportParameters()
