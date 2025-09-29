@@ -1087,6 +1087,7 @@ class DataExchangeService
     public function getClientData(Filters $filters)
     {
         $criteria = $this->formatSearchCriteria($filters, ResourceType::CLIENT);
+
         $parameters = [
             'Criteria' => $criteria
         ];
@@ -1179,18 +1180,19 @@ class DataExchangeService
     }
 
     /**
-     * Search cases using SearchCase SOAP method
+     * Retrieve case data from DSS Data Exchange
      */
     public function getCaseData(Filters $filters)
     {
-        $criteria = $this->formatCaseSearchCriteria($filters);
+        $criteria = $this->formatSearchCriteria($filters, ResourceType::CASE);
+
         $parameters = [
             'Criteria' => $criteria
         ];
 
         // Log the exact parameters being sent
         if (env('DETAILED_LOGGING'))
-            Log::info('SearchCase Request Parameters:', [
+            Log::info('SearchClient Request Parameters:', [
                 'filters_received' => $filters,
                 'formatted_criteria' => $criteria,
                 'full_parameters' => $parameters
@@ -2066,57 +2068,6 @@ class DataExchangeService
 
         foreach ($resourceFilters as $key => $value) {
             $criteria[FilterType::getDexFilter($key)] = $value;
-        }
-
-        return $criteria;
-    }
-
-    /**
-     * Format search criteria for SearchCase calls
-     */
-    protected function formatCaseSearchCriteria($filters)
-    {
-        $criteria = [];
-
-        // Required pagination parameters (from SearchCriteriaBase)
-        $criteria['PageIndex'] = $filters['page_index'] ?? 1; // 1-based page index
-        $criteria['PageSize'] = $filters['page_size'] ?? 100; // Default 100 records per page
-        $criteria['IsAscending'] = $filters['is_ascending'] ?? true; // Default ascending sort
-
-        // Required sort column (from CaseSearchCriteriaBase)
-        $criteria['SortColumn'] = $filters['sort_column'] ?? 'CaseId'; // Default sort by CaseId
-
-        // Map common filters to DSS CaseSearchCriteria fields (all optional)
-        if (!empty($filters['case_id'])) {
-            $criteria['CaseId'] = $filters['case_id'];
-        }
-
-        if (!empty($filters['client_id'])) {
-            $criteria['ClientId'] = $filters['client_id'];
-        }
-
-        if (!empty($filters['case_status'])) {
-            $criteria['CaseStatus'] = $filters['case_status'];
-        }
-
-        if (!empty($filters['date_from'])) {
-            $criteria['CreatedDateFrom'] = $filters['date_from'] . 'T00:00:00';
-        }
-
-        if (!empty($filters['date_to'])) {
-            $criteria['CreatedDateTo'] = $filters['date_to'] . 'T23:59:59';
-        }
-
-        if (!empty($filters['service_start_date'])) {
-            $criteria['ServiceStartDateFrom'] = $filters['service_start_date'] . 'T00:00:00';
-        }
-
-        if (!empty($filters['service_end_date'])) {
-            $criteria['ServiceEndDateTo'] = $filters['service_end_date'] . 'T23:59:59';
-        }
-
-        if (!empty($filters['end_date_to'])) {
-            $criteria['EndDateTo'] = $filters['end_date_to'] . 'T23:59:59';
         }
 
         return $criteria;

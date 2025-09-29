@@ -18,6 +18,9 @@ enum FilterType: string
     case END_DATE_TO = 'END_DATE_TO';
     case GIVEN_NAME = 'GIVEN_NAME';
     case FAMILY_NAME = 'FAMILY_NAME';
+    case CLIENT_EXTERNAL_ID = 'CLIENT_EXTERNAL_ID';
+    case OUTLET_ACTIVITY_ID = 'OUTLET_ACTIVITY_ID';
+    case OUTLET_ID = 'OUTLET_ID';
 
     public const CLIENT_FILTERS = [
         FilterType::CLIENT_ID,
@@ -41,6 +44,9 @@ enum FilterType: string
         FilterType::CREATED_DATE_TO,
         FilterType::END_DATE_FROM,
         FilterType::END_DATE_TO,
+        FilterType::CLIENT_EXTERNAL_ID,
+        FilterType::OUTLET_ACTIVITY_ID,
+        FilterType::OUTLET_ID,
     ];
 
     public static function getDexFilter(string|FilterType $filter): string
@@ -58,6 +64,9 @@ enum FilterType: string
         if ($resolvedFilter === self::END_DATE_TO) return 'EndDateTo';
         if ($resolvedFilter === self::GIVEN_NAME) return 'GivenName';
         if ($resolvedFilter === self::FAMILY_NAME) return 'FamilyName';
+        if ($resolvedFilter === self::CLIENT_EXTERNAL_ID) return 'ClientExternalId';
+        if ($resolvedFilter === self::OUTLET_ACTIVITY_ID) return 'OutletActivityId';
+        if ($resolvedFilter === self::OUTLET_ID) return 'OutletId';
         throw new \Exception('Filter type not supported for getDexFilter');
     }
 

@@ -56,10 +56,10 @@
                     <label class="form-label">Resource to Migrate</label>
                     <div class="d-flex flex-column gap-3">
                         <div class="form-check">
-                            <input type="radio" name="resource_type" value="clients" id="clients"
-                                class="form-check-input" {{ old('resource_type', 'clients') == 'clients' ? 'checked' : '' }}
+                            <input type="radio" name="resource_type" value="CLIENTS" id="CLIENTS"
+                                class="form-check-input" {{ old('resource_type', 'CLIENTS') == 'CLIENTS' ? 'checked' : '' }}
                                 required>
-                            <label for="clients" class="form-check-label d-flex align-items-center">
+                            <label for="CLIENTS" class="form-check-label d-flex align-items-center">
                                 <span>Clients</span>
                                 <span class="badge bg-primary ms-2">
                                     Client (All)
@@ -68,9 +68,9 @@
                         </div>
 
                         <div class="form-check">
-                            <input type="radio" name="resource_type" value="cases" id="cases"
-                                class="form-check-input" {{ old('resource_type') == 'cases' ? 'checked' : '' }} required>
-                            <label for="cases" class="form-check-label d-flex align-items-center">
+                            <input type="radio" name="resource_type" value="CASES" id="CASES"
+                                class="form-check-input" {{ old('resource_type') == 'CASES' ? 'checked' : '' }} required>
+                            <label for="CASES" class="form-check-label d-flex align-items-center">
                                 <span>Cases</span>
                                 <span class="badge bg-success ms-2">
                                     Cases (Open)
@@ -79,10 +79,10 @@
                         </div>
 
                         <div class="form-check">
-                            <input type="radio" name="resource_type" value="closed_cases" id="closed_cases"
-                                class="form-check-input" {{ old('resource_type') == 'closed_cases' ? 'checked' : '' }}
+                            <input type="radio" name="resource_type" value="CLOSED_CASES" id="CLOSED_CASES"
+                                class="form-check-input" {{ old('resource_type') == 'CLOSED_CASES' ? 'checked' : '' }}
                                 required>
-                            <label for="closed_cases" class="form-check-label d-flex align-items-center">
+                            <label for="CLOSED_CASES" class="form-check-label d-flex align-items-center">
                                 <span>Closed Cases</span>
                                 <span class="badge bg-success ms-2">
                                     Closed Cases
@@ -92,10 +92,10 @@
 
                         @if ($hasMigratedCases)
                             <div class="form-check">
-                                <input type="radio" name="resource_type" value="sessions" id="sessions"
-                                    class="form-check-input" {{ old('resource_type') == 'sessions' ? 'checked' : '' }}
+                                <input type="radio" name="resource_type" value="SESSIONS" id="SESSIONS"
+                                    class="form-check-input" {{ old('resource_type') == 'SESSIONS' ? 'checked' : '' }}
                                     required>
-                                <label for="sessions" class="form-check-label d-flex align-items-center">
+                                <label for="SESSIONS" class="form-check-label d-flex align-items-center">
                                     <span>Sessions</span>
                                     <span class="badge bg-info ms-2">
                                         Sessions (From Cases)
@@ -103,10 +103,10 @@
                                 </label>
                             </div>
                             <div class="form-check">
-                                <input type="radio" name="resource_type" value="case_clients" id="case_clients"
-                                    class="form-check-input" {{ old('resource_type') == 'case_clients' ? 'checked' : '' }}
+                                <input type="radio" name="resource_type" value="CASE_CLIENTS" id="CASE_CLIENTS"
+                                    class="form-check-input" {{ old('resource_type') == 'CASE_CLIENTS' ? 'checked' : '' }}
                                     required>
-                                <label for="case_clients" class="form-check-label d-flex align-items-center">
+                                <label for="CASE_CLIENTS" class="form-check-label d-flex align-items-center">
                                     <span>Case Clients</span>
                                     <span class="badge bg-info ms-2">
                                         Clients associated with migrated Cases
