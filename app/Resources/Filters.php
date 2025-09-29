@@ -47,6 +47,12 @@ class Filters
         return $this->filters;
     }
 
+    public function toJson(): string {
+        $jsonString = json_encode($this->all);
+        if ($jsonString === false) throw new \Exception("Conversion to JSON string failed.");
+        else return $jsonString;
+    }
+
     public function byResource(ResourceType $type): array
     {
         $filters = [];

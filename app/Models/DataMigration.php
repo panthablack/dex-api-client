@@ -41,6 +41,20 @@ class DataMigration extends Model
         return $this->hasMany(DataMigrationBatch::class);
     }
 
+    public function incompleteBatches(): Collection
+    {
+        return $this->batches->filter(
+            fn(DataMigrationBatch $batch) => $batch->isIncomplete()
+        );
+    }
+
+    public function pendingBatches(): Collection
+    {
+        return $this->batches->filter(
+            fn(DataMigrationBatch $batch) => $batch->isPending()
+        );
+    }
+
     // Direct relationships to migrated records
     public function clients(): HasManyThrough
     {

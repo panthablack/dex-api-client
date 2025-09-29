@@ -455,7 +455,7 @@ class DataExchangeController extends Controller
                 ->withInput();
         }
 
-        $resourceType = $request->resource_type;
+        $resourceType = ResourceType::resolve($request->resource_type);
 
         try {
             $filters = $this->buildFilters($request);
@@ -503,7 +503,7 @@ class DataExchangeController extends Controller
             }
 
             if ($request->action === 'download') {
-                return $this->downloadData($data, $resourceType, $request->format);
+                return $this->downloadData($data, $resourceType->value, $request->format);
             }
 
             $response = redirect()->back()
@@ -514,7 +514,7 @@ class DataExchangeController extends Controller
                 ->withInput();
 
             // Store resource ID in session for individual resource lookups
-            $lowerType = strtolower($resourceType);
+            $lowerType = strtolower($resourceType->value);
             if (in_array($lowerType, ['client', 'case', 'session'])) {
                 $resourceId = '';
                 if ($lowerType === 'client_by_id') {

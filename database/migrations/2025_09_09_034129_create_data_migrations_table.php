@@ -17,7 +17,7 @@ return new class extends Migration
             $table->id();
             $table->string('name'); // e.g., "Client Migration 2025-09-09"
             $table->enum('resource_type', ResourceType::getValues());
-            $table->json('filters')->nullable(); // Date ranges, specific criteria
+            $table->json('filters'); // Date ranges, specific criteria
             $table->enum('status', DataMigrationStatus::getValues())->default('pending');
             $table->integer('total_items')->default(0);
             $table->integer('batch_size')->default(100);

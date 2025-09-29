@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\DataMigrationBatchStatus;
 use App\Models\DataMigrationBatch;
 use App\Services\DataMigrationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,13 +35,10 @@ class ProcessDataMigrationBatch implements ShouldQueue
      */
     public function handle(DataMigrationService $migrationService): void
     {
-        if (env('DETAILED_LOGGING'))
-            Log::info("Processing data migration batch {$this->batch->id} for {$this->batch->resource_type}");
-
         try {
-            $migrationService->processBatch($this->batch);
             if (env('DETAILED_LOGGING'))
-                Log::info("Successfully processed data migration batch {$this->batch->id}");
+                Log::info("Processing data migration batch {$this->batch->id} for {$this->batch->resource_type}");
+            $migrationService->processBatch($this->batch);
         } catch (\Exception $e) {
             Log::error("Failed to process data migration batch {$this->batch->id}: " . $e->getMessage());
             throw $e;

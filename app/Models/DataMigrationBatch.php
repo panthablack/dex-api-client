@@ -83,4 +83,14 @@ class DataMigrationBatch extends Model
         // else, return pending
         else return VerificationStatus::PENDING;
     }
+
+    public function isIncomplete(): bool
+    {
+        return $this->status !== DataMigrationBatchStatus::COMPLETED;
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === DataMigrationBatchStatus::PENDING;
+    }
 }

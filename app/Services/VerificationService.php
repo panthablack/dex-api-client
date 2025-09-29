@@ -28,7 +28,7 @@ class VerificationService
      */
     public function verifyClient(MigratedClient $client): bool
     {
-        return $this->verifyWithRetry('client', $client, function () use ($client) {
+        return $this->verifyWithRetry(ResourceType::CLIENT, $client, function () use ($client) {
             return $this->dataExchangeService->getClientById($client->client_id);
         }, function ($response) use ($client) {
             return $this->validateClientData($client, $response);
@@ -40,7 +40,7 @@ class VerificationService
      */
     public function verifyCase(MigratedCase $case): bool
     {
-        return $this->verifyWithRetry('case', $case, function () use ($case) {
+        return $this->verifyWithRetry(ResourceType::CASE, $case, function () use ($case) {
             return $this->dataExchangeService->getCaseById($case->case_id);
         }, function ($response) use ($case) {
             return $this->validateCaseData($case, $response);
@@ -52,7 +52,7 @@ class VerificationService
      */
     public function verifySession(MigratedSession $session): bool
     {
-        return $this->verifyWithRetry('session', $session, function () use ($session) {
+        return $this->verifyWithRetry(ResourceType::SESSION, $session, function () use ($session) {
             return $this->dataExchangeService->getSessionById($session->session_id, $session->case_id);
         }, function ($response) use ($session) {
             return $this->validateSessionData($session, $response);
@@ -62,7 +62,7 @@ class VerificationService
     /**
      * Verify with retry logic and circuit breaker pattern - PREVENTION MEASURE
      */
-    protected function verifyWithRetry(string $type, $record, callable $apiCall, callable $validator): bool
+    protected function verifyWithRetry(ResourceType $type, $record, callable $apiCall, callable $validator): bool
     {
         $circuitBreakerKey = 'verification_circuit_breaker';
         $failureThreshold = 10; // Number of consecutive failures before opening circuit
@@ -79,7 +79,7 @@ class VerificationService
 
             // Circuit is open - don't make API calls, leave record as pending
             Log::warning('Circuit breaker open, skipping verification', [
-                'type' => $type,
+                'type' => $type->value,
                 'record_id' => $this->getRecordId($record),
                 'failures' => $circuitState['failures'],
                 'last_failure' => $circuitState['last_failure']
@@ -100,7 +100,7 @@ class VerificationService
                         Cache::forget($circuitBreakerKey);
                         if (env('DETAILED_LOGGING'))
                             Log::info('Circuit breaker reset after successful verification', [
-                                'type' => $type,
+                                'type' => $type->value,
                                 'record_id' => $this->getRecordId($record)
                             ]);
                     }
@@ -116,7 +116,7 @@ class VerificationService
                     $record->update([
                         'verification_status' => VerificationStatus::FAILED,
                         'verified_at' => now(),
-                        'verification_error' => ucfirst($type) . ' data validation failed or record not found in DSS'
+                        'verification_error' => ucfirst($type->value) . ' data validation failed or record not found in DSS'
                     ]);
                     return false;
                 }
@@ -124,7 +124,7 @@ class VerificationService
                 $retryCount++;
                 $isConnectionError = $this->isConnectionError($e);
 
-                Log::warning(ucfirst($type) . ' verification attempt failed', [
+                Log::warning(ucfirst($type->value) . ' verification attempt failed', [
                     'record_id' => $this->getRecordId($record),
                     'error' => $e->getMessage(),
                     'retry_count' => $retryCount,
@@ -141,7 +141,7 @@ class VerificationService
 
                     // Don't mark as failed - leave as pending for later retry
                     Log::error('Verification failed after retries, leaving as pending', [
-                        'type' => $type,
+                        'type' => $type->value,
                         'record_id' => $this->getRecordId($record),
                         'circuit_failures' => $circuitState['failures']
                     ]);
@@ -220,18 +220,14 @@ class VerificationService
         ];
 
         // Get stats for each resource type
-        $resourceType = $migration->resource_type;
+        $resourceType = ResourceType::resolve($migration->resource_type);
 
-        // Convert string resource type to enum value for database queries
-        $enumResourceType = ResourceType::resolve($resourceType);
-        $enumValue = $enumResourceType->value;
-
-        $modelClass = $this->getModelClass($enumValue);
+        $modelClass = $this->getModelClass($resourceType->value);
 
         if ($modelClass) {
             // Get the batch IDs for this migration and resource type
             $batchIds = $migration->batches()
-                ->where('resource_type', $enumValue)
+                ->where('resource_type', $resourceType->value)
                 ->where('status', 'completed')
                 ->pluck('id')
                 ->toArray();
@@ -268,15 +264,13 @@ class VerificationService
         $results = [];
 
         // Convert string resource type to enum value for database queries
-        $resourceType = $migration->resource_type;
-        $enumResourceType = ResourceType::resolve($resourceType);
-        $enumValue = $enumResourceType->value;
-        $modelClass = $this->getModelClass($enumValue);
+        $resourceType = ResourceType::resolve($migration->resource_type);
+        $modelClass = $this->getModelClass($resourceType->value);
 
         if ($modelClass) {
             // Get the batch IDs for this migration and resource type
             $batchIds = $migration->batches()
-                ->where('resource_type', $enumValue)
+                ->where('resource_type', $resourceType->value)
                 ->where('status', 'completed')
                 ->pluck('id')
                 ->toArray();
@@ -288,7 +282,7 @@ class VerificationService
 
             $verified = 0;
             foreach ($records as $record) {
-                if ($this->verifyRecord($enumResourceType, $record)) {
+                if ($this->verifyRecord($resourceType, $record)) {
                     $verified++;
                 }
             }

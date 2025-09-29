@@ -187,16 +187,21 @@
                     </div>
                     <div class="card-body">
                         @foreach ([$migration->resource_type] as $type)
+                            @php
+                                $resourceType = \App\Enums\ResourceType::resolve($type);
+                                $resourceTypeClass = match ($resourceType->value) {
+                                    \App\Enums\ResourceType::CLIENT => 'bg-primary',
+                                    \App\Enums\ResourceType::CASE => 'bg-success',
+                                    \App\Enums\ResourceType::CASE_CLIENT => 'bg-primary',
+                                    \App\Enums\ResourceType::CLOSED_CASE => 'bg-warning',
+                                    \App\Enums\ResourceType::SESSION => 'bg-info',
+                                    default => '',
+                                };
+                            @endphp
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span
-                                        class="badge
-                                {{ $type === \App\Enums\ResourceType::CLIENT ? 'bg-primary' : '' }}
-                                {{ $type === \App\Enums\ResourceType::CASE ? 'bg-success' : '' }}
-                                {{ $type === \App\Enums\ResourceType::CASE_CLIENT ? 'bg-primary' : '' }}
-                                {{ $type === \App\Enums\ResourceType::CLOSED_CASE ? 'bg-warning' : '' }}
-                                {{ $type === \App\Enums\ResourceType::SESSION ? 'bg-info' : '' }}">
-                                        {{ ucfirst($type->value) }}
+                                    <span class="badge {{ $resourceTypeClass }}">
+                                        {{ \App\Helpers\StringHelpers::titleCase($resourceType->value) }}
                                     </span>
                                     @php
                                         $typeBatches = $migration->batches->where('resource_type', $type);
@@ -369,31 +374,24 @@
                         <div class="row">
                             @foreach ([$migration->resource_type] as $type)
                                 @php
-                                    // Convert string type to enum value for database comparison
-                                    $enumType = match ($type) {
-                                        'clients' => \App\Enums\ResourceType::CLIENT->value,
-                                        'cases' => \App\Enums\ResourceType::CASE->value,
-                                        'sessions' => \App\Enums\ResourceType::SESSION->value,
-                                        default => strtoupper($type),
-                                    };
-
+                                    $resourceType = \App\Enums\ResourceType::resolve($type);
                                     $completedBatches = $migration->batches
-                                        ->where('resource_type', $enumType)
+                                        ->where('resource_type', $resourceType->value)
                                         ->where('status', \App\Enums\DataMigrationBatchStatus::COMPLETED);
                                 @endphp
                                 @if ($completedBatches->count() > 0)
                                     <div class="col-md-4 mb-3">
                                         <div class="border rounded p-3">
-                                            <h6 class="fw-medium mb-2">{{ ucfirst($type) }}</h6>
+                                            <h6 class="fw-medium mb-2">{{ ucfirst($type->value) }}</h6>
                                             <p class="text-muted mb-3">
                                                 {{ $completedBatches->sum('items_stored') }} items migrated
                                             </p>
                                             <div class="d-grid gap-2">
-                                                <a href="{{ route('data-migration.api.export', ['migration' => $migration, 'resource_type' => $enumType, 'format' => 'csv']) }}"
+                                                <a href="{{ route('data-migration.api.export', ['migration' => $migration, 'resource_type' => $resourceType->value, 'format' => 'csv']) }}"
                                                     class="btn btn-outline-primary btn-sm">
                                                     Export CSV
                                                 </a>
-                                                <a href="{{ route('data-migration.api.export', ['migration' => $migration, 'resource_type' => $enumType, 'format' => 'json']) }}"
+                                                <a href="{{ route('data-migration.api.export', ['migration' => $migration, 'resource_type' => $resourceType->value, 'format' => 'json']) }}"
                                                     class="btn btn-outline-secondary btn-sm">
                                                     Export JSON
                                                 </a>
