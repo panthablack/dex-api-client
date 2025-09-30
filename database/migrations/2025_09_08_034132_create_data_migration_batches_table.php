@@ -18,10 +18,10 @@ return new class extends Migration
             $table->foreignId('data_migration_id')->constrained('data_migrations')->onDelete('cascade');
             $table->enum('resource_type', ResourceType::getValues());
             $table->integer('batch_number'); // Sequential batch number
+            $table->integer('batch_size');
             $table->integer('page_index'); // DSS API page index
             $table->integer('page_size')->default(100);
             $table->enum('status', DataMigrationBatchStatus::getValues())->default('pending');
-            $table->integer('items_requested')->default(0);
             $table->integer('items_received')->default(0);
             $table->integer('items_stored')->default(0);
             $table->json('api_filters'); // Batch level filters

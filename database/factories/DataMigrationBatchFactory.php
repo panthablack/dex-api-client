@@ -25,6 +25,7 @@ class DataMigrationBatchFactory extends Factory
         return [
             'data_migration_id' => DataMigration::factory(),
             'batch_number' => 1,
+            'batch_size' => 50,
             'page_index' => 1,
             'page_size' => 50,
             'resource_type' => fake()->randomElement([
@@ -33,7 +34,6 @@ class DataMigrationBatchFactory extends Factory
                 ResourceType::SESSION
             ]),
             'status' => DataMigrationBatchStatus::COMPLETED,
-            'items_requested' => 50,
             'items_received' => 50,
             'items_stored' => 45,
             'api_filters' => [],
@@ -49,8 +49,8 @@ class DataMigrationBatchFactory extends Factory
     {
         return $this->state(fn(array $attributes) => [
             'status' => DataMigrationBatchStatus::COMPLETED,
-            'items_received' => $attributes['items_requested'] ?? 50,
-            'items_stored' => $attributes['items_requested'] ?? 50,
+            'items_received' => $attributes['batch_size'] ?? 50,
+            'items_stored' => $attributes['batch_size'] ?? 50,
             'completed_at' => fake()->dateTimeBetween('-1 hour', 'now'),
         ]);
     }
@@ -76,7 +76,7 @@ class DataMigrationBatchFactory extends Factory
     {
         return $this->state(fn(array $attributes) => [
             'status' => DataMigrationBatchStatus::FAILED,
-            'items_received' => fake()->numberBetween(1, $attributes['items_requested'] ?? 50),
+            'items_received' => fake()->numberBetween(1, $attributes['batch_size'] ?? 50),
             'items_stored' => 0,
             'completed_at' => null,
         ]);

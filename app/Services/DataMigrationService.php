@@ -953,9 +953,9 @@ class DataMigrationService
                 return [
                     'id' => $batch->id,
                     'batch_number' => $batch->batch_number,
+                    'batch_size' => $batch->batch_size,
                     'resource_type' => $batch->resource_type,
                     'status' => $batch->status->value,
-                    'items_requested' => $batch->items_requested,
                     'items_received' => $batch->items_received ?? 0,
                     'items_stored' => $batch->items_stored ?? 0,
                     'success_rate' => $batch->success_rate,
