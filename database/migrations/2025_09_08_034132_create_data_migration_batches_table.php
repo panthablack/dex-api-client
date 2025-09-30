@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\DataMigrationBatchStatus;
+use App\Enums\ResourceType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -15,7 +16,7 @@ return new class extends Migration
         Schema::create('data_migration_batches', function (Blueprint $table) {
             $table->id();
             $table->foreignId('data_migration_id')->constrained('data_migrations')->onDelete('cascade');
-            $table->string('resource_type'); // 'clients', 'cases', or 'sessions'
+            $table->enum('resource_type', ResourceType::getValues());
             $table->integer('batch_number'); // Sequential batch number
             $table->integer('page_index'); // DSS API page index
             $table->integer('page_size')->default(100);
@@ -23,7 +24,7 @@ return new class extends Migration
             $table->integer('items_requested')->default(0);
             $table->integer('items_received')->default(0);
             $table->integer('items_stored')->default(0);
-            $table->json('api_filters'); // Filters sent to API
+            $table->json('api_filters'); // Batch level filters
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();

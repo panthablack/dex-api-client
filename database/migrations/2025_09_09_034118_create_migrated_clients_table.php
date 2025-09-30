@@ -32,7 +32,7 @@ return new class extends Migration
             $table->string('aboriginal_or_torres_strait_islander_origin_code')->nullable();
             $table->boolean('has_disabilities')->default(false);
             $table->json('api_response')->nullable(); // Store full API response
-            $table->foreignIdFor(DataMigrationBatch::class);
+            $table->foreignIdFor(DataMigrationBatch::class)->constrained();
             $table->enum('verification_status', [
                 VerificationStatus::PENDING,
                 VerificationStatus::VERIFIED,

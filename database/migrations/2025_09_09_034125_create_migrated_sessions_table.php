@@ -25,7 +25,7 @@ return new class extends Migration
             $table->boolean('interpreter_present')->default(false);
             $table->string('service_setting_code')->nullable();
             $table->json('api_response')->nullable(); // Store full API response
-            $table->foreignIdFor(DataMigrationBatch::class);
+            $table->foreignIdFor(DataMigrationBatch::class)->constrained();
             $table->enum('verification_status', [
                 VerificationStatus::PENDING,
                 VerificationStatus::VERIFIED,
