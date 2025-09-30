@@ -406,9 +406,12 @@ class DataMigrationService
             // Dispatch next batch if available
             $this->dispatchBatches($batch->dataMigration);
         } catch (\Exception $e) {
-            Log::error("Batch processing failed: " . $e->getMessage());
-            $batch->onFail($e);
-            $this->handleBatchFailure($batch);
+            $batch->refresh();
+            if ($batch->status === DataMigrationBatchStatus::COMPLETED) {
+                Log::error("Batch processing completed, but errored out: " . $e->getMessage());
+            } else {
+                $this->handleBatchFailure($batch);
+            }
         }
     }
 
