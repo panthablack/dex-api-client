@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\FilterType;
 use App\Enums\ResourceType;
+use App\Helpers\ArrayHelpers;
 use App\Helpers\ReferenceData;
 use App\Http\Controllers\DataExchangeController;
 use App\Http\Controllers\DataMigrationController;
@@ -1104,6 +1105,15 @@ class DataExchangeService
     }
 
     /**
+     * Retrieve client data from DSS Data Exchange
+     */
+    public function getCaseClientData(Filters $filters)
+    {
+        throw new \Exception('Case Clients not supported, yet.');
+        // Run a getClientById() call for each client found associated with a case, then return that
+    }
+
+    /**
      * Get client data with pagination metadata - for controllers
      */
     public function getClientDataWithPagination(Filters $filters)
@@ -1199,6 +1209,15 @@ class DataExchangeService
             ]);
 
         return $this->soapClient->call('SearchCase', $parameters);
+    }
+
+    /**
+     * Retrieve Closed Case data from DSS Data Exchange
+     */
+    public function getClosedCaseData(Filters $filters)
+    {
+        $filters->set(FilterType::END_DATE_TO, now()->addDay(1)->format('Y-m-d') . 'T00:00:00.000');
+        return $this->getCaseData($filters);
     }
 
     /**
@@ -1307,7 +1326,10 @@ class DataExchangeService
             // Extract cases from the search result to enrich with detailed data
             $cases = [];
             if (isset($searchResult['Cases']['Case'])) {
-                $cases = $searchResult['Cases']['Case'];
+                // We must be vigilant for the API's inconsistency here
+                if (!ArrayHelpers::isIndexedArray($searchResult['Cases']['Case']))
+                    $cases = [$searchResult['Cases']['Case']];
+                else $cases = $searchResult['Cases']['Case'];
                 // Ensure it's an array (single case comes as object)
                 if (!is_array($cases) || (is_array($cases) && isset($cases['CaseId']))) {
                     $cases = [$cases];
@@ -1339,13 +1361,13 @@ class DataExchangeService
                         $enrichedCases[] = $enrichedCase;
                         $successCount++;
                     } else {
-                        Log::error('Failed to enrich case: ', $caseInfo);
+                        Log::error('Failed to enrich case.');
                         throw new \Exception("Failed to enrich case: $caseInfo");
                     }
                 } catch (\Throwable $th) {
                     $errorsCount++;
+                    Log::error('Failed to fetch full case data.');
                     Log::error($th->getMessage());
-                    Log::error('Failed to fetch full case data: ', $caseInfo);
                 }
             }
 

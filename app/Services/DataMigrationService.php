@@ -198,6 +198,10 @@ class DataMigrationService
                 $response = $this->dataExchangeService->getClientData($filters);
             } else if ($resourceType === ResourceType::CASE) {
                 $response = $this->dataExchangeService->getCaseData($filters);
+            } else if ($resourceType === ResourceType::CLOSED_CASE) {
+                $response = $this->dataExchangeService->getClosedCaseData($filters);
+            } else if ($resourceType === ResourceType::CASE_CLIENT) {
+                $response = $this->dataExchangeService->getCaseClientData($filters);
             } else if ($resourceType === ResourceType::SESSION) {
                 $response = $this->dataExchangeService->getSessionData($filters);
             } else {
@@ -214,14 +218,10 @@ class DataMigrationService
                     Log::info("Found {$totalCount} total items for {$resourceType->value}");
                 return $totalCount;
             }
-
-            // Fallback: estimate based on reasonable assumptions
-            Log::warning("Could not determine total items for {$resourceType->value}, using estimate");
-            return 1000; // Conservative estimate
-
+            throw new \Exception("Could not determine total items for {$resourceType->value}, using estimate");
         } catch (\Exception $e) {
             Log::error("Failed to get total items for {$resourceType->value}: " . $e->getMessage());
-            return 0;
+            throw $e;
         }
     }
 
@@ -434,7 +434,14 @@ class DataMigrationService
                 $response = $this->dataExchangeService->getClientDataWithPagination($filters);
                 return $this->extractClientsFromResponse($response);
 
+            case ResourceType::CASE_CLIENT:
+                throw new \Exception('Case clients not supported, yet.');
+
             case ResourceType::CASE:
+                $response = $this->dataExchangeService->fetchFullCaseData($filters);
+                return $this->extractCasesFromResponse($response);
+
+            case ResourceType::CLOSED_CASE:
                 $response = $this->dataExchangeService->fetchFullCaseData($filters);
                 return $this->extractCasesFromResponse($response);
 
@@ -465,7 +472,13 @@ class DataMigrationService
                     case ResourceType::CLIENT:
                         $this->storeClient($itemArray, $batchId, $migrationId);
                         break;
+                    case ResourceType::CASE_CLIENT:
+                        $this->storeClient($itemArray, $batchId, $migrationId);
+                        break;
                     case ResourceType::CASE:
+                        $this->storeCase($itemArray, $batchId, $migrationId);
+                        break;
+                    case ResourceType::CLOSED_CASE:
                         $this->storeCase($itemArray, $batchId, $migrationId);
                         break;
                     case ResourceType::SESSION:
