@@ -170,11 +170,17 @@
                 <div class="mb-4">
                     <label for="batch_size" class="form-label">Batch Size</label>
                     <select name="batch_size" id="batch_size" class="form-select">
-                        <option value="25" {{ old('batch_size') == '25' ? 'selected' : '' }}>25 items per batch
+                        <option value="25"
+                            {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '25' ? 'selected' : '' }}>25
+                            items per batch
                         </option>
-                        <option value="50" {{ old('batch_size') == '50' ? 'selected' : '' }}>50 items per batch
+                        <option value="50"
+                            {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '50' ? 'selected' : '' }}>50
+                            items per batch
                         </option>
-                        <option value="100" {{ old('batch_size', '100') == '100' ? 'selected' : '' }}>100 items per
+                        <option value="100"
+                            {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '100' ? 'selected' : '' }}>
+                            100 items per
                             batch (recommended)</option>
                     </select>
                     <div class="form-text">
