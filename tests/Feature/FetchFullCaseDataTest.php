@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Resources\Filters;
 use Tests\TestCase;
 use App\Services\DataExchangeService;
 use App\Services\SoapClientService;
@@ -78,7 +79,7 @@ class FetchFullCaseDataTest extends TestCase
         $service = new DataExchangeService($mockSoapClient);
 
         // Test fetchFullCaseData
-        $result = $service->fetchFullCaseData(['case_status' => 'Any']);
+        $result = $service->fetchFullCaseData(new Filters(['case_status' => 'Any']));
 
         // Verify structure - should have pagination metadata and cases data
         $this->assertIsArray($result);
@@ -143,7 +144,7 @@ class FetchFullCaseDataTest extends TestCase
         $service = new DataExchangeService($mockSoapClient);
 
         // Test fetchFullCaseData
-        $result = $service->fetchFullCaseData(['case_id' => 'SINGLE001']);
+        $result = $service->fetchFullCaseData(new Filters(['case_id' => 'SINGLE001']));
 
         // Verify single case handling - should have pagination metadata and cases data
         $this->assertIsArray($result);
@@ -180,7 +181,7 @@ class FetchFullCaseDataTest extends TestCase
         $service = new DataExchangeService($mockSoapClient);
 
         // Test fetchFullCaseData
-        $result = $service->fetchFullCaseData(['case_status' => 'NonExistent']);
+        $result = $service->fetchFullCaseData(new Filters(['case_status' => 'NonExistent']));
 
         // Verify no cases handling - should have pagination metadata but empty cases
         $this->assertIsArray($result);
@@ -244,7 +245,7 @@ class FetchFullCaseDataTest extends TestCase
         $service = new DataExchangeService($mockSoapClient);
 
         // Test fetchFullCaseData
-        $result = $service->fetchFullCaseData([]);
+        $result = $service->fetchFullCaseData(new Filters());
 
         // Verify error handling - should have pagination metadata and only successful cases
         $this->assertIsArray($result);

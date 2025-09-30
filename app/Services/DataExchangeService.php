@@ -1232,6 +1232,56 @@ class DataExchangeService
         return $this->soapClient->call('GetCase', $parameters);
     }
 
+    public function enrichCaseData($caseData, $attempt = 1): array | null
+    {
+        try {
+            $caseId = null;
+
+            // Extract Case ID
+            if (is_array($caseData) && isset($caseData['CaseId'])) {
+                $caseId = $caseData['CaseId'];
+            } elseif (is_array($caseData) && isset($caseData['CaseDetail']['CaseId'])) {
+                $caseId = $caseData['CaseDetail']['CaseId'];
+            }
+
+            // Skip invalid data - only process actual case IDs
+            if (!$caseId) {
+                if (env('DETAILED_LOGGING'))
+                    Log::info('Skipping case with missing ID', [
+                        'case_info_type' => gettype($caseData)
+                    ]);
+                throw new \Exception('missing caseId');
+            }
+
+            if (env('DETAILED_LOGGING'))
+                Log::info('Fetching full data for case', ['case_id' => $caseId]);
+
+            // Get detailed case data using GetCase
+            if ($caseId === 'CASE_2606') throw new \Exception('Burn baby!');
+            if ($caseId === 'CASE_7722') throw new \Exception('Burn baby!');
+            $fullCaseResult = $this->getCaseById($caseId);
+
+            // Extract clean case data from the SOAP response
+            return $this->extractCleanCaseData($fullCaseResult) ?? null;
+        } catch (\Exception $e) {
+            if ($attempt < 3) {
+                Log::error('Failed to get full data for case', [
+                    'case_id' => $caseId,
+                    'error' => $e->getMessage()
+                ]);
+                Log::error("Attempt $attempt - Trying again.");
+                return $this->enrichCaseData($caseData, $attempt + 1);
+            } else {
+                Log::error('Failed to get full data for case', [
+                    'case_id' => $caseId,
+                    'error' => $e->getMessage()
+                ]);
+                Log::error("Attempt $attempt - Reached Limit, marking as failed.");
+                throw $e;
+            }
+        }
+    }
+
     /**
      * Fetch Full Case Data - Search for cases then get detailed data for each using GetCase
      * This provides richer case information compared to SearchCase alone
@@ -1281,54 +1331,24 @@ class DataExchangeService
 
             // Now get detailed data for each case using GetCase
             $enrichedCases = [];
-            $errors = [];
+            $errorsCount = 0;
             $successCount = 0;
 
             foreach ($cases as $caseInfo) {
-                $caseId = null;
-
-                // Extract Case ID
-                if (is_array($caseInfo) && isset($caseInfo['CaseId'])) {
-                    $caseId = $caseInfo['CaseId'];
-                } elseif (is_array($caseInfo) && isset($caseInfo['CaseDetail']['CaseId'])) {
-                    $caseId = $caseInfo['CaseDetail']['CaseId'];
-                }
-
-                // Skip invalid data - only process actual case IDs
-                if (!$caseId) {
-                    if (env('DETAILED_LOGGING'))
-                        Log::info('Skipping case with missing ID', [
-                            'case_info_type' => gettype($caseInfo)
-                        ]);
-                    continue;
-                }
-
                 try {
-                    if (env('DETAILED_LOGGING'))
-                        Log::info('Fetching full data for case', ['case_id' => $caseId]);
-
-                    // Get detailed case data using GetCase
-                    $fullCaseResult = $this->getCaseById($caseId);
-
-                    // Extract clean case data from the SOAP response
-                    $cleanCaseData = $this->extractCleanCaseData($fullCaseResult);
-
-                    // Only include cases where enrichment was successful
-                    if ($cleanCaseData) {
-                        $enrichedCases[] = $cleanCaseData;
+                    $enrichedCase = $this->enrichCaseData($caseInfo);
+                    if ($enrichedCase) {
+                        $enrichedCases[] = $enrichedCase;
                         $successCount++;
+                    } else {
+                        $errorsCount++;
+                        Log::error('Failed to enrich case: ', $caseInfo);
+                        throw new \Exception("Failed to enrich case: $caseInfo");
                     }
-                } catch (\Exception $e) {
-                    Log::error('Failed to get full data for case', [
-                        'case_id' => $caseId,
-                        'error' => $e->getMessage()
-                    ]);
-
-                    // Don't include failed cases in the response
-                    $errors[] = [
-                        'case_id' => $caseId,
-                        'error' => $e->getMessage()
-                    ];
+                } catch (\Throwable $th) {
+                    $errorsCount++;
+                    Log::error('Failed to fetch full case data: ', $caseInfo);
+                    throw new \Exception('Failed to fetch full case data: ' . $th->getMessage());
                 }
             }
 
@@ -1336,16 +1356,18 @@ class DataExchangeService
                 Log::info('Fetch full case data completed', [
                     'total_cases_found' => count($cases),
                     'successful_fetches' => $successCount,
-                    'errors' => count($errors)
+                    'errors' => $errorsCount
                 ]);
 
             // Replace the cases in the original search result with enriched data
-            if (isset($searchResult['Cases']['Case'])) {
-                $searchResult['Cases']['Case'] = $enrichedCases;
-            }
+            $enrichedCases = [
+                'Cases' => [
+                    'Case' => $enrichedCases
+                ]
+            ];
 
-            // Add pagination metadata and return the enriched result
-            return $this->addPaginationMetadata($searchResult, $filters);
+            // Add pagination metadata and return both cases arrays
+            return $this->addPaginationMetadata($enrichedCases, $filters);
         } catch (\Exception $e) {
             Log::error('Failed to fetch full case data', [
                 'error' => $e->getMessage(),

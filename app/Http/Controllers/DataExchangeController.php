@@ -434,9 +434,8 @@ class DataExchangeController extends Controller
     public function showRetrieveForm()
     {
         $resources = $this->dataExchangeService->getAvailableResources();
-        $reports = $this->dataExchangeService->getAvailableReports();
 
-        return view('data-exchange.retrieve-form', compact('resources', 'reports'));
+        return view('data-exchange.retrieve-form', compact('resources'));
     }
 
     /**
@@ -469,7 +468,7 @@ class DataExchangeController extends Controller
                     $data = $this->dataExchangeService->getCaseData($filters);
                     break;
                 case 'full_cases':
-                    $data = $this->dataExchangeService->fetchFullCaseData($filters);
+                    $data = $this->dataExchangeService->fetchFullCaseData($filters)['enrichedCases'];
                     break;
                 case 'full_sessions':
                     $data = $this->dataExchangeService->fetchFullSessionData($filters);

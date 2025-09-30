@@ -909,11 +909,17 @@ class DataMigrationService
      */
     protected function handleBatchFailure(DataMigrationBatch $batch): void
     {
+        // Mark batch as failed
+        $batch->update(['status' => DataMigrationBatchStatus::FAILED->value]);
+
         // Update migration with failure
         $migration = $batch->dataMigration;
 
         // Check if we should retry or continue with next batch
-        $failedBatches = $migration->batches()->where('status', 'failed')->count();
+        $failedBatches = $migration->batches()->where(
+            'status',
+            DataMigrationBatchStatus::FAILED->value
+        )->count();
         $totalBatches = $migration->batches()->count();
 
         // If too many failures, mark migration as failed
