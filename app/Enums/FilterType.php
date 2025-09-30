@@ -12,6 +12,7 @@ enum FilterType: string
     case PAGE_SIZE = 'PAGE_SIZE';
     case IS_ASCENDING = 'IS_ASCENDING';
     case SORT_COLUMN = 'SORT_COLUMN';
+    case CREATED_DATE = 'CREATED_DATE';
     case CREATED_DATE_FROM = 'CREATED_DATE_FROM';
     case CREATED_DATE_TO = 'CREATED_DATE_TO';
     case END_DATE_FROM = 'END_DATE_FROM';
@@ -58,6 +59,7 @@ enum FilterType: string
         if ($resolvedFilter === self::PAGE_SIZE) return 'PageSize';
         if ($resolvedFilter === self::IS_ASCENDING) return 'IsAscending';
         if ($resolvedFilter === self::SORT_COLUMN) return 'SortColumn';
+        if ($resolvedFilter === self::CREATED_DATE) return 'CreatedDate';
         if ($resolvedFilter === self::CREATED_DATE_FROM) return 'CreatedDateFrom';
         if ($resolvedFilter === self::CREATED_DATE_TO) return 'CreatedDateTo';
         if ($resolvedFilter === self::END_DATE_FROM) return 'EndDateFrom';

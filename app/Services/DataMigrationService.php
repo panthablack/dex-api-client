@@ -169,15 +169,7 @@ class DataMigrationService
      */
     public static function getDexSortColumn(ResourceType $resourceType): string | null
     {
-        if (
-            $resourceType === ResourceType::CLIENT ||
-            $resourceType === ResourceType::CASE_CLIENT
-        ) return 'ClientId';
-        else if (
-            $resourceType === ResourceType::CASE ||
-            $resourceType === ResourceType::CLOSED_CASE
-        ) return 'CaseId';
-        else return null;
+        return FilterType::getDexFilter(FilterType::CREATED_DATE);
     }
 
     /**
