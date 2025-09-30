@@ -181,20 +181,22 @@ class DataMigrationController extends Controller
     public function retry(DataMigration $migration): JsonResponse
     {
         try {
-            $failedBatches = $migration->batches()->where('status', 'failed')->count();
-            $pendingBatches = $migration->batches()->where('status', 'pending')->count();
+            $failedBatches = $migration->failedBatches();
+            $pendingBatches = $migration->pendingBatches();
+            $failedBatchesCount = $failedBatches->count();
+            $pendingBatchesCount = $pendingBatches->count();
 
             // Handle stuck/pending migrations
-            if ($migration->status === DataMigrationStatus::PENDING || ($failedBatches === 0 && $pendingBatches > 0)) {
+            if ($migration->status === DataMigrationStatus::PENDING || ($failedBatchesCount === 0 && $pendingBatchesCount > 0)) {
                 $this->migrationService->restartMigration($migration);
                 return response()->json([
                     'success' => true,
-                    'message' => "Restarted stuck migration with {$pendingBatches} pending batches"
+                    'message' => "Restarted stuck migration with {$pendingBatchesCount} pending batches"
                 ]);
             }
 
             // Handle failed batches
-            if ($failedBatches === 0) {
+            if ($failedBatchesCount === 0) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No failed batches to retry'
@@ -205,7 +207,7 @@ class DataMigrationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Retrying {$failedBatches} failed batches"
+                'message' => "Retrying {$failedBatchesCount} failed batches"
             ]);
         } catch (\Exception $e) {
             return response()->json([

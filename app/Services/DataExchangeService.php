@@ -1257,8 +1257,6 @@ class DataExchangeService
                 Log::info('Fetching full data for case', ['case_id' => $caseId]);
 
             // Get detailed case data using GetCase
-            if ($caseId === 'CASE_2606') throw new \Exception('Burn baby!');
-            if ($caseId === 'CASE_7722') throw new \Exception('Burn baby!');
             $fullCaseResult = $this->getCaseById($caseId);
 
             // Extract clean case data from the SOAP response
@@ -1346,6 +1344,7 @@ class DataExchangeService
                     }
                 } catch (\Throwable $th) {
                     $errorsCount++;
+                    Log::error($th->getMessage());
                     Log::error('Failed to fetch full case data: ', $caseInfo);
                 }
             }

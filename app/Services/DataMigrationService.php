@@ -320,19 +320,10 @@ class DataMigrationService
             'started_at' => now()
         ]);
 
-        // *****************************************************************************************
-        // TODO: Steps below
-        // *****************************************************************************************
-        //
-        // Get all failed batches failed and update to pending
-        //
+        $incompleteBatches = $migration->incompleteBatches();
 
-        $failedBatches = $migration->failedBatches();
-
-        foreach ($failedBatches as $batch) {
-            if (DataMigrationBatchStatus::resolve($batch->status) ===  DataMigrationBatchStatus::FAILED)
-                $batch->update(['status' => DataMigrationBatchStatus::PENDING]);
-        }
+        foreach ($incompleteBatches as $batch)
+            $batch->update(['status' => DataMigrationBatchStatus::PENDING]);
 
         // Dispatch pending batches
         $this->dispatchBatches($migration);
@@ -997,15 +988,14 @@ class DataMigrationService
      */
     public function retryFailedBatches(DataMigration $migration): void
     {
-        $failedBatches = $migration->batches()->where('status', 'failed')->get();
+        $failedBatches = $migration->failedBatches();
 
-        foreach ($failedBatches as $batch) {
+        foreach ($failedBatches as $batch)
             $batch->update([
                 'status' => DataMigrationBatchStatus::PENDING,
                 'started_at' => null,
                 'completed_at' => null
             ]);
-        }
 
         if ($failedBatches->count() > 0) {
             $migration->update(['status' => DataMigrationStatus::IN_PROGRESS]);

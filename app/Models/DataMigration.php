@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DataMigrationBatchStatus;
 use App\Enums\DataMigrationStatus;
 use App\Enums\ResourceType;
 use App\Enums\VerificationStatus;
@@ -43,6 +44,13 @@ class DataMigration extends Model
     {
         return $this->batches->filter(
             fn(DataMigrationBatch $batch) => $batch->isIncomplete()
+        );
+    }
+
+    public function failedBatches(): Collection
+    {
+        return $this->batches->filter(
+            fn(DataMigrationBatch $batch) => $batch->isFailed()
         );
     }
 

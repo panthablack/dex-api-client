@@ -87,6 +87,11 @@ class DataMigrationBatch extends Model
         return $this->status !== DataMigrationBatchStatus::COMPLETED;
     }
 
+    public function isFailed(): bool
+    {
+        return $this->status === DataMigrationBatchStatus::FAILED;
+    }
+
     public function isPending(): bool
     {
         return $this->status === DataMigrationBatchStatus::PENDING;
