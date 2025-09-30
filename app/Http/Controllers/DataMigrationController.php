@@ -91,15 +91,11 @@ class DataMigrationController extends Controller
                 DataMigrationService::getDexSortColumn($resourceType)
             );
 
-            if (
-                $request->date_from &&
-                FilterType::resolve($request->date_from) === FilterType::CREATED_DATE_FROM
-            ) $filters->set(FilterType::CREATED_DATE_FROM, $request->date_from);
+            if ($request->date_from)
+                $filters->set(FilterType::CREATED_DATE_FROM, $request->date_from);
 
-            if (
-                $request->date_to &&
-                FilterType::resolve($request->date_to) === FilterType::CREATED_DATE_TO
-            ) $filters->set(FilterType::CREATED_DATE_TO, $request->date_to);
+            if ($request->date_to)
+                $filters->set(FilterType::CREATED_DATE_TO, $request->date_to);
 
             $migration = $this->migrationService->createMigration([
                 'name' => $request->name,

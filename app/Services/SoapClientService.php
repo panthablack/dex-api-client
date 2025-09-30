@@ -45,9 +45,10 @@ class SoapClientService
 
             $this->client = new SoapClient($this->config['wsdl_url'], $options);
 
-            $this->log('SOAP client initialized successfully', [
-                'wsdl_url' => $this->config['wsdl_url']
-            ]);
+            if (env('DETAILED_LOGGING'))
+                $this->log('SOAP client initialized successfully', [
+                    'wsdl_url' => $this->config['wsdl_url']
+                ]);
         } catch (SoapFault $e) {
             $this->log('Failed to initialize SOAP client', [
                 'error' => $e->getMessage(),
@@ -110,11 +111,12 @@ class SoapClientService
         try {
             $this->ensureClientInitialized();
 
-            $this->log('Making SOAP call', [
-                'method' => $method,
-                'parameters' => $parameters,
-                'parameters_json' => json_encode($parameters, JSON_PRETTY_PRINT)
-            ]);
+            if (env('DETAILED_LOGGING'))
+                $this->log('Making SOAP call', [
+                    'method' => $method,
+                    'parameters' => $parameters,
+                    'parameters_json' => json_encode($parameters, JSON_PRETTY_PRINT)
+                ]);
 
             $headers = [];
 
@@ -123,7 +125,8 @@ class SoapClientService
                 $wsseHeader = $this->attachWSSUsernameToken($this->config['username'], $this->config['password']);
                 if ($wsseHeader) {
                     $headers[] = $wsseHeader;
-                    $this->log('Added WSE authentication header');
+                    if (env('DETAILED_LOGGING'))
+                        $this->log('Added WSE authentication header');
                 }
             }
 
@@ -143,10 +146,11 @@ class SoapClientService
             $this->lastRequest = $this->client ? $this->client->__getLastRequest() : null;
             $this->lastResponse = $this->client ? $this->client->__getLastResponse() : null;
 
-            $this->log('SOAP call successful', [
-                'method' => $method,
-                'result' => $result
-            ]);
+            if (env('DETAILED_LOGGING'))
+                $this->log('SOAP call successful', [
+                    'method' => $method,
+                    'result' => $result
+                ]);
 
             return $result;
         } catch (SoapFault $e) {
@@ -266,7 +270,8 @@ class SoapClientService
                 'CreateDateTime' => date('c') // ISO 8601 format - this is the only required field
             ];
 
-            $this->log('Creating minimal DSS header', ['headerData' => $headerData]);
+            if (env('DETAILED_LOGGING'))
+                $this->log('Creating minimal DSS header', ['headerData' => $headerData]);
 
             // Create SoapHeader with the correct namespace from WSDL
             $header = new \SoapHeader(

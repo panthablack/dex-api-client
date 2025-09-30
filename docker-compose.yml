@@ -32,6 +32,8 @@ services:
         restart: unless-stopped
         networks:
             - app-network
+        deploy:
+            replicas: ${ENABLE_QUEUE_SERVICE:-0}
 
     db:
         image: mysql:8.0
