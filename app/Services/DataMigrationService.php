@@ -138,6 +138,11 @@ class DataMigrationService
         for ($batchNumber = 1; $batchNumber <= $totalBatches; $batchNumber++) {
             $pageIndex = $batchNumber; // DSS API uses 1-based indexing
 
+            // Calculate expected batch size (last batch may be smaller)
+            $expectedBatchSize = $batchNumber < $totalBatches
+                ? $migration->batch_size
+                : $totalItems - (($batchNumber - 1) * $migration->batch_size);
+
             // create batch filters
             $batchfilters = $filters;
             $batchfilters->set(FilterType::PAGE_INDEX, $pageIndex);
@@ -147,6 +152,7 @@ class DataMigrationService
                 'data_migration_id' => $migration->id,
                 'resource_type' => $resourceType,
                 'batch_number' => $batchNumber,
+                'batch_size' => $expectedBatchSize,
                 'page_index' => $pageIndex,
                 'page_size' => $migration->batch_size,
                 'status' => DataMigrationBatchStatus::PENDING,
@@ -381,6 +387,7 @@ class DataMigrationService
             if (env('DETAILED_LOGGING'))
                 Log::info("Processing batch {$batch->batch_number} for {$batch->resource_type}");
 
+            $expectedBatchSize = $batch->batch_size;
             $data = $this->fetchDataForBatch($batch);
             $storedCount = $this->storeData($batch, $data);
             $receivedCount = count($data);
@@ -394,6 +401,9 @@ class DataMigrationService
             } elseif ($storedCount < $receivedCount) {
                 $status = DataMigrationBatchStatus::FAILED;
                 $errorMessage = "Only stored {$storedCount} out of {$receivedCount} items - partial storage not allowed";
+            } elseif ($receivedCount < $expectedBatchSize) {
+                $status = DataMigrationBatchStatus::FAILED;
+                $errorMessage = "Only received {$receivedCount} out of {$expectedBatchSize} items. ";
             } else {
                 $status = DataMigrationBatchStatus::COMPLETED;
             }

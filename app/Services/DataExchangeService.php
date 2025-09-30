@@ -1341,14 +1341,12 @@ class DataExchangeService
                         $enrichedCases[] = $enrichedCase;
                         $successCount++;
                     } else {
-                        $errorsCount++;
                         Log::error('Failed to enrich case: ', $caseInfo);
                         throw new \Exception("Failed to enrich case: $caseInfo");
                     }
                 } catch (\Throwable $th) {
                     $errorsCount++;
                     Log::error('Failed to fetch full case data: ', $caseInfo);
-                    throw new \Exception('Failed to fetch full case data: ' . $th->getMessage());
                 }
             }
 

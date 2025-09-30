@@ -335,10 +335,10 @@
                                     </td>
                                     <td>
                                         <div>
-                                            <div x-text="`${batch.items_stored || 0}/${batch.items_received || 0} stored`">
+                                            <div x-text="`${batch.items_stored || 0}/${batch.batch_size || 0} stored`">
                                             </div>
-                                            <small x-show="batch.items_received > 0" class="text-muted"
-                                                x-text="`${Math.round(((batch.items_stored || 0) / batch.items_received) * 100)}% success`">
+                                            <small x-show="batch.batch_size > 0" class="text-muted"
+                                                x-text="`${Math.round(((batch.items_stored || 0) / batch.batch_size) * 100)}% success`">
                                             </small>
                                         </div>
                                     </td>
