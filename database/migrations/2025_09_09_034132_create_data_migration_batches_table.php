@@ -24,7 +24,6 @@ return new class extends Migration
             $table->integer('items_received')->default(0);
             $table->integer('items_stored')->default(0);
             $table->json('api_filters'); // Filters sent to API
-            $table->json('api_response_summary')->nullable(); // Summary of API response
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();

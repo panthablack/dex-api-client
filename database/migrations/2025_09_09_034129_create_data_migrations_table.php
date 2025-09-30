@@ -21,7 +21,6 @@ return new class extends Migration
             $table->enum('status', DataMigrationStatus::getValues())->default('pending');
             $table->integer('total_items')->default(0);
             $table->integer('batch_size')->default(100);
-            $table->json('summary')->nullable(); // Store detailed summary
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();

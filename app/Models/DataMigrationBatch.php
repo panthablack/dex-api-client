@@ -25,14 +25,12 @@ class DataMigrationBatch extends Model
         'items_received',
         'items_stored',
         'api_filters',
-        'api_response_summary',
         'started_at',
         'completed_at'
     ];
 
     protected $casts = [
         'api_filters' => 'array',
-        'api_response_summary' => 'array',
         'status' => DataMigrationBatchStatus::class,
         'started_at' => 'datetime',
         'completed_at' => 'datetime'

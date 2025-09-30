@@ -35,7 +35,6 @@ class DataMigrationFactory extends Factory
             'status' => DataMigrationStatus::COMPLETED,
             'total_items' => 100,
             'batch_size' => 50,
-            'summary' => null,
             'started_at' => fake()->dateTimeBetween('-1 day', 'now'),
             'completed_at' => fake()->dateTimeBetween('-1 hour', 'now'),
         ];

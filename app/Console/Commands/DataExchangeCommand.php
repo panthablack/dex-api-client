@@ -425,7 +425,6 @@ class DataExchangeCommand extends Command
             if ($this->option('detailed')) {
                 $this->line($convertedData);
             } else {
-                // Show summary
                 if (is_array($data)) {
                     $count = count($data);
                     $this->line("Records found: {$count}");
@@ -469,7 +468,6 @@ class DataExchangeCommand extends Command
         $this->line("  php artisan dex:client get-client --client-id=TEST001 --format=xml");
         $this->line("  php artisan dex:client get-services --service-type=Counselling --format=csv");
         $this->line("  php artisan dex:client export-data --resource=clients --format=csv --output=export.csv");
-        $this->line("  php artisan dex:client generate-report --report=client_summary --format=json");
         $this->line('');
         $this->line("Filter Examples:");
         $this->line("  --client-id=TEST001 --first-name=John --last-name=Doe");

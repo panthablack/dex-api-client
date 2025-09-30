@@ -22,7 +22,6 @@ class DataMigration extends Model
         'status',
         'total_items',
         'batch_size',
-        'summary',
         'started_at',
         'completed_at'
     ];
@@ -30,7 +29,6 @@ class DataMigration extends Model
     protected $casts = [
         'resource_type' => ResourceType::class,
         'filters' => 'array',
-        'summary' => 'array',
         'status' => DataMigrationStatus::class,
         'started_at' => 'datetime',
         'completed_at' => 'datetime'

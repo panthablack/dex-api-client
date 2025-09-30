@@ -897,37 +897,11 @@ class DataMigrationService
             $migration->update([
                 'status' => $status,
                 'completed_at' => now(),
-                'summary' => $this->generateMigrationSummary($migration)
             ]);
 
             if (env('DETAILED_LOGGING'))
                 Log::info("Data migration {$migration->id} completed with status: {$status->value}");
         }
-    }
-
-    /**
-     * Generate migration summary
-     */
-    protected function generateMigrationSummary(DataMigration $migration): array
-    {
-        $summary = [
-            'total_batches' => $migration->batches()->count(),
-            'completed_batches' => $migration->batches()->where('status', 'completed')->count(),
-            'failed_batches' => $migration->batches()->where('status', 'failed')->count(),
-            'resources' => []
-        ];
-
-        $resourceType = ResourceType::resolve($migration->resource_type);
-        $batches = $migration->batches()->where('resource_type', $resourceType);
-
-        $summary['resources'][$resourceType->value] = [
-            'total_batches' => $batches->count(),
-            'completed_batches' => $batches->where('status', 'completed')->count(),
-            'failed_batches' => $batches->where('status', 'failed')->count(),
-            'items_migrated' => $batches->where('status', 'completed')->sum('items_stored')
-        ];
-
-        return $summary;
     }
 
     /**

@@ -2828,20 +2828,6 @@ class DataExchangeService
     }
 
     /**
-     * Get available report types
-     */
-    public function getAvailableReports()
-    {
-        return [
-            'client_summary' => 'Client Summary Report',
-            'service_summary' => 'Service Summary Report',
-            'submission_log' => 'Submission Log Report',
-            'compliance' => 'Compliance Report',
-            'performance' => 'Performance Report'
-        ];
-    }
-
-    /**
      * Submit case data to DSS Data Exchange
      */
     public function submitCaseData($caseData)

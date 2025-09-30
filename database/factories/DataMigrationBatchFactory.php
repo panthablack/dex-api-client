@@ -37,7 +37,6 @@ class DataMigrationBatchFactory extends Factory
             'items_received' => 50,
             'items_stored' => 45,
             'api_filters' => [],
-            'api_response_summary' => null,
             'started_at' => fake()->dateTimeBetween('-1 day', '-1 hour'),
             'completed_at' => fake()->dateTimeBetween('-1 hour', 'now'),
         ];
