@@ -263,14 +263,17 @@
       const enumValue = convertToEnumValue(resourceType);
       switch (enumValue) {
         case 'CLIENT':
+        case 'CASE_CLIENT':
         case 'FULL_CLIENT':
-          return 'bg-primary';
+          return 'bg-pastel-lavender';
         case 'CASE':
         case 'FULL_CASE':
-          return 'bg-success';
+          return 'bg-pastel-mint';
+        case 'CLOSED_CASE':
+          return 'bg-pastel-peach';
         case 'SESSION':
         case 'FULL_SESSION':
-          return 'bg-info';
+          return 'bg-pastel-rose';
         default:
           return 'bg-secondary';
       }
