@@ -345,6 +345,9 @@
                 },
 
                 startAutoRefresh() {
+                    // clear out old interval if there
+                    if (this.refreshInterval) clearInterval(this.refreshInterval);
+                    // set new interval
                     this.refreshInterval = setInterval(() => {
                         this.updateStats();
                         this.updateMigrations();

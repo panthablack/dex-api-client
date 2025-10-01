@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'defaultBatchSize' => 25
+    'defaultBatchSize' => env('DEFAULT_BATCH_SIZE', 100)
 ];

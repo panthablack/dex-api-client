@@ -584,10 +584,8 @@
                         },
 
                         init() {
-                            if (this.migration.status === DataMigrationStatus.IN_PROGRESS || this.migration.status ===
-                                DataMigrationStatus.PENDING) {
-                                this.startAutoRefresh();
-                            }
+                            // Always start refreshing
+                            this.startAutoRefresh();
 
                             document.addEventListener('visibilitychange', () => {
                                 if (document.hidden) {
@@ -603,6 +601,9 @@
                         },
 
                         startAutoRefresh() {
+                            // clear out old interval if there
+                            if (this.refreshInterval) clearInterval(this.refreshInterval);
+                            // set new interval
                             this.refreshInterval = setInterval(() => this.refreshStatus(), 10000);
                         },
 
@@ -631,8 +632,11 @@
                                         DataMigrationStatus.FAILED || data.data
                                         .status === DataMigrationStatus.CANCELLED) {
                                         if (this.refreshInterval) {
-                                            clearInterval(this.refreshInterval);
-                                            this.refreshInterval = null;
+                                            // run one more time, then kill
+                                            setTimeout(() => {
+                                                clearInterval(this.refreshInterval);
+                                                this.refreshInterval = null;
+                                            }, 10000);
                                         }
                                     }
                                 }
