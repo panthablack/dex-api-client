@@ -3,487 +3,482 @@
 @section('title', 'Data Migration Dashboard')
 
 @section('content')
-    <div x-data="migrationIndexApp()" x-init="init()" x-cloak>
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2 text-primary">Data Migration Dashboard</h1>
-            <a href="{{ route('data-migration.create') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>
-                New Migration
-            </a>
+  <div x-data="migrationIndexApp()" x-init="init()" x-cloak>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h2 text-primary">Data Migration Dashboard</h1>
+      <a href="{{ route('data-migration.create') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>
+        New Migration
+      </a>
+    </div>
+
+    @if (session('success'))
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>
+        {{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    @endif
+
+    @if (session('error'))
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        {{ session('error') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    @endif
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4" id="stats-cards">
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          <div class="card-body d-flex align-items-center">
+            <div class="flex-shrink-0">
+              <div class="bg-primary bg-opacity-10 p-3 rounded">
+                <i class="fas fa-database text-primary fa-lg"></i>
+              </div>
+            </div>
+            <div class="ms-3">
+              <h6 class="card-title text-muted mb-1">Total Migrations</h6>
+              <h4 class="mb-0" x-text="stats.total_migrations">{{ $migrations->total() }}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          <div class="card-body d-flex align-items-center">
+            <div class="flex-shrink-0">
+              <div class="bg-warning bg-opacity-10 p-3 rounded">
+                <i class="fas fa-clock text-warning fa-lg"></i>
+              </div>
+            </div>
+            <div class="ms-3">
+              <h6 class="card-title text-muted mb-1">Active Migrations</h6>
+              <h4 class="mb-0" x-text="stats.active_migrations">
+                {{ $migrations->whereIn('status', ['PENDING', 'IN_PROGRESS'])->count() }}
+              </h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          <div class="card-body d-flex align-items-center">
+            <div class="flex-shrink-0">
+              <div class="bg-success bg-opacity-10 p-3 rounded">
+                <i class="fas fa-check-circle text-success fa-lg"></i>
+              </div>
+            </div>
+            <div class="ms-3">
+              <h6 class="card-title text-muted mb-1">Completed</h6>
+              <h4 class="mb-0" x-text="stats.completed_migrations">
+                {{ $migrations->where('status', 'COMPLETED')->count() }}
+              </h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          <div class="card-body d-flex align-items-center">
+            <div class="flex-shrink-0">
+              <div class="bg-danger bg-opacity-10 p-3 rounded">
+                <i class="fas fa-exclamation-triangle text-danger fa-lg"></i>
+              </div>
+            </div>
+            <div class="ms-3">
+              <h6 class="card-title text-muted mb-1">Failed</h6>
+              <h4 class="mb-0" x-text="stats.failed_migrations">
+                {{ $migrations->where('status', 'FAILED')->count() }}
+              </h4>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Migrations Table -->
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Recent Migrations</h5>
+      </div>
+
+      @if ($migrations->count() > 0)
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Name</th>
+                <th>Resources</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach ($migrations as $migration)
+                <tr data-migration-id="{{ $migration->id }}">
+                  <td>
+                    <div>
+                      <div class="fw-medium">
+                        <a href="{{ route('data-migration.show', $migration) }}" class="text-decoration-none">
+                          {{ $migration->name }}
+                        </a>
+                      </div>
+                      <small class="text-muted">
+                        {{ $migration->processed_items }}/{{ $migration->total_items }} items
+                      </small>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex gap-1 flex-wrap">
+                      @foreach ([$migration->resource_type] as $type)
+                        @php
+                          $resourceEnum = \App\Enums\ResourceType::resolve($type);
+                          $badgeClass = match ($resourceEnum) {
+                              \App\Enums\ResourceType::CLIENT => 'bg-pastel-lavender',
+                              \App\Enums\ResourceType::CASE_CLIENT => 'bg-pastel-lavender',
+                              \App\Enums\ResourceType::FULL_CLIENT => 'bg-pastel-lavender',
+                              \App\Enums\ResourceType::CASE => 'bg-pastel-mint',
+                              \App\Enums\ResourceType::FULL_CASE => 'bg-pastel-mint',
+                              \App\Enums\ResourceType::CLOSED_CASE => 'bg-pastel-peach',
+                              \App\Enums\ResourceType::SESSION => 'bg-pastel-rose',
+                              \App\Enums\ResourceType::FULL_SESSION => 'bg-pastel-rose',
+                              default => 'bg-secondary',
+                          };
+                        @endphp
+                        <span class="badge {{ $badgeClass }}">
+                          {{ ucfirst(str_replace('_', ' ', strtolower($resourceEnum->value))) }}
+                        </span>
+                      @endforeach
+                    </div>
+                  </td>
+                  <td>
+                    @php
+                      $statusClass = match ($migration->status) {
+                          \App\Enums\DataMigrationStatus::COMPLETED => 'bg-success',
+                          \App\Enums\DataMigrationStatus::IN_PROGRESS => 'bg-warning text-dark',
+                          \App\Enums\DataMigrationStatus::FAILED => 'bg-danger',
+                          \App\Enums\DataMigrationStatus::PENDING => 'bg-secondary',
+                          \App\Enums\DataMigrationStatus::CANCELLED => 'bg-dark',
+                          default => 'bg-light text-dark',
+                      };
+                    @endphp
+                    <span class="badge {{ $statusClass }}" data-status="{{ $migration->status->value }}">
+                      {{ ucfirst(str_replace('_', ' ', strtolower($migration->status->value))) }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="progress me-2" style="width: 100px; height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar"
+                          style="width: {{ $migration->progress_percentage }}%"
+                          aria-valuenow="{{ $migration->progress_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                      </div>
+                      <small class="text-muted">{{ $migration->progress_percentage }}%</small>
+                    </div>
+                  </td>
+                  <td>
+                    <small class="text-muted">{{ $migration->created_at->diffForHumans() }}</small>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                      <a href="{{ route('data-migration.show', $migration) }}"
+                        class="btn btn-outline-primary btn-sm">View</a>
+
+                      @if (in_array($migration->status, ['PENDING', 'IN_PROGRESS']))
+                        <button @click="cancelMigration({{ $migration->id }})"
+                          class="btn btn-outline-danger btn-sm">Cancel</button>
+                      @endif
+
+                      @if ($migration->status === 'FAILED' || $migration->batches->where('status', 'FAILED')->count() > 0)
+                        <button @click="retryMigration({{ $migration->id }})"
+                          class="btn btn-outline-warning btn-sm">Retry</button>
+                      @endif
+
+                      @if (!in_array($migration->status, ['IN_PROGRESS']))
+                        <form method="POST" action="{{ route('data-migration.destroy', $migration) }}" class="d-inline"
+                          onsubmit="return confirm('Are you sure you want to delete this migration and all its data?')">
+                          @csrf
+                          @method('DELETE')
+                          <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                        </form>
+                      @endif
+                    </div>
+                  </td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
         </div>
 
-        @if (session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle me-2"></i>
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-
-        @if (session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle me-2"></i>
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-
-        <!-- Statistics Cards -->
-        <div class="row mb-4" id="stats-cards">
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-primary bg-opacity-10 p-3 rounded">
-                                <i class="fas fa-database text-primary fa-lg"></i>
-                            </div>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="card-title text-muted mb-1">Total Migrations</h6>
-                            <h4 class="mb-0" x-text="stats.total_migrations">{{ $migrations->total() }}</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-warning bg-opacity-10 p-3 rounded">
-                                <i class="fas fa-clock text-warning fa-lg"></i>
-                            </div>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="card-title text-muted mb-1">Active Migrations</h6>
-                            <h4 class="mb-0" x-text="stats.active_migrations">
-                                {{ $migrations->whereIn('status', ['PENDING', 'IN_PROGRESS'])->count() }}
-                            </h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-success bg-opacity-10 p-3 rounded">
-                                <i class="fas fa-check-circle text-success fa-lg"></i>
-                            </div>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="card-title text-muted mb-1">Completed</h6>
-                            <h4 class="mb-0" x-text="stats.completed_migrations">
-                                {{ $migrations->where('status', 'COMPLETED')->count() }}
-                            </h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <div class="bg-danger bg-opacity-10 p-3 rounded">
-                                <i class="fas fa-exclamation-triangle text-danger fa-lg"></i>
-                            </div>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="card-title text-muted mb-1">Failed</h6>
-                            <h4 class="mb-0" x-text="stats.failed_migrations">
-                                {{ $migrations->where('status', 'FAILED')->count() }}
-                            </h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Pagination -->
+        <div class="card-footer">
+          {{ $migrations->links() }}
         </div>
-
-        <!-- Migrations Table -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Recent Migrations</h5>
-            </div>
-
-            @if ($migrations->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Name</th>
-                                <th>Resources</th>
-                                <th>Status</th>
-                                <th>Progress</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($migrations as $migration)
-                                <tr data-migration-id="{{ $migration->id }}">
-                                    <td>
-                                        <div>
-                                            <div class="fw-medium">
-                                                <a href="{{ route('data-migration.show', $migration) }}"
-                                                    class="text-decoration-none">
-                                                    {{ $migration->name }}
-                                                </a>
-                                            </div>
-                                            <small class="text-muted">
-                                                {{ $migration->processed_items }}/{{ $migration->total_items }} items
-                                            </small>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex gap-1 flex-wrap">
-                                            @foreach ([$migration->resource_type] as $type)
-                                                @php
-                                                    $resourceEnum = \App\Enums\ResourceType::resolve($type);
-                                                    $badgeClass = match ($resourceEnum) {
-                                                        \App\Enums\ResourceType::CLIENT => 'bg-pastel-lavender',
-                                                        \App\Enums\ResourceType::CASE_CLIENT => 'bg-pastel-lavender',
-                                                        \App\Enums\ResourceType::FULL_CLIENT => 'bg-pastel-lavender',
-                                                        \App\Enums\ResourceType::CASE => 'bg-pastel-mint',
-                                                        \App\Enums\ResourceType::FULL_CASE => 'bg-pastel-mint',
-                                                        \App\Enums\ResourceType::CLOSED_CASE => 'bg-pastel-peach',
-                                                        \App\Enums\ResourceType::SESSION => 'bg-pastel-rose',
-                                                        \App\Enums\ResourceType::FULL_SESSION => 'bg-pastel-rose',
-                                                        default => 'bg-secondary',
-                                                    };
-                                                @endphp
-                                                <span class="badge {{ $badgeClass }}">
-                                                    {{ ucfirst(str_replace('_', ' ', strtolower($resourceEnum->value))) }}
-                                                </span>
-                                            @endforeach
-                                        </div>
-                                    </td>
-                                    <td>
-                                        @php
-                                            $statusClass = match ($migration->status) {
-                                                \App\Enums\DataMigrationStatus::COMPLETED => 'bg-success',
-                                                \App\Enums\DataMigrationStatus::IN_PROGRESS => 'bg-warning text-dark',
-                                                \App\Enums\DataMigrationStatus::FAILED => 'bg-danger',
-                                                \App\Enums\DataMigrationStatus::PENDING => 'bg-secondary',
-                                                \App\Enums\DataMigrationStatus::CANCELLED => 'bg-dark',
-                                                default => 'bg-light text-dark',
-                                            };
-                                        @endphp
-                                        <span class="badge {{ $statusClass }}"
-                                            data-status="{{ $migration->status->value }}">
-                                            {{ ucfirst(str_replace('_', ' ', strtolower($migration->status->value))) }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="progress me-2" style="width: 100px; height: 8px;">
-                                                <div class="progress-bar bg-primary" role="progressbar"
-                                                    style="width: {{ $migration->progress_percentage }}%"
-                                                    aria-valuenow="{{ $migration->progress_percentage }}" aria-valuemin="0"
-                                                    aria-valuemax="100"></div>
-                                            </div>
-                                            <small class="text-muted">{{ $migration->progress_percentage }}%</small>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">{{ $migration->created_at->diffForHumans() }}</small>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{{ route('data-migration.show', $migration) }}"
-                                                class="btn btn-outline-primary btn-sm">View</a>
-
-                                            @if (in_array($migration->status, ['PENDING', 'IN_PROGRESS']))
-                                                <button @click="cancelMigration({{ $migration->id }})"
-                                                    class="btn btn-outline-danger btn-sm">Cancel</button>
-                                            @endif
-
-                                            @if ($migration->status === 'FAILED' || $migration->batches->where('status', 'FAILED')->count() > 0)
-                                                <button @click="retryMigration({{ $migration->id }})"
-                                                    class="btn btn-outline-warning btn-sm">Retry</button>
-                                            @endif
-
-                                            @if (!in_array($migration->status, ['IN_PROGRESS']))
-                                                <form method="POST"
-                                                    action="{{ route('data-migration.destroy', $migration) }}"
-                                                    class="d-inline"
-                                                    onsubmit="return confirm('Are you sure you want to delete this migration and all its data?')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit"
-                                                        class="btn btn-outline-danger btn-sm">Delete</button>
-                                                </form>
-                                            @endif
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination -->
-                <div class="card-footer">
-                    {{ $migrations->links() }}
-                </div>
-            @else
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-database fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No migrations</h5>
-                    <p class="text-muted mb-4">Get started by creating a new data migration.</p>
-                    <a href="{{ route('data-migration.create') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>
-                        New Migration
-                    </a>
-                </div>
-            @endif
+      @else
+        <div class="card-body text-center py-5">
+          <i class="fas fa-database fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No migrations</h5>
+          <p class="text-muted mb-4">Get started by creating a new data migration.</p>
+          <a href="{{ route('data-migration.create') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            New Migration
+          </a>
         </div>
+      @endif
+    </div>
 
-    </div> <!-- End Alpine.js wrapper -->
+  </div> <!-- End Alpine.js wrapper -->
 
-    <script>
-        // Define status constants and helper functions inline
-        const DataMigrationStatus = {
-            CANCELLED: 'CANCELLED',
-            COMPLETED: 'COMPLETED',
-            FAILED: 'FAILED',
-            IN_PROGRESS: 'IN_PROGRESS',
-            PENDING: 'PENDING',
-        };
+  <script>
+    // Define status constants and helper functions inline
+    const DataMigrationStatus = {
+      CANCELLED: 'CANCELLED',
+      COMPLETED: 'COMPLETED',
+      FAILED: 'FAILED',
+      IN_PROGRESS: 'IN_PROGRESS',
+      PENDING: 'PENDING',
+    };
 
-        const StatusColorMappings = {
-            [DataMigrationStatus.PENDING]: 'bg-secondary',
-            [DataMigrationStatus.IN_PROGRESS]: 'bg-warning',
-            [DataMigrationStatus.COMPLETED]: 'bg-success',
-            [DataMigrationStatus.FAILED]: 'bg-danger',
-            [DataMigrationStatus.CANCELLED]: 'bg-secondary',
-        };
+    const StatusColorMappings = {
+      [DataMigrationStatus.PENDING]: 'bg-secondary',
+      [DataMigrationStatus.IN_PROGRESS]: 'bg-warning',
+      [DataMigrationStatus.COMPLETED]: 'bg-success',
+      [DataMigrationStatus.FAILED]: 'bg-danger',
+      [DataMigrationStatus.CANCELLED]: 'bg-secondary',
+    };
 
-        function getStatusClass(status) {
-            return StatusColorMappings[status] || 'bg-light';
-        }
+    function getStatusClass(status) {
+      return StatusColorMappings[status] || 'bg-light';
+    }
 
-        function getResourceTypeClass(resourceType) {
-            const enumValue = convertToEnumValue(resourceType);
-            switch (enumValue) {
-                case 'CLIENT':
-                case 'FULL_CLIENT':
-                    return 'bg-primary';
-                case 'CASE':
-                case 'FULL_CASE':
-                    return 'bg-success';
-                case 'SESSION':
-                case 'FULL_SESSION':
-                    return 'bg-info';
-                default:
-                    return 'bg-secondary';
+    function getResourceTypeClass(resourceType) {
+      const enumValue = convertToEnumValue(resourceType);
+      switch (enumValue) {
+        case 'CLIENT':
+        case 'FULL_CLIENT':
+          return 'bg-primary';
+        case 'CASE':
+        case 'FULL_CASE':
+          return 'bg-success';
+        case 'SESSION':
+        case 'FULL_SESSION':
+          return 'bg-info';
+        default:
+          return 'bg-secondary';
+      }
+    }
+
+    function formatResourceTypeName(resourceType) {
+      // Convert API data (e.g., "clients") to enum-like format (e.g., "CLIENT")
+      // Then format the same way as Blade template
+      const enumValue = convertToEnumValue(resourceType);
+      return enumValue.toLowerCase()
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function convertToEnumValue(resourceType) {
+      const normalizedType = resourceType.toLowerCase();
+      switch (normalizedType) {
+        case 'client':
+        case 'clients':
+          return 'CLIENT';
+        case 'case':
+        case 'cases':
+          return 'CASE';
+        case 'session':
+        case 'sessions':
+          return 'SESSION';
+        case 'full_client':
+        case 'full_clients':
+        case 'full-client':
+        case 'full-clients':
+          return 'FULL_CLIENT';
+        case 'full_case':
+        case 'full_cases':
+        case 'full-case':
+        case 'full-cases':
+          return 'FULL_CASE';
+        case 'full_session':
+        case 'full_sessions':
+        case 'full-session':
+        case 'full-sessions':
+          return 'FULL_SESSION';
+        default:
+          return resourceType.toUpperCase();
+      }
+    }
+
+    window.migrationIndexApp = function migrationIndexApp() {
+      return {
+        stats: {
+          total_migrations: {{ $migrations->total() }},
+          active_migrations: {{ $migrations->whereIn('status', ['PENDING', 'IN_PROGRESS'])->count() }},
+          completed_migrations: {{ $migrations->where('status', 'COMPLETED')->count() }},
+          failed_migrations: {{ $migrations->where('status', 'FAILED')->count() }}
+        },
+        refreshInterval: null,
+
+        init() {
+          this.startAutoRefresh();
+          document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+              if (this.refreshInterval) clearInterval(this.refreshInterval);
+            } else {
+              this.startAutoRefresh();
             }
-        }
+          });
+        },
 
-        function formatResourceTypeName(resourceType) {
-            // Convert API data (e.g., "clients") to enum-like format (e.g., "CLIENT")
-            // Then format the same way as Blade template
-            const enumValue = convertToEnumValue(resourceType);
-            return enumValue.toLowerCase()
-                .replace(/_/g, ' ')
-                .replace(/\b\w/g, l => l.toUpperCase());
-        }
+        startAutoRefresh() {
+          // clear out old interval if there
+          if (this.refreshInterval) clearInterval(this.refreshInterval);
+          // set new interval
+          this.refreshInterval = setInterval(() => {
+            this.updateStats();
+            this.updateMigrations();
+          }, 10000);
+        },
 
-        function convertToEnumValue(resourceType) {
-            const normalizedType = resourceType.toLowerCase();
-            switch (normalizedType) {
-                case 'client':
-                case 'clients':
-                    return 'CLIENT';
-                case 'case':
-                case 'cases':
-                    return 'CASE';
-                case 'session':
-                case 'sessions':
-                    return 'SESSION';
-                case 'full_client':
-                case 'full_clients':
-                case 'full-client':
-                case 'full-clients':
-                    return 'FULL_CLIENT';
-                case 'full_case':
-                case 'full_cases':
-                case 'full-case':
-                case 'full-cases':
-                    return 'FULL_CASE';
-                case 'full_session':
-                case 'full_sessions':
-                case 'full-session':
-                case 'full-sessions':
-                    return 'FULL_SESSION';
-                default:
-                    return resourceType.toUpperCase();
+        async updateStats() {
+          try {
+            const response = await fetch('{{ route('data-migration.api.stats') }}');
+            const data = await response.json();
+            if (data.success) {
+              this.stats = data.data;
             }
+          } catch (error) {
+            console.error('Error updating stats:', error);
+          }
+        },
+
+        async updateMigrations() {
+          const migrationRows = document.querySelectorAll('[data-migration-id]');
+          migrationRows.forEach(row => {
+            const migrationId = row.dataset.migrationId;
+            this.updateMigrationRow(migrationId, row);
+          });
+        },
+
+        async updateMigrationRow(migrationId, row) {
+          try {
+            const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/status`);
+            const data = await response.json();
+            if (data.success) {
+              const migration = data.data;
+
+              // Update progress bar and percentage text
+              const progressBar = row.querySelector('.progress-bar');
+              const progressText = row.querySelector(
+                '.progress + small.text-muted, .progress ~ small.text-muted');
+              if (progressBar && progressText) {
+                progressBar.style.width = migration.progress_percentage + '%';
+                progressBar.setAttribute('aria-valuenow', migration.progress_percentage);
+                progressText.textContent = migration.progress_percentage + '%';
+              }
+
+              // Update status badge (use data-status attribute to identify correct badge)
+              const statusBadge = row.querySelector('span.badge[data-status]');
+              if (statusBadge) {
+                // Remove old background classes
+                statusBadge.className = statusBadge.className.replace(
+                  /bg-(success|warning|danger|secondary|primary|info|light|dark)\s*(text-dark)?/g,
+                  '');
+
+                // Add new status class
+                const statusClass = this.getStatusClass(migration.status);
+                const textClass = (migration.status === 'IN_PROGRESS') ? ' text-dark' : '';
+                statusBadge.className += ' ' + statusClass + textClass;
+
+                // Update status text and data attribute
+                statusBadge.textContent = migration.status.charAt(0).toUpperCase() +
+                  migration.status.slice(1).toLowerCase().replace('_', ' ');
+                statusBadge.setAttribute('data-status', migration.status);
+              }
+
+              // Update resource type badges
+              const resourceContainer = row.querySelector('td:nth-child(2) .d-flex');
+              if (resourceContainer && migration.resource_type) {
+                resourceContainer.innerHTML = '';
+                [migration.resource_type].forEach(resourceType => {
+                  const badge = document.createElement('span');
+                  badge.className = 'badge ' + getResourceTypeClass(resourceType);
+                  badge.textContent = formatResourceTypeName(resourceType);
+                  resourceContainer.appendChild(badge);
+                });
+              }
+
+              // Update items count (find the small text under the name)
+              const itemsText = row.querySelector('td:first-child small.text-muted');
+              if (itemsText) {
+                itemsText.textContent =
+                  `${migration.processed_items}/${migration.total_items} items`;
+              }
+            }
+          } catch (error) {
+            console.error('Error updating migration status:', error);
+          }
+        },
+
+        getStatusClass(status) {
+          return getStatusClass(status);
+        },
+
+        async cancelMigration(migrationId) {
+          if (!confirm('Are you sure you want to cancel this migration?')) return;
+
+          try {
+            const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/cancel`, {
+              method: 'POST',
+              headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+              }
+            });
+            const data = await response.json();
+            if (data.success) {
+              location.reload();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to cancel migration');
+          }
+        },
+
+        async retryMigration(migrationId) {
+          if (!confirm('Are you sure you want to retry failed batches for this migration?')) return;
+
+          try {
+            const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/retry`, {
+              method: 'POST',
+              headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+              }
+            });
+            const data = await response.json();
+            if (data.success) {
+              alert(data.message);
+              location.reload();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to retry migration');
+          }
         }
-
-        window.migrationIndexApp = function migrationIndexApp() {
-            return {
-                stats: {
-                    total_migrations: {{ $migrations->total() }},
-                    active_migrations: {{ $migrations->whereIn('status', ['PENDING', 'IN_PROGRESS'])->count() }},
-                    completed_migrations: {{ $migrations->where('status', 'COMPLETED')->count() }},
-                    failed_migrations: {{ $migrations->where('status', 'FAILED')->count() }}
-                },
-                refreshInterval: null,
-
-                init() {
-                    this.startAutoRefresh();
-                    document.addEventListener('visibilitychange', () => {
-                        if (document.hidden) {
-                            if (this.refreshInterval) clearInterval(this.refreshInterval);
-                        } else {
-                            this.startAutoRefresh();
-                        }
-                    });
-                },
-
-                startAutoRefresh() {
-                    // clear out old interval if there
-                    if (this.refreshInterval) clearInterval(this.refreshInterval);
-                    // set new interval
-                    this.refreshInterval = setInterval(() => {
-                        this.updateStats();
-                        this.updateMigrations();
-                    }, 10000);
-                },
-
-                async updateStats() {
-                    try {
-                        const response = await fetch('{{ route('data-migration.api.stats') }}');
-                        const data = await response.json();
-                        if (data.success) {
-                            this.stats = data.data;
-                        }
-                    } catch (error) {
-                        console.error('Error updating stats:', error);
-                    }
-                },
-
-                async updateMigrations() {
-                    const migrationRows = document.querySelectorAll('[data-migration-id]');
-                    migrationRows.forEach(row => {
-                        const migrationId = row.dataset.migrationId;
-                        this.updateMigrationRow(migrationId, row);
-                    });
-                },
-
-                async updateMigrationRow(migrationId, row) {
-                    try {
-                        const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/status`);
-                        const data = await response.json();
-                        if (data.success) {
-                            const migration = data.data;
-
-                            // Update progress bar and percentage text
-                            const progressBar = row.querySelector('.progress-bar');
-                            const progressText = row.querySelector(
-                                '.progress + small.text-muted, .progress ~ small.text-muted');
-                            if (progressBar && progressText) {
-                                progressBar.style.width = migration.progress_percentage + '%';
-                                progressBar.setAttribute('aria-valuenow', migration.progress_percentage);
-                                progressText.textContent = migration.progress_percentage + '%';
-                            }
-
-                            // Update status badge (use data-status attribute to identify correct badge)
-                            const statusBadge = row.querySelector('span.badge[data-status]');
-                            if (statusBadge) {
-                                // Remove old background classes
-                                statusBadge.className = statusBadge.className.replace(
-                                    /bg-(success|warning|danger|secondary|primary|info|light|dark)\s*(text-dark)?/g,
-                                    '');
-
-                                // Add new status class
-                                const statusClass = this.getStatusClass(migration.status);
-                                const textClass = (migration.status === 'IN_PROGRESS') ? ' text-dark' : '';
-                                statusBadge.className += ' ' + statusClass + textClass;
-
-                                // Update status text and data attribute
-                                statusBadge.textContent = migration.status.charAt(0).toUpperCase() +
-                                    migration.status.slice(1).toLowerCase().replace('_', ' ');
-                                statusBadge.setAttribute('data-status', migration.status);
-                            }
-
-                            // Update resource type badges
-                            const resourceContainer = row.querySelector('td:nth-child(2) .d-flex');
-                            if (resourceContainer && migration.resource_type) {
-                                resourceContainer.innerHTML = '';
-                                [migration.resource_type].forEach(resourceType => {
-                                    const badge = document.createElement('span');
-                                    badge.className = 'badge ' + getResourceTypeClass(resourceType);
-                                    badge.textContent = formatResourceTypeName(resourceType);
-                                    resourceContainer.appendChild(badge);
-                                });
-                            }
-
-                            // Update items count (find the small text under the name)
-                            const itemsText = row.querySelector('td:first-child small.text-muted');
-                            if (itemsText) {
-                                itemsText.textContent =
-                                    `${migration.processed_items}/${migration.total_items} items`;
-                            }
-                        }
-                    } catch (error) {
-                        console.error('Error updating migration status:', error);
-                    }
-                },
-
-                getStatusClass(status) {
-                    return getStatusClass(status);
-                },
-
-                async cancelMigration(migrationId) {
-                    if (!confirm('Are you sure you want to cancel this migration?')) return;
-
-                    try {
-                        const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/cancel`, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            alert('Error: ' + data.error);
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        alert('Failed to cancel migration');
-                    }
-                },
-
-                async retryMigration(migrationId) {
-                    if (!confirm('Are you sure you want to retry failed batches for this migration?')) return;
-
-                    try {
-                        const response = await fetch(`{{ url('data-migration/api') }}/${migrationId}/retry`, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                            alert(data.message);
-                            location.reload();
-                        } else {
-                            alert('Error: ' + data.error);
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        alert('Failed to retry migration');
-                    }
-                }
-            };
-        }
-    </script>
+      };
+    }
+  </script>
 @endsection
