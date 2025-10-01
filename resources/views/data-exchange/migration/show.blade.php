@@ -190,11 +190,11 @@
                             @php
                                 $resourceType = \App\Enums\ResourceType::resolve($type);
                                 $resourceTypeClass = match ($resourceType->value) {
-                                    \App\Enums\ResourceType::CLIENT => 'bg-primary',
-                                    \App\Enums\ResourceType::CASE => 'bg-success',
-                                    \App\Enums\ResourceType::CASE_CLIENT => 'bg-primary',
-                                    \App\Enums\ResourceType::CLOSED_CASE => 'bg-warning',
-                                    \App\Enums\ResourceType::SESSION => 'bg-info',
+                                    \App\Enums\ResourceType::CLIENT => 'bg-pastel-lavender',
+                                    \App\Enums\ResourceType::CASE => 'bg-pastel-mint',
+                                    \App\Enums\ResourceType::CASE_CLIENT => 'bg-pastel-lavender',
+                                    \App\Enums\ResourceType::CLOSED_CASE => 'bg-pastel-peach',
+                                    \App\Enums\ResourceType::SESSION => 'bg-pastel-rose',
                                     default => '',
                                 };
                             @endphp
@@ -315,15 +315,18 @@
                                     <td>
                                         <span class="badge text-capitalize"
                                             :class="{
-                                                'bg-primary': batch
+                                                'bg-pastel-lavender': batch
                                                     .resource_type ===
                                                     '{{ \App\Enums\ResourceType::CLIENT->value }}',
-                                                'bg-success': batch
+                                                'bg-pastel-mint': batch
                                                     .resource_type ===
                                                     '{{ \App\Enums\ResourceType::CASE->value }}',
-                                                'bg-info': batch
+                                                'bg-pastel-rose': batch
                                                     .resource_type ===
                                                     '{{ \App\Enums\ResourceType::SESSION->value }}',
+                                                'bg-pastel-peach': batch
+                                                    .resource_type ===
+                                                    '{{ \App\Enums\ResourceType::CLOSED_CASE->value }}',
                                             }"
                                             x-text="batch.resource_type">
                                         </span>

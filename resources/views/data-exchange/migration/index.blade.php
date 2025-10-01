@@ -142,15 +142,14 @@
                                                 @php
                                                     $resourceEnum = \App\Enums\ResourceType::resolve($type);
                                                     $badgeClass = match ($resourceEnum) {
-                                                        \App\Enums\ResourceType::CLIENT,
-                                                        \App\Enums\ResourceType::FULL_CLIENT
-                                                            => 'bg-primary',
-                                                        \App\Enums\ResourceType::CASE,
-                                                        \App\Enums\ResourceType::FULL_CASE
-                                                            => 'bg-success',
-                                                        \App\Enums\ResourceType::SESSION,
-                                                        \App\Enums\ResourceType::FULL_SESSION
-                                                            => 'bg-info',
+                                                        \App\Enums\ResourceType::CLIENT => 'bg-pastel-lavender',
+                                                        \App\Enums\ResourceType::CASE_CLIENT => 'bg-pastel-lavender',
+                                                        \App\Enums\ResourceType::FULL_CLIENT => 'bg-pastel-lavender',
+                                                        \App\Enums\ResourceType::CASE => 'bg-pastel-mint',
+                                                        \App\Enums\ResourceType::FULL_CASE => 'bg-pastel-mint',
+                                                        \App\Enums\ResourceType::CLOSED_CASE => 'bg-pastel-peach',
+                                                        \App\Enums\ResourceType::SESSION => 'bg-pastel-rose',
+                                                        \App\Enums\ResourceType::FULL_SESSION => 'bg-pastel-rose',
                                                         default => 'bg-secondary',
                                                     };
                                                 @endphp
