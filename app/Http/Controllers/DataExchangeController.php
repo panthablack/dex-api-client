@@ -95,19 +95,7 @@ class DataExchangeController extends Controller
 
         // Try to fetch outlet activities
         $outletActivities = [];
-        try {
-            $outletActivitiesResult = $this->dataExchangeService->getOutletActivities();
-            if (isset($outletActivitiesResult->OutletActivities->OutletActivity)) {
-                $outletActivities = $outletActivitiesResult->OutletActivities->OutletActivity;
-                // Ensure it's an array
-                if (!is_array($outletActivities)) {
-                    $outletActivities = [$outletActivities];
-                }
-            }
-        } catch (\Exception $e) {
-            // Log error but continue with empty array - form has fallback options
-            Log::warning('Failed to fetch outlet activities: ' . $e->getMessage());
-        }
+        // TODO: get outlet activities
 
         // Get referral source options from ReferenceData helper
         $referralSources = ReferenceData::referralSource();
@@ -1310,12 +1298,6 @@ class DataExchangeController extends Controller
                     'stack_trace' => $e->getTraceAsString()
                 ];
                 Log::error('Failed to load clients: ' . $e->getMessage());
-
-                // Add sample data for testing when API fails (only in debug mode)
-                if (config('app.debug', false)) {
-                    $data = $this->getSampleClients();
-                    $debugInfo['using_sample_data'] = true;
-                }
             }
 
             // Enable debug info only when needed (set to false for production)
@@ -1391,19 +1373,7 @@ class DataExchangeController extends Controller
             $debugInfo = [];
             $pagination = null;
             $outletActivities = [];
-
-            // Get outlet activities for filter dropdown
-            try {
-                $outletActivitiesResult = $this->dataExchangeService->getOutletActivities();
-                if (isset($outletActivitiesResult->OutletActivities->OutletActivity)) {
-                    $outletActivities = $outletActivitiesResult->OutletActivities->OutletActivity;
-                    if (!is_array($outletActivities)) {
-                        $outletActivities = [$outletActivities];
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::error('Failed to load outlet activities: ' . $e->getMessage());
-            }
+            // TODO: get outlet activities
 
             // Load data with default filters
             try {
