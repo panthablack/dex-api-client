@@ -1379,14 +1379,10 @@ class DataExchangeService
                 ]);
 
             // Replace the cases in the original search result with enriched data
-            $enrichedCases = [
-                'Cases' => [
-                    'Case' => $enrichedCases
-                ]
-            ];
+            $searchResult['Cases']['Case'] = $enrichedCases;
 
             // Add pagination metadata and return both cases arrays
-            return $this->addPaginationMetadata($enrichedCases, $filters);
+            return $this->addPaginationMetadata($searchResult, $filters);
         } catch (\Exception $e) {
             Log::error('Failed to fetch full case data', [
                 'error' => $e->getMessage(),
