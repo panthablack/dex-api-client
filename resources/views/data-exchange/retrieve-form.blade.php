@@ -171,15 +171,6 @@
 
             <div class="row mb-3">
               <div class="col-md-6">
-                <label for="report_type" class="form-label">Report Type</label>
-                <select class="form-select" id="report_type" name="report_type" required>
-                  <option value="">Select Report Type</option>
-                  @foreach ($reports as $key => $label)
-                    <option value="{{ $key }}">{{ $label }}</option>
-                  @endforeach
-                </select>
-              </div>
-              <div class="col-md-6">
                 <label for="report_format" class="form-label">Format</label>
                 <select class="form-select" id="report_format" name="format" required>
                   <option value="">Select Format</option>
@@ -254,13 +245,6 @@
               <li><strong>JSON:</strong> JavaScript Object Notation</li>
               <li><strong>XML:</strong> Extensible Markup Language</li>
               <li><strong>CSV:</strong> Comma Separated Values</li>
-            </ul>
-
-            <p><strong>Available Reports:</strong></p>
-            <ul>
-              @foreach ($reports as $key => $label)
-                <li>{{ $label }}</li>
-              @endforeach
             </ul>
           </small>
 
