@@ -25,8 +25,8 @@ return [
             'soap_version' => extension_loaded('soap') ? SOAP_1_2 : 2,
             'trace' => true,
             'exceptions' => true,
-            'cache_wsdl' => extension_loaded('soap') ? WSDL_CACHE_NONE : 0,
-            'connection_timeout' => 5,  // Max time to establish connection
+            'cache_wsdl' => extension_loaded('soap') ? WSDL_CACHE_MEMORY : 0,
+            'connection_timeout' => 30,  // Max time to establish connection
             'user_agent' => 'Laravel SOAP Client v1.0',
             'stream_context' => [
                 'ssl' => [
@@ -35,7 +35,7 @@ return [
                     'allow_self_signed' => true
                 ],
                 'http' => [
-                    'timeout' => 10,  // Max time for entire request/response
+                    'timeout' => 30,  // Max time for entire request/response
                     'follow_location' => 1,  // Follow HTTP redirects (302, 301, etc.)
                     'max_redirects' => 5  // Maximum number of redirects to follow
                 ]
