@@ -35,7 +35,9 @@ return [
                     'allow_self_signed' => true
                 ],
                 'http' => [
-                    'timeout' => 10  // Max time for entire request/response
+                    'timeout' => 10,  // Max time for entire request/response
+                    'follow_location' => 1,  // Follow HTTP redirects (302, 301, etc.)
+                    'max_redirects' => 5  // Maximum number of redirects to follow
                 ]
             ]
         ],
