@@ -176,7 +176,9 @@ class SoapClientService
                 'faultcode' => $e->faultcode ?? null,
                 'faultstring' => $e->faultstring ?? null,
                 'request' => $this->sanitizeXmlForLogging($this->lastRequest),
-                'response' => $this->sanitizeXmlForLogging($this->lastResponse)
+                'response' => $this->sanitizeXmlForLogging($this->lastResponse),
+                'request_headers' => $this->client ? $this->client->__getLastRequestHeaders() : null,
+                'response_headers' => $this->client ? $this->client->__getLastResponseHeaders() : null
             ], 'error');
 
             throw new \Exception('SOAP call failed: ' . $e->getMessage());
