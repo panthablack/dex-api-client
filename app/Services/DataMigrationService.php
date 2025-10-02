@@ -40,7 +40,7 @@ class DataMigrationService
         // Calculate total items upfront using the fixed getTotalItemsForResource method
         $totalItems = $this->getTotalItemsForResource($resourceType, $filters);
         if (env('DETAILED_LOGGING'))
-            Log::info("Found {$totalItems} items for {$resourceType}");
+            Log::info("Found {$totalItems} items for {$resourceType->value}");
 
         return DataMigration::create([
             'name' => $data['name'],
@@ -339,6 +339,7 @@ class DataMigrationService
             // Check if this resource type can be processed (dependencies met)
             if ($this->canProcessResourceType($migration, $resourceType)) {
                 ProcessDataMigrationBatch::dispatch($batch);
+                $batch->update(['status' => DataMigrationBatchStatus::IN_PROGRESS->value]);
 
                 $dispatchedCount++;
 
