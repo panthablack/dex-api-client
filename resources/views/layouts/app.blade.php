@@ -212,6 +212,7 @@
   </nav>
 
   <div class="container mt-4">
+    <x-flash-messages />
     @yield('content')
   </div>
 
