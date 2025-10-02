@@ -26,13 +26,16 @@ return [
             'trace' => true,
             'exceptions' => true,
             'cache_wsdl' => extension_loaded('soap') ? WSDL_CACHE_NONE : 0,
-            'connection_timeout' => 30,
+            'connection_timeout' => 5,  // Max time to establish connection
             'user_agent' => 'Laravel SOAP Client v1.0',
             'stream_context' => [
                 'ssl' => [
                     'verify_peer' => false,
                     'verify_peer_name' => false,
                     'allow_self_signed' => true
+                ],
+                'http' => [
+                    'timeout' => 10  // Max time for entire request/response
                 ]
             ]
         ],

@@ -111,11 +111,17 @@ class SoapClientService
         try {
             $this->ensureClientInitialized();
 
+            // Set socket timeout to ensure calls don't hang
+            $previousTimeout = ini_get('default_socket_timeout');
+            $timeout = $this->config['soap_options']['stream_context']['http']['timeout'] ?? 10;
+            ini_set('default_socket_timeout', (string)$timeout);
+
             if (env('DETAILED_LOGGING'))
                 $this->log('Making SOAP call', [
                     'method' => $method,
                     'parameters' => $parameters,
-                    'parameters_json' => json_encode($parameters, JSON_PRETTY_PRINT)
+                    'parameters_json' => json_encode($parameters, JSON_PRETTY_PRINT),
+                    'timeout' => $timeout
                 ]);
 
             $headers = [];
@@ -142,6 +148,9 @@ class SoapClientService
 
             $result = $this->client->__soapCall($method, [$parameters]);
 
+            // Restore previous timeout
+            ini_set('default_socket_timeout', $previousTimeout);
+
             // Store last request and response for debugging
             $this->lastRequest = $this->client ? $this->client->__getLastRequest() : null;
             $this->lastResponse = $this->client ? $this->client->__getLastResponse() : null;
@@ -154,6 +163,10 @@ class SoapClientService
 
             return $result;
         } catch (SoapFault $e) {
+            // Restore previous timeout on error
+            if (isset($previousTimeout)) {
+                ini_set('default_socket_timeout', $previousTimeout);
+            }
             $this->lastRequest = $this->client ? $this->client->__getLastRequest() : null;
             $this->lastResponse = $this->client ? $this->client->__getLastResponse() : null;
 
