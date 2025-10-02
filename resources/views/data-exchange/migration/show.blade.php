@@ -554,6 +554,8 @@
                   }))
             },
             refreshInterval: null,
+            isRefreshing: false,
+            consecutiveErrors: 0,
             resourceFilter: 'all',
             verifyModal: {
               state: 'loading', // 'loading', 'error', 'results'
@@ -580,8 +582,15 @@
               document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
                   if (this.refreshInterval) clearInterval(this.refreshInterval);
-                } else if (this.migration.status === DataMigrationStatus.IN_PROGRESS) {
-                  this.startAutoRefresh();
+                } else {
+                  // When page becomes visible, refresh status first to get current state
+                  this.refreshStatus().then(() => {
+                    // Only restart polling if migration is still in progress
+                    if (this.migration.status === DataMigrationStatus.IN_PROGRESS ||
+                      this.migration.status === DataMigrationStatus.PENDING) {
+                      this.startAutoRefresh();
+                    }
+                  });
                 }
               });
             },
@@ -598,11 +607,24 @@
             },
 
             async refreshStatus() {
+              // Prevent overlapping requests
+              if (this.isRefreshing) return
+
+              this.isRefreshing = true;
+
               try {
                 const response = await fetch(`{{ route('data-migration.api.status', $migration) }}`);
+
+                if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
 
                 if (data.success) {
+                  // Reset error counter on successful fetch
+                  this.consecutiveErrors = 0;
+
                   const oldStatus = this.migration.status;
                   this.migration = data.data;
 
@@ -629,9 +651,24 @@
                       }, 10000);
                     }
                   }
+                } else {
+                  throw new Error(data.error || 'Unknown error from API');
                 }
               } catch (error) {
-                console.error('Error fetching migration status:', error);
+                this.consecutiveErrors++;
+                console.error(`Error fetching migration status (attempt ${this.consecutiveErrors}):`, error);
+
+                // Stop polling after 5 consecutive errors to prevent endless failed requests
+                if (this.consecutiveErrors >= 5) {
+                  console.error('Too many consecutive errors, stopping auto-refresh');
+                  if (this.refreshInterval) {
+                    clearInterval(this.refreshInterval);
+                    this.refreshInterval = null;
+                  }
+                  this.showToast('Status updates stopped due to errors. Please refresh the page.', 'error');
+                }
+              } finally {
+                this.isRefreshing = false;
               }
             },
 
