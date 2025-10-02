@@ -37,19 +37,34 @@ class DataMigrationService
         $filters = $data['filters'] ?? [];
         $resourceType = ResourceType::resolve($data['resource_type']);;
 
-        // Calculate total items upfront using the fixed getTotalItemsForResource method
-        $totalItems = $this->getTotalItemsForResource($resourceType, $filters);
-        if (env('DETAILED_LOGGING'))
-            Log::info("Found {$totalItems} items for {$resourceType->value}");
+        return DB::transaction(function () use ($data, $filters, $resourceType) {
+            // Lock the table and check for existing active migrations for this resource type
+            $activeMigrations = DataMigration::lockForUpdate()
+                ->active()
+                ->where('resource_type', $resourceType)
+                ->count();
 
-        return DataMigration::create([
-            'name' => $data['name'],
-            'resource_type' => $resourceType,
-            'filters' => $filters->all,
-            'batch_size' => $data['batch_size'],
-            'total_items' => $totalItems,  // Set total items immediately
-            'status' => DataMigrationStatus::PENDING
-        ]);
+            if ($activeMigrations > 0) {
+                throw new \Exception(
+                    "Cannot create migration: There is already an active migration for resource type '{$resourceType->value}'. " .
+                    "Please wait for the existing migration to complete or cancel it before starting a new one."
+                );
+            }
+
+            // Calculate total items upfront using the fixed getTotalItemsForResource method
+            $totalItems = $this->getTotalItemsForResource($resourceType, $filters);
+            if (env('DETAILED_LOGGING'))
+                Log::info("Found {$totalItems} items for {$resourceType->value}");
+
+            return DataMigration::create([
+                'name' => $data['name'],
+                'resource_type' => $resourceType,
+                'filters' => $filters->all,
+                'batch_size' => $data['batch_size'],
+                'total_items' => $totalItems,  // Set total items immediately
+                'status' => DataMigrationStatus::PENDING
+            ]);
+        });
     }
 
     /**
