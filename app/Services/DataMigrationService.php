@@ -209,6 +209,9 @@ class DataMigrationService
             } else if ($resourceType === ResourceType::SHALLOW_CASE) {
                 // SHALLOW_CASE uses same SearchCase API as CASE
                 $response = $this->dataExchangeService->getCaseData($filters);
+            } else if ($resourceType === ResourceType::SHALLOW_CLOSED_CASE) {
+                // SHALLOW_CLOSED_CASE uses SearchCase API with END_DATE_TO filter
+                $response = $this->dataExchangeService->getClosedCaseData($filters);
             } else if ($resourceType === ResourceType::CLOSED_CASE) {
                 $response = $this->dataExchangeService->getClosedCaseData($filters);
             } else if ($resourceType === ResourceType::CASE_CLIENT) {
@@ -454,6 +457,11 @@ class DataMigrationService
                 $response = $this->dataExchangeService->getCaseDataWithPagination($filters);
                 return $this->extractCasesFromResponse($response);
 
+            case ResourceType::SHALLOW_CLOSED_CASE:
+                // SHALLOW_CLOSED_CASE uses SearchCase with END_DATE_TO filter and pagination
+                $response = $this->dataExchangeService->getClosedCaseDataWithPagination($filters);
+                return $this->extractCasesFromResponse($response);
+
             case ResourceType::CASE_CLIENT:
                 throw new \Exception('Case clients not supported, yet.');
 
@@ -493,6 +501,10 @@ class DataMigrationService
                         $this->storeClient($itemArray, $batchId, $migrationId);
                         break;
                     case ResourceType::SHALLOW_CASE:
+                        $this->storeShallowCase($itemArray, $batchId);
+                        break;
+                    case ResourceType::SHALLOW_CLOSED_CASE:
+                        // SHALLOW_CLOSED_CASE uses same storage as SHALLOW_CASE
                         $this->storeShallowCase($itemArray, $batchId);
                         break;
                     case ResourceType::CASE_CLIENT:

@@ -99,6 +99,17 @@
               </label>
             </div>
 
+            <div class="form-check">
+              <input type="radio" name="resource_type" value="SHALLOW_CLOSED_CASE" id="SHALLOW_CLOSED_CASE" class="form-check-input"
+                {{ old('resource_type') == 'SHALLOW_CLOSED_CASE' ? 'checked' : '' }} required>
+              <label for="SHALLOW_CLOSED_CASE" class="form-check-label d-flex align-items-center">
+                <span>Shallow Closed Cases</span>
+                <span class="badge bg-warning ms-2">
+                  Lightweight closed case data for enrichment
+                </span>
+              </label>
+            </div>
+
             @if ($hasMigratedCases)
               <div class="form-check">
                 <input type="radio" name="resource_type" value="SESSIONS" id="SESSIONS" class="form-check-input"

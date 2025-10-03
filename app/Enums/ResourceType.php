@@ -12,6 +12,7 @@ enum ResourceType: string
     case CLIENT = 'CLIENT';
     case CASE = 'CASE';
     case SHALLOW_CASE = 'SHALLOW_CASE';
+    case SHALLOW_CLOSED_CASE = 'SHALLOW_CLOSED_CASE';
     case ENRICHED_CASE = 'ENRICHED_CASE';
     case CASE_CLIENT = 'CASE_CLIENT';
     case CLOSED_CASE = 'CLOSED_CASE';
@@ -24,6 +25,7 @@ enum ResourceType: string
         ResourceType::CLIENT,
         ResourceType::CASE,
         ResourceType::SHALLOW_CASE,
+        ResourceType::SHALLOW_CLOSED_CASE,
         ResourceType::SESSION,
         ResourceType::CLOSED_CASE,
         ResourceType::CASE_CLIENT,
@@ -41,7 +43,7 @@ enum ResourceType: string
 
     public static function getIndependentResourceTypes(): array
     {
-        return [self::CLIENT, self::CASE, self::SHALLOW_CASE];
+        return [self::CLIENT, self::CASE, self::SHALLOW_CASE, self::SHALLOW_CLOSED_CASE];
     }
 
     public function getTableName(): string
@@ -49,6 +51,7 @@ enum ResourceType: string
         if ($this === ResourceType::CLIENT) return 'migrated_clients';
         if ($this === ResourceType::CASE) return 'migrated_cases';
         if ($this === ResourceType::SHALLOW_CASE) return 'migrated_shallow_cases';
+        if ($this === ResourceType::SHALLOW_CLOSED_CASE) return 'migrated_shallow_cases'; // Same table as SHALLOW_CASE
         if ($this === ResourceType::ENRICHED_CASE) return 'migrated_enriched_cases';
         if ($this === ResourceType::SESSION) return 'migrated_sessions';
         else throw new \Exception('Resource type not supported by getTableName');

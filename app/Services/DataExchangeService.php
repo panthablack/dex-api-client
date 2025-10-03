@@ -1230,6 +1230,16 @@ class DataExchangeService
     }
 
     /**
+     * Get closed case data with pagination metadata - for SHALLOW_CLOSED_CASE migrations
+     */
+    public function getClosedCaseDataWithPagination(Filters $filters)
+    {
+        $filters->set(FilterType::END_DATE_TO, now()->addDay(1)->format('Y-m-d') . 'T00:00:00.000');
+        $result = $this->getCaseData($filters);
+        return $this->addPaginationMetadata($result, $filters);
+    }
+
+    /**
      * Get case by ID
      * Note: CaseId must be passed outside the Criteria array as per DSS requirements
      */
