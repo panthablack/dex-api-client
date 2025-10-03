@@ -2858,6 +2858,7 @@ class DataExchangeService
         return [
             ResourceType::CLIENT->value => 'Client Data',
             ResourceType::CASE->value => 'Case Data',
+            ResourceType::SHALLOW_CASE->value => 'Shallow Case Data (SearchCase only - for enrichment)',
             ResourceType::FULL_CASE->value => 'Fetch Full Case Data (SearchCase + GetCase)',
             ResourceType::FULL_SESSION->value => 'Fetch Full Session Data (SearchCase + GetCase + GetSession)',
             ResourceType::SESSION->value => 'Session Data (requires Case ID)'

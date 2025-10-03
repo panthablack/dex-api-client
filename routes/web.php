@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DataExchangeController;
 use App\Http\Controllers\DataMigrationController;
 use App\Http\Controllers\VerificationController;
+use App\Http\Controllers\EnrichmentController;
 
 Route::get('/', [DataExchangeController::class, 'index'])->name('home');
 
@@ -119,5 +120,19 @@ Route::prefix('data-migration')->name('data-migration.')->group(function () {
         Route::get('/{migration}/export', [DataMigrationController::class, 'export'])->name('export');
         Route::post('/{migration}/quick-verify', [DataMigrationController::class, 'quickVerify'])->name('quick-verify');
         Route::get('/{migration}/verification-status', [VerificationController::class, 'getStatus'])->name('verification-status');
+    });
+});
+
+// Enrichment routes
+Route::prefix('enrichment')->name('enrichment.')->group(function () {
+    // Main enrichment dashboard
+    Route::get('/', [EnrichmentController::class, 'index'])->name('index');
+
+    // API endpoints for AJAX operations
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::post('/start', [EnrichmentController::class, 'start'])->name('start');
+        Route::get('/progress', [EnrichmentController::class, 'progress'])->name('progress');
+        Route::get('/unenriched', [EnrichmentController::class, 'unenriched'])->name('unenriched');
+        Route::get('/job-status/{jobId}', [EnrichmentController::class, 'jobStatus'])->name('job-status');
     });
 });

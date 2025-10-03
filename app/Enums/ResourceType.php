@@ -4,11 +4,15 @@ namespace App\Enums;
 
 use \App\Helpers\EnumHelpers;
 use App\Models\MigratedCase;
+use App\Models\MigratedShallowCase;
+use App\Models\DataMigration;
 
 enum ResourceType: string
 {
     case CLIENT = 'CLIENT';
     case CASE = 'CASE';
+    case SHALLOW_CASE = 'SHALLOW_CASE';
+    case ENRICHED_CASE = 'ENRICHED_CASE';
     case CASE_CLIENT = 'CASE_CLIENT';
     case CLOSED_CASE = 'CLOSED_CASE';
     case SESSION = 'SESSION';
@@ -19,6 +23,7 @@ enum ResourceType: string
     public const MIGRATABLE_RESOURCES = [
         ResourceType::CLIENT,
         ResourceType::CASE,
+        ResourceType::SHALLOW_CASE,
         ResourceType::SESSION,
         ResourceType::CLOSED_CASE,
         ResourceType::CASE_CLIENT,
@@ -36,13 +41,15 @@ enum ResourceType: string
 
     public static function getIndependentResourceTypes(): array
     {
-        return [self::CLIENT, self::CASE];
+        return [self::CLIENT, self::CASE, self::SHALLOW_CASE];
     }
 
     public function getTableName(): string
     {
         if ($this === ResourceType::CLIENT) return 'migrated_clients';
         if ($this === ResourceType::CASE) return 'migrated_cases';
+        if ($this === ResourceType::SHALLOW_CASE) return 'migrated_shallow_cases';
+        if ($this === ResourceType::ENRICHED_CASE) return 'migrated_enriched_cases';
         if ($this === ResourceType::SESSION) return 'migrated_sessions';
         else throw new \Exception('Resource type not supported by getTableName');
     }
@@ -60,7 +67,20 @@ enum ResourceType: string
     public static function resourcesAvailable(ResourceType $type): bool
     {
         if ($type === self::CASE) return MigratedCase::count() > 0;
+        if ($type === self::SHALLOW_CASE) return MigratedShallowCase::count() > 0;
         else return false;
+    }
+
+    /**
+     * Check if ENRICHED_CASE can be triggered
+     * Requires a completed SHALLOW_CASE migration
+     */
+    public static function canEnrichCases(): bool
+    {
+        // Check for completed SHALLOW_CASE migration
+        return DataMigration::where('resource_type', self::SHALLOW_CASE)
+            ->where('status', \App\Enums\DataMigrationStatus::COMPLETED)
+            ->exists();
     }
 
     public static function isMigratable($type): bool

@@ -11,6 +11,7 @@ use App\Models\DataMigration;
 use App\Models\DataMigrationBatch;
 use App\Models\MigratedClient;
 use App\Models\MigratedCase;
+use App\Models\MigratedShallowCase;
 use App\Models\MigratedSession;
 use App\Services\DataExchangeService;
 use App\Jobs\ProcessDataMigrationBatch;
@@ -204,6 +205,9 @@ class DataMigrationService
             if ($resourceType === ResourceType::CLIENT) {
                 $response = $this->dataExchangeService->getClientData($filters);
             } else if ($resourceType === ResourceType::CASE) {
+                $response = $this->dataExchangeService->getCaseData($filters);
+            } else if ($resourceType === ResourceType::SHALLOW_CASE) {
+                // SHALLOW_CASE uses same SearchCase API as CASE
                 $response = $this->dataExchangeService->getCaseData($filters);
             } else if ($resourceType === ResourceType::CLOSED_CASE) {
                 $response = $this->dataExchangeService->getClosedCaseData($filters);
@@ -445,6 +449,11 @@ class DataMigrationService
                 $response = $this->dataExchangeService->getClientDataWithPagination($filters);
                 return $this->extractClientsFromResponse($response);
 
+            case ResourceType::SHALLOW_CASE:
+                // SHALLOW_CASE uses SearchCase with pagination (same pattern as CLIENT)
+                $response = $this->dataExchangeService->getCaseDataWithPagination($filters);
+                return $this->extractCasesFromResponse($response);
+
             case ResourceType::CASE_CLIENT:
                 throw new \Exception('Case clients not supported, yet.');
 
@@ -482,6 +491,9 @@ class DataMigrationService
                 switch ($resourceType) {
                     case ResourceType::CLIENT:
                         $this->storeClient($itemArray, $batchId, $migrationId);
+                        break;
+                    case ResourceType::SHALLOW_CASE:
+                        $this->storeShallowCase($itemArray, $batchId);
                         break;
                     case ResourceType::CASE_CLIENT:
                         $this->storeClient($itemArray, $batchId, $migrationId);
@@ -562,6 +574,34 @@ class DataMigrationService
             ]
         );
         return $res;
+    }
+
+    /**
+     * Store shallow case record from SearchCase result
+     */
+    protected function storeShallowCase(array $caseData, string $batchId): void
+    {
+        $caseId = $this->extractCaseId($caseData);
+        if (!$caseId) {
+            throw new \Exception("Could not extract case ID from shallow case data");
+        }
+
+        MigratedShallowCase::updateOrCreate(
+            ['case_id' => $caseId],
+            [
+                'outlet_name' => $caseData['outlet_name']
+                    ?? $caseData['OutletName']
+                    ?? null,
+                'created_date_time' => $caseData['created_date_time']
+                    ?? $caseData['CreatedDateTime']
+                    ?? null,
+                'client_attendance_profile_code' => $caseData['client_attendance_profile_code']
+                    ?? $caseData['ClientAttendanceProfileCode']
+                    ?? null,
+                'api_response' => $caseData,
+                'data_migration_batch_id' => $batchId,
+            ]
+        );
     }
 
     /**
