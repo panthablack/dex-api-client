@@ -36,6 +36,9 @@ class EnrichCasesJob implements ShouldQueue
             'failed' => 0,
             'errors' => []
         ]);
+
+        // Mark this as the active enrichment job
+        self::setActiveJobId($this->jobId);
     }
 
     /**
@@ -62,6 +65,9 @@ class EnrichCasesJob implements ShouldQueue
             // Update final status
             $this->updateJobStatus('completed', $stats);
 
+            // Clear active job marker (job completed successfully)
+            self::clearActiveJobId();
+
             Log::info("Background enrichment job {$this->jobId} completed: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
         } catch (\Exception $e) {
             Log::error("Background enrichment job {$this->jobId} failed: " . $e->getMessage());
@@ -69,6 +75,9 @@ class EnrichCasesJob implements ShouldQueue
             $this->updateJobStatus('failed', [
                 'error' => $e->getMessage()
             ]);
+
+            // Clear active job marker (job failed)
+            self::clearActiveJobId();
 
             throw $e;
         }
@@ -84,6 +93,9 @@ class EnrichCasesJob implements ShouldQueue
         $this->updateJobStatus('failed', [
             'error' => $e->getMessage()
         ]);
+
+        // Clear active job marker
+        self::clearActiveJobId();
     }
 
     /**
@@ -108,5 +120,29 @@ class EnrichCasesJob implements ShouldQueue
     public static function getJobStatus(string $jobId): ?array
     {
         return Cache::get("enrichment:job:{$jobId}");
+    }
+
+    /**
+     * Set the active enrichment job ID
+     */
+    protected static function setActiveJobId(string $jobId): void
+    {
+        Cache::put('enrichment:active_job_id', $jobId, 86400); // 24 hours
+    }
+
+    /**
+     * Get the currently active enrichment job ID
+     */
+    public static function getActiveJobId(): ?string
+    {
+        return Cache::get('enrichment:active_job_id');
+    }
+
+    /**
+     * Clear the active enrichment job ID
+     */
+    protected static function clearActiveJobId(): void
+    {
+        Cache::forget('enrichment:active_job_id');
     }
 }

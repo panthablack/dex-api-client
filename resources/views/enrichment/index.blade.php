@@ -6,19 +6,11 @@
   <div x-data="enrichmentApp()" x-init="init()" x-cloak>
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h2 text-primary">Case Enrichment Dashboard</h1>
-      <div class="d-flex gap-3 align-items-center">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" id="backgroundMode" x-model="backgroundMode">
-          <label class="form-check-label" for="backgroundMode">
-            <i class="fas fa-layer-group me-1"></i> Background Mode
-          </label>
-        </div>
-        <button @click="startEnrichment()" :disabled="!canEnrich || isEnriching" class="btn btn-primary">
-          <i class="fas" :class="isEnriching ? 'fa-spinner fa-spin' : 'fa-play'" x-show="!isEnriching"></i>
-          <i class="fas fa-spinner fa-spin" x-show="isEnriching"></i>
-          <span x-text="isEnriching ? (backgroundMode ? 'Processing...' : 'Enriching...') : 'Start Enrichment'"></span>
-        </button>
-      </div>
+      <button @click="startEnrichment()" :disabled="!canEnrich || isEnriching" class="btn btn-primary">
+        <i class="fas" :class="isEnriching ? 'fa-spinner fa-spin' : 'fa-play'" x-show="!isEnriching"></i>
+        <i class="fas fa-spinner fa-spin" x-show="isEnriching"></i>
+        <span x-text="isEnriching ? 'Processing...' : 'Start Enrichment'"></span>
+      </button>
     </div>
 
     @if (session('success'))
@@ -137,20 +129,19 @@
         </h5>
         <p class="card-text">
           Case enrichment fetches complete case data from the DSS API one case at a time, providing maximum fault
-          tolerance.
-          This process:
+          tolerance. The process runs in the background to prevent browser timeout.
         </p>
         <ul>
           <li><strong>Requires:</strong> A completed SHALLOW_CASE migration to provide the list of case IDs</li>
           <li><strong>Processes:</strong> Each case individually using the GetCase API (fault-tolerant)</li>
+          <li><strong>Background:</strong> Runs as a queue job to handle large datasets without browser timeout</li>
           <li><strong>Stores:</strong> Full case data including client IDs, outlet details, and session information</li>
           <li><strong>Resumes:</strong> Automatically skips cases that are already enriched (safe to re-run)</li>
           <li><strong>Continues:</strong> On error, logs the failure and continues with remaining cases</li>
         </ul>
         <p class="mb-0 text-muted">
           <i class="fas fa-lightbulb me-1"></i>
-          <strong>Tip:</strong> If enrichment is interrupted, simply click "Start Enrichment" again. It will
-          automatically resume from where it left off.
+          <strong>Tip:</strong> You can navigate away from this page during enrichment. The job will continue running in the background. Return here to check progress.
         </p>
       </div>
     </div>
@@ -229,13 +220,41 @@
         canEnrich: @json($canEnrich),
         progress: @json($progress),
         isEnriching: false,
-        backgroundMode: false,
         lastEnrichmentResult: null,
         pollInterval: null,
         currentJobId: null,
 
-        init() {
-          // Could add auto-refresh of progress here if needed
+        async init() {
+          // Check for any active enrichment jobs on page load
+          await this.checkForActiveJob();
+        },
+
+        async checkForActiveJob() {
+          try {
+            const response = await fetch('{{ route('enrichment.api.active-job') }}');
+            const data = await response.json();
+
+            if (data.success && data.data) {
+              const job = data.data;
+
+              // If there's an active job (queued or processing), resume monitoring
+              if (job.status === 'queued' || job.status === 'processing') {
+                this.currentJobId = job.job_id;
+                this.isEnriching = true;
+                window.showToast('Resuming monitoring of enrichment job...', 'info', 3000);
+                this.startPollingJobStatus();
+              } else if (job.status === 'completed') {
+                // Show completed results
+                this.lastEnrichmentResult = job.data;
+                window.showToast('Previous enrichment completed', 'success', 3000);
+              } else if (job.status === 'failed') {
+                // Show failure message
+                window.showToast('Previous enrichment failed: ' + (job.data?.error || 'Unknown error'), 'error', 5000);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to check for active job:', error);
+          }
         },
 
         async startEnrichment() {
@@ -252,32 +271,16 @@
               headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-              },
-              body: JSON.stringify({
-                background: this.backgroundMode
-              })
+              }
             });
 
             const data = await response.json();
 
             if (data.success) {
-              if (data.data.background) {
-                // Background mode: start polling for job status
-                this.currentJobId = data.data.job_id;
-                window.showToast('Enrichment job started in background. Polling for status...', 'info');
-                this.startPollingJobStatus();
-              } else {
-                // Synchronous mode: immediate results
-                this.lastEnrichmentResult = data.data;
-                await this.refreshProgress();
-
-                window.showToast(
-                  `Enrichment completed! ${data.data.newly_enriched} cases enriched, ${data.data.already_enriched} already enriched, ${data.data.failed} failed.`,
-                  'success',
-                  8000
-                );
-                this.isEnriching = false;
-              }
+              // Always background mode: start polling for job status
+              this.currentJobId = data.data.job_id;
+              window.showToast('Enrichment job started. Monitoring progress...', 'info', 3000);
+              this.startPollingJobStatus();
             } else {
               window.showToast('Enrichment failed: ' + (data.error || 'Unknown error'), 'error');
               this.isEnriching = false;

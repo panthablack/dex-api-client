@@ -39,7 +39,7 @@ class EnrichmentController extends Controller
      * Start the enrichment process
      * POST /enrichment/start
      *
-     * @param Request $request Accepts 'background' param (default: false)
+     * Always runs in background mode to prevent browser timeout
      */
     public function start(Request $request): JsonResponse
     {
@@ -52,38 +52,20 @@ class EnrichmentController extends Controller
                 ], 422);
             }
 
-            // Check if background processing is requested
-            $background = $request->input('background', false);
+            // Always dispatch to background queue
+            Log::info('Dispatching case enrichment to background queue');
 
-            if ($background) {
-                // Dispatch to background queue
-                Log::info('Dispatching case enrichment to background queue');
+            $job = new EnrichCasesJob();
+            dispatch($job);
 
-                $job = new EnrichCasesJob();
-                dispatch($job);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Enrichment job dispatched to background queue',
-                    'data' => [
-                        'job_id' => $job->getJobId(),
-                        'background' => true
-                    ]
-                ]);
-            } else {
-                // Run enrichment synchronously
-                Log::info('Starting case enrichment process (synchronous)');
-
-                $stats = $this->enrichmentService->enrichAllCases();
-
-                Log::info('Enrichment completed', $stats);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Enrichment process completed',
-                    'data' => $stats
-                ]);
-            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Enrichment job dispatched to background queue',
+                'data' => [
+                    'job_id' => $job->getJobId(),
+                    'background' => true
+                ]
+            ]);
         } catch (\Exception $e) {
             Log::error('Enrichment failed: ' . $e->getMessage());
 
@@ -165,6 +147,57 @@ class EnrichmentController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error("Failed to get job status for {$jobId}: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get currently active enrichment job
+     * GET /enrichment/active-job
+     */
+    public function activeJob(): JsonResponse
+    {
+        try {
+            $activeJobId = EnrichCasesJob::getActiveJobId();
+
+            if (!$activeJobId) {
+                return response()->json([
+                    'success' => true,
+                    'data' => null
+                ]);
+            }
+
+            // Get the job status
+            $status = EnrichCasesJob::getJobStatus($activeJobId);
+
+            // If job status exists and is still active (queued or processing)
+            if ($status && in_array($status['status'], ['queued', 'processing'])) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $status
+                ]);
+            }
+
+            // Job completed or failed, clear active marker
+            if ($status && in_array($status['status'], ['completed', 'failed'])) {
+                // Return the completed/failed job one last time
+                return response()->json([
+                    'success' => true,
+                    'data' => $status
+                ]);
+            }
+
+            // No active job
+            return response()->json([
+                'success' => true,
+                'data' => null
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to get active job: " . $e->getMessage());
 
             return response()->json([
                 'success' => false,

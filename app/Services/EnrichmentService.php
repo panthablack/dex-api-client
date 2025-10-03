@@ -107,12 +107,16 @@ class EnrichmentService
             throw new \Exception("Failed to fetch case data for {$shallowCase->case_id}");
         }
 
+        // Convert stdClass to array (SOAP responses return objects)
+        $caseDataArray = json_decode(json_encode($caseData), true);
+
         // Store the enriched case
-        return $this->storeEnrichedCase($shallowCase, $caseData);
+        return $this->storeEnrichedCase($shallowCase, $caseDataArray);
     }
 
     /**
      * Store enriched case data in the database
+     * Uses same extraction logic as DataMigrationService for consistency
      *
      * @param MigratedShallowCase $shallowCase
      * @param array $caseData Full case data from GetCase API
@@ -120,19 +124,58 @@ class EnrichmentService
      */
     protected function storeEnrichedCase(MigratedShallowCase $shallowCase, array $caseData): MigratedEnrichedCase
     {
+        // Extract client IDs using robust nested extraction
         $clientIds = $this->extractClientIds($caseData);
+
+        // Extract fields using data_get() for nested structures (same as DataMigrationService)
+        // API response structure: Case.CaseDetail.FieldName or Case.FieldName
+        $outletName = $caseData['outlet_name']
+            ?? $caseData['OutletName']
+            ?? data_get($caseData, 'Case.OutletName')
+            ?? data_get($caseData, 'CaseDetail.OutletName')
+            ?? null;
+
+        $outletActivityId = $caseData['outlet_activity_id']
+            ?? $caseData['OutletActivityId']
+            ?? data_get($caseData, 'Case.CaseDetail.OutletActivityId')
+            ?? data_get($caseData, 'CaseDetail.OutletActivityId')
+            ?? 0;
+
+        $clientAttendanceProfileCode = $caseData['client_attendance_profile_code']
+            ?? $caseData['ClientAttendanceProfileCode']
+            ?? data_get($caseData, 'Case.CaseDetail.ClientAttendanceProfileCode')
+            ?? data_get($caseData, 'CaseDetail.ClientAttendanceProfileCode')
+            ?? null;
+
+        $createdDateTime = $caseData['created_date_time']
+            ?? $caseData['CreatedDateTime']
+            ?? data_get($caseData, 'Case.CreatedDateTime')
+            ?? data_get($caseData, 'CaseDetail.CreatedDateTime')
+            ?? null;
+
+        $endDate = $caseData['end_date']
+            ?? $caseData['EndDate']
+            ?? data_get($caseData, 'Case.CaseDetail.EndDate')
+            ?? data_get($caseData, 'CaseDetail.EndDate')
+            ?? null;
+
+        $totalNumberOfUnidentifiedClients = $caseData['total_number_of_unidentified_clients']
+            ?? $caseData['TotalNumberOfUnidentifiedClients']
+            ?? data_get($caseData, 'Case.CaseDetail.TotalNumberOfUnidentifiedClients')
+            ?? data_get($caseData, 'CaseDetail.TotalNumberOfUnidentifiedClients')
+            ?? null;
 
         return MigratedEnrichedCase::updateOrCreate(
             ['case_id' => $shallowCase->case_id],
             [
                 'shallow_case_id' => $shallowCase->id,
-                'outlet_name' => $caseData['outlet_name'] ?? $caseData['OutletName'] ?? null,
+                'outlet_name' => $outletName,
                 'client_ids' => $clientIds,
-                'outlet_activity_id' => $caseData['outlet_activity_id'] ?? $caseData['OutletActivityId'] ?? 0,
-                'created_date_time' => $caseData['created_date_time'] ?? $caseData['CreatedDateTime'] ?? null,
-                'end_date' => $caseData['end_date'] ?? $caseData['EndDate'] ?? null,
-                'client_attendance_profile_code' => $caseData['client_attendance_profile_code'] ?? $caseData['ClientAttendanceProfileCode'] ?? null,
-                'client_count' => $caseData['client_count'] ?? $caseData['ClientCount'] ?? count($clientIds),
+                'outlet_activity_id' => $outletActivityId,
+                'created_date_time' => $createdDateTime,
+                'end_date' => $endDate,
+                'client_attendance_profile_code' => $clientAttendanceProfileCode,
+                'client_count' => $totalNumberOfUnidentifiedClients ?? count($clientIds ?? []),
                 'api_response' => $caseData,
                 'enriched_at' => now(),
                 'verification_status' => VerificationStatus::PENDING,
@@ -142,32 +185,60 @@ class EnrichmentService
 
     /**
      * Extract client IDs from case data
-     * Handles various possible formats from the API
+     * Handles various possible formats from the API (same logic as DataMigrationService)
      *
      * @param array $caseData
      * @return array
      */
     protected function extractClientIds(array $caseData): array
     {
-        // Try different possible field names
-        $clientIds = $caseData['client_ids'] ??
-                    $caseData['ClientIds'] ??
-                    $caseData['client_id_list'] ??
-                    $caseData['ClientIdList'] ??
-                    [];
+        // Try to extract as array first
+        if (isset($caseData['client_ids']) && is_array($caseData['client_ids'])) {
+            // Filter out empty values and re-index
+            return array_values(array_filter($caseData['client_ids']));
+        }
+
+        if (isset($caseData['ClientIds']) && is_array($caseData['ClientIds'])) {
+            // Filter out empty values and re-index
+            return array_values(array_filter($caseData['ClientIds']));
+        }
+
+        // Check for nested client data structures (Case.Clients or just Clients)
+        $clientsData = data_get($caseData, 'Case.Clients') ?? data_get($caseData, 'Clients');
+
+        if ($clientsData && is_array($clientsData)) {
+            $clientIds = [];
+
+            // Handle various nested structures
+            if (isset($clientsData['CaseClient'])) {
+                if (is_array($clientsData['CaseClient']) && isset($clientsData['CaseClient'][0])) {
+                    // Multiple clients (array of client objects)
+                    foreach ($clientsData['CaseClient'] as $client) {
+                        if ($clientId = $client['ClientId'] ?? null) {
+                            $clientIds[] = $clientId;
+                        }
+                    }
+                } elseif (isset($clientsData['CaseClient']['ClientId'])) {
+                    // Single client (single client object)
+                    $clientIds[] = $clientsData['CaseClient']['ClientId'];
+                }
+            }
+
+            if (!empty($clientIds)) {
+                // Filter out empty values and re-index
+                return array_values(array_filter($clientIds));
+            }
+        }
 
         // If we got a string, try to parse it
-        if (is_string($clientIds)) {
-            $clientIds = array_map('trim', explode(',', $clientIds));
+        $clientIdsString = $caseData['client_ids'] ?? $caseData['ClientIds'] ?? null;
+        if (is_string($clientIdsString)) {
+            $clientIds = array_map('trim', explode(',', $clientIdsString));
+            return array_values(array_filter($clientIds));
         }
 
-        // Ensure it's an array
-        if (!is_array($clientIds)) {
-            $clientIds = [];
-        }
-
-        // Filter out empty values
-        return array_values(array_filter($clientIds));
+        // Return empty array if nothing found
+        return [];
     }
 
     /**

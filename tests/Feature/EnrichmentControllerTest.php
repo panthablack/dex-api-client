@@ -10,8 +10,10 @@ use App\Enums\DataMigrationStatus;
 use App\Enums\ResourceType;
 use App\Enums\VerificationStatus;
 use App\Services\DataExchangeService;
+use App\Jobs\EnrichCasesJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 use Mockery;
 
@@ -175,6 +177,8 @@ class EnrichmentControllerTest extends TestCase
 
     public function test_start_endpoint_enriches_cases_successfully(): void
     {
+        Queue::fake();
+
         // Create a completed SHALLOW_CASE migration
         DataMigration::factory()->create([
             'resource_type' => ResourceType::SHALLOW_CASE,
@@ -184,72 +188,40 @@ class EnrichmentControllerTest extends TestCase
         $batch = DataMigrationBatch::factory()->create();
 
         // Create shallow cases
-        $shallowCase1 = MigratedShallowCase::create([
+        MigratedShallowCase::create([
             'case_id' => 'CASE-100',
             'api_response' => [],
             'data_migration_batch_id' => $batch->id,
         ]);
 
-        $shallowCase2 = MigratedShallowCase::create([
+        MigratedShallowCase::create([
             'case_id' => 'CASE-101',
             'api_response' => [],
             'data_migration_batch_id' => $batch->id,
         ]);
-
-        // Mock the DataExchangeService
-        $mockService = Mockery::mock(DataExchangeService::class);
-
-        $mockService->shouldReceive('getCaseById')
-            ->with('CASE-100')
-            ->once()
-            ->andReturn([
-                'case_id' => 'CASE-100',
-                'OutletName' => 'Test Outlet 100',
-                'OutletActivityId' => 1000,
-                'ClientIds' => ['CLIENT-001', 'CLIENT-002'],
-            ]);
-
-        $mockService->shouldReceive('getCaseById')
-            ->with('CASE-101')
-            ->once()
-            ->andReturn([
-                'case_id' => 'CASE-101',
-                'OutletName' => 'Test Outlet 101',
-                'OutletActivityId' => 1001,
-                'ClientIds' => ['CLIENT-003'],
-            ]);
-
-        $this->app->instance(DataExchangeService::class, $mockService);
-        $this->mockProcessLock();
 
         $response = $this->postJson(route('enrichment.api.start'));
 
         $response->assertOk();
         $response->assertJson([
             'success' => true,
-            'message' => 'Enrichment process completed',
+            'message' => 'Enrichment job dispatched to background queue',
         ]);
 
-        $stats = $response->json('data');
-        $this->assertEquals(2, $stats['total_shallow_cases']);
-        $this->assertEquals(2, $stats['newly_enriched']);
-        $this->assertEquals(0, $stats['already_enriched']);
-        $this->assertEquals(0, $stats['failed']);
+        // Verify response contains job_id and background flag
+        $data = $response->json('data');
+        $this->assertArrayHasKey('job_id', $data);
+        $this->assertArrayHasKey('background', $data);
+        $this->assertTrue($data['background']);
 
-        // Verify enriched cases were created
-        $this->assertDatabaseHas('migrated_enriched_cases', [
-            'case_id' => 'CASE-100',
-            'outlet_name' => 'Test Outlet 100',
-        ]);
-
-        $this->assertDatabaseHas('migrated_enriched_cases', [
-            'case_id' => 'CASE-101',
-            'outlet_name' => 'Test Outlet 101',
-        ]);
+        // Verify job was dispatched
+        Queue::assertPushed(EnrichCasesJob::class);
     }
 
     public function test_start_endpoint_skips_already_enriched_cases(): void
     {
+        Queue::fake();
+
         // Create a completed SHALLOW_CASE migration
         DataMigration::factory()->create([
             'resource_type' => ResourceType::SHALLOW_CASE,
@@ -265,7 +237,7 @@ class EnrichmentControllerTest extends TestCase
             'data_migration_batch_id' => $batch->id,
         ]);
 
-        $shallowCase2 = MigratedShallowCase::create([
+        MigratedShallowCase::create([
             'case_id' => 'CASE-201',
             'api_response' => [],
             'data_migration_batch_id' => $batch->id,
@@ -280,33 +252,22 @@ class EnrichmentControllerTest extends TestCase
             'verification_status' => VerificationStatus::PENDING,
         ]);
 
-        // Mock the DataExchangeService - should only be called for CASE-201
-        $mockService = Mockery::mock(DataExchangeService::class);
-
-        $mockService->shouldReceive('getCaseById')
-            ->with('CASE-201')
-            ->once()
-            ->andReturn([
-                'case_id' => 'CASE-201',
-                'OutletName' => 'Test Outlet 201',
-                'OutletActivityId' => 2001,
-            ]);
-
-        $this->app->instance(DataExchangeService::class, $mockService);
-        $this->mockProcessLock();
-
         $response = $this->postJson(route('enrichment.api.start'));
 
         $response->assertOk();
-        $stats = $response->json('data');
-        $this->assertEquals(2, $stats['total_shallow_cases']);
-        $this->assertEquals(1, $stats['newly_enriched']);
-        $this->assertEquals(1, $stats['already_enriched']);
-        $this->assertEquals(0, $stats['failed']);
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Enrichment job dispatched to background queue',
+        ]);
+
+        // Verify job was dispatched (skip logic is tested in EnrichmentService tests)
+        Queue::assertPushed(EnrichCasesJob::class);
     }
 
     public function test_start_endpoint_handles_failures_gracefully(): void
     {
+        Queue::fake();
+
         // Create a completed SHALLOW_CASE migration
         DataMigration::factory()->create([
             'resource_type' => ResourceType::SHALLOW_CASE,
@@ -334,50 +295,16 @@ class EnrichmentControllerTest extends TestCase
             'data_migration_batch_id' => $batch->id,
         ]);
 
-        // Mock the DataExchangeService - fail on CASE-301
-        $mockService = Mockery::mock(DataExchangeService::class);
-
-        $mockService->shouldReceive('getCaseById')
-            ->with('CASE-300')
-            ->once()
-            ->andReturn([
-                'case_id' => 'CASE-300',
-                'OutletActivityId' => 3000,
-            ]);
-
-        $mockService->shouldReceive('getCaseById')
-            ->with('CASE-301')
-            ->once()
-            ->andReturn(null); // Simulate API failure
-
-        $mockService->shouldReceive('getCaseById')
-            ->with('CASE-302')
-            ->once()
-            ->andReturn([
-                'case_id' => 'CASE-302',
-                'OutletActivityId' => 3002,
-            ]);
-
-        $this->app->instance(DataExchangeService::class, $mockService);
-        $this->mockProcessLock();
-
         $response = $this->postJson(route('enrichment.api.start'));
 
         $response->assertOk();
-        $stats = $response->json('data');
-        $this->assertEquals(3, $stats['total_shallow_cases']);
-        $this->assertEquals(2, $stats['newly_enriched']);
-        $this->assertEquals(0, $stats['already_enriched']);
-        $this->assertEquals(1, $stats['failed']);
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Enrichment job dispatched to background queue',
+        ]);
 
-        // Verify error details
-        $this->assertCount(1, $stats['errors']);
-        $this->assertEquals('CASE-301', $stats['errors'][0]['case_id']);
-
-        // Verify successful cases were enriched despite failure
-        $this->assertDatabaseHas('migrated_enriched_cases', ['case_id' => 'CASE-300']);
-        $this->assertDatabaseHas('migrated_enriched_cases', ['case_id' => 'CASE-302']);
-        $this->assertDatabaseMissing('migrated_enriched_cases', ['case_id' => 'CASE-301']);
+        // Verify job was dispatched (error handling is tested in EnrichmentService tests)
+        Queue::assertPushed(EnrichCasesJob::class);
     }
 
     protected function tearDown(): void
