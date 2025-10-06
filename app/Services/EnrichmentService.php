@@ -41,8 +41,12 @@ class EnrichmentService
                 'already_enriched' => 0,
                 'newly_enriched' => 0,
                 'failed' => 0,
-                'errors' => []
+                'errors' => [],
+                'paused' => false
             ];
+
+            // Clear pause flag at start
+            $this->clearPaused();
 
             // Get all shallow cases that need enrichment
             $shallowCases = MigratedShallowCase::all();
@@ -57,6 +61,13 @@ class EnrichmentService
 
             // Process each case one at a time
             foreach ($shallowCases as $shallowCase) {
+                // Check for pause request before processing each case
+                if ($this->isPaused()) {
+                    Log::info("Enrichment paused by user request. Progress: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
+                    $stats['paused'] = true;
+                    return $stats;
+                }
+
                 try {
                     // Skip if already enriched
                     if ($this->isAlreadyEnriched($shallowCase->case_id)) {
@@ -286,5 +297,37 @@ class EnrichmentService
 
         return MigratedShallowCase::whereNotIn('case_id', $enrichedCaseIds)
             ->pluck('case_id');
+    }
+
+    /**
+     * Check if the enrichment process is paused
+     *
+     * @return bool
+     */
+    public function isPaused(): bool
+    {
+        return Cache::get('enrichment:paused', false);
+    }
+
+    /**
+     * Set the pause flag to pause enrichment
+     *
+     * @return void
+     */
+    public function setPaused(): void
+    {
+        Cache::put('enrichment:paused', true, 86400); // 24 hours
+        Log::info('Enrichment pause flag set');
+    }
+
+    /**
+     * Clear the pause flag to resume enrichment
+     *
+     * @return void
+     */
+    public function clearPaused(): void
+    {
+        Cache::forget('enrichment:paused');
+        Log::info('Enrichment pause flag cleared');
     }
 }

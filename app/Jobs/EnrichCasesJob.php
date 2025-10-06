@@ -62,13 +62,18 @@ class EnrichCasesJob implements ShouldQueue
             // Run the enrichment process
             $stats = $enrichmentService->enrichAllCases();
 
-            // Update final status
-            $this->updateJobStatus('completed', $stats);
-
-            // Clear active job marker (job completed successfully)
-            self::clearActiveJobId();
-
-            Log::info("Background enrichment job {$this->jobId} completed: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
+            // Check if process was paused
+            if ($stats['paused'] ?? false) {
+                $this->updateJobStatus('paused', $stats);
+                // Keep active job marker (job is paused, not completed)
+                Log::info("Background enrichment job {$this->jobId} paused: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
+            } else {
+                // Update final status
+                $this->updateJobStatus('completed', $stats);
+                // Clear active job marker (job completed successfully)
+                self::clearActiveJobId();
+                Log::info("Background enrichment job {$this->jobId} completed: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
+            }
         } catch (\Exception $e) {
             Log::error("Background enrichment job {$this->jobId} failed: " . $e->getMessage());
 

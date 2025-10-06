@@ -174,8 +174,8 @@ class EnrichmentController extends Controller
             // Get the job status
             $status = EnrichCasesJob::getJobStatus($activeJobId);
 
-            // If job status exists and is still active (queued or processing)
-            if ($status && in_array($status['status'], ['queued', 'processing'])) {
+            // If job status exists and is still active (queued, processing, or paused)
+            if ($status && in_array($status['status'], ['queued', 'processing', 'paused'])) {
                 return response()->json([
                     'success' => true,
                     'data' => $status
@@ -198,6 +198,66 @@ class EnrichmentController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error("Failed to get active job: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Pause the currently running enrichment process
+     * POST /enrichment/pause
+     */
+    public function pause(): JsonResponse
+    {
+        try {
+            // Set pause flag
+            $this->enrichmentService->setPaused();
+
+            Log::info('Enrichment pause requested');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Enrichment will pause after completing the current case'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to pause enrichment: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Resume enrichment (clears pause flag and starts new job)
+     * POST /enrichment/resume
+     */
+    public function resume(): JsonResponse
+    {
+        try {
+            // Clear pause flag
+            $this->enrichmentService->clearPaused();
+
+            // Start a new enrichment job (will auto-skip already enriched cases)
+            Log::info('Resuming enrichment - dispatching new job');
+
+            $job = new EnrichCasesJob();
+            dispatch($job);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Enrichment resumed',
+                'data' => [
+                    'job_id' => $job->getJobId(),
+                    'background' => true
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to resume enrichment: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,

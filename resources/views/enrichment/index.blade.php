@@ -6,11 +6,16 @@
   <div x-data="enrichmentApp()" x-init="init()" x-cloak>
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h2 text-primary">Case Enrichment Dashboard</h1>
-      <button @click="startEnrichment()" :disabled="!canEnrich || isEnriching" class="btn btn-primary">
-        <i class="fas" :class="isEnriching ? 'fa-spinner fa-spin' : 'fa-play'" x-show="!isEnriching"></i>
-        <i class="fas fa-spinner fa-spin" x-show="isEnriching"></i>
-        <span x-text="isEnriching ? 'Processing...' : 'Start Enrichment'"></span>
-      </button>
+      <div class="btn-group">
+        <button @click="startEnrichment()" :disabled="!canEnrich || (isEnriching && !isPaused)" class="btn btn-primary" x-show="!isEnriching || isPaused">
+          <i class="fas fa-play me-1"></i>
+          <span x-text="isPaused ? 'Resume Enrichment' : 'Start Enrichment'"></span>
+        </button>
+        <button @click="pauseEnrichment()" :disabled="!isEnriching || isPaused" class="btn btn-warning" x-show="isEnriching && !isPaused">
+          <i class="fas fa-pause me-1"></i>
+          <span>Pause Enrichment</span>
+        </button>
+      </div>
     </div>
 
     @if (session('success'))
@@ -109,9 +114,20 @@
     <!-- Progress Bar -->
     <div class="card mb-4">
       <div class="card-body">
-        <h5 class="card-title mb-3">Enrichment Progress</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="card-title mb-0">Enrichment Progress</h5>
+          <span x-show="isPaused" class="badge bg-warning text-dark">
+            <i class="fas fa-pause me-1"></i>
+            Paused
+          </span>
+          <span x-show="isEnriching && !isPaused" class="badge bg-success">
+            <i class="fas fa-spinner fa-spin me-1"></i>
+            Processing
+          </span>
+        </div>
         <div class="progress" style="height: 30px;">
-          <div class="progress-bar bg-success progress-bar-striped" :class="{ 'progress-bar-animated': isEnriching }"
+          <div class="progress-bar progress-bar-striped"
+            :class="{ 'progress-bar-animated': isEnriching && !isPaused, 'bg-warning': isPaused, 'bg-success': !isPaused }"
             role="progressbar" :style="'width: ' + progress.progress_percentage + '%'"
             :aria-valuenow="progress.progress_percentage" aria-valuemin="0" aria-valuemax="100">
             <span x-text="progress.progress_percentage + '%'"></span>
@@ -220,6 +236,7 @@
         canEnrich: @json($canEnrich),
         progress: @json($progress),
         isEnriching: false,
+        isPaused: false,
         lastEnrichmentResult: null,
         pollInterval: null,
         currentJobId: null,
@@ -237,12 +254,19 @@
             if (data.success && data.data) {
               const job = data.data;
 
-              // If there's an active job (queued or processing), resume monitoring
+              // If there's an active job (queued, processing, or paused), resume monitoring
               if (job.status === 'queued' || job.status === 'processing') {
                 this.currentJobId = job.job_id;
                 this.isEnriching = true;
+                this.isPaused = false;
                 window.showToast('Resuming monitoring of enrichment job...', 'info', 3000);
                 this.startPollingJobStatus();
+              } else if (job.status === 'paused') {
+                this.currentJobId = job.job_id;
+                this.isEnriching = true;
+                this.isPaused = true;
+                this.lastEnrichmentResult = job.data;
+                window.showToast('Enrichment is paused. Click Resume to continue.', 'warning', 5000);
               } else if (job.status === 'completed') {
                 // Show completed results
                 this.lastEnrichmentResult = job.data;
@@ -258,11 +282,18 @@
         },
 
         async startEnrichment() {
-          if (!this.canEnrich || this.isEnriching) {
+          if (!this.canEnrich || (this.isEnriching && !this.isPaused)) {
+            return;
+          }
+
+          // If resuming from paused state
+          if (this.isPaused) {
+            await this.resumeEnrichment();
             return;
           }
 
           this.isEnriching = true;
+          this.isPaused = false;
           this.lastEnrichmentResult = null;
 
           try {
@@ -284,11 +315,71 @@
             } else {
               window.showToast('Enrichment failed: ' + (data.error || 'Unknown error'), 'error');
               this.isEnriching = false;
+              this.isPaused = false;
             }
           } catch (error) {
             console.error('Enrichment error:', error);
             window.showToast('Enrichment failed: ' + error.message, 'error');
             this.isEnriching = false;
+            this.isPaused = false;
+          }
+        },
+
+        async pauseEnrichment() {
+          if (!this.isEnriching || this.isPaused) {
+            return;
+          }
+
+          try {
+            const response = await fetch('{{ route('enrichment.api.pause') }}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+              }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              window.showToast('Pause requested. Enrichment will stop after completing the current case...', 'info', 3000);
+              // Don't set isPaused yet - wait for job status to confirm
+            } else {
+              window.showToast('Failed to pause: ' + (data.error || 'Unknown error'), 'error');
+            }
+          } catch (error) {
+            console.error('Pause error:', error);
+            window.showToast('Failed to pause: ' + error.message, 'error');
+          }
+        },
+
+        async resumeEnrichment() {
+          if (!this.isPaused) {
+            return;
+          }
+
+          try {
+            const response = await fetch('{{ route('enrichment.api.resume') }}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+              }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              this.currentJobId = data.data.job_id;
+              this.isPaused = false;
+              window.showToast('Enrichment resumed. Monitoring progress...', 'success', 3000);
+              this.startPollingJobStatus();
+            } else {
+              window.showToast('Failed to resume: ' + (data.error || 'Unknown error'), 'error');
+            }
+          } catch (error) {
+            console.error('Resume error:', error);
+            window.showToast('Failed to resume: ' + error.message, 'error');
           }
         },
 
@@ -324,6 +415,7 @@
                 clearInterval(this.pollInterval);
                 this.pollInterval = null;
                 this.isEnriching = false;
+                this.isPaused = false;
                 this.lastEnrichmentResult = data.data.data;
 
                 window.showToast(
@@ -331,11 +423,24 @@
                   'success',
                   8000
                 );
+              } else if (jobStatus === 'paused') {
+                // Job was paused
+                clearInterval(this.pollInterval);
+                this.pollInterval = null;
+                this.isPaused = true;
+                this.lastEnrichmentResult = data.data.data;
+
+                window.showToast(
+                  `Enrichment paused. Progress: ${data.data.data.newly_enriched} newly enriched, ${data.data.data.already_enriched} already enriched. Click Resume to continue.`,
+                  'warning',
+                  8000
+                );
               } else if (jobStatus === 'failed') {
                 // Job failed
                 clearInterval(this.pollInterval);
                 this.pollInterval = null;
                 this.isEnriching = false;
+                this.isPaused = false;
 
                 window.showToast('Background enrichment failed: ' + (data.data.data?.error || 'Unknown error'), 'error');
               }
