@@ -141,6 +141,7 @@ Route::prefix('enrichment')->name('enrichment.')->group(function () {
             Route::get('/unenriched', [CaseEnrichmentController::class, 'unenriched'])->name('unenriched');
             Route::get('/active-job', [CaseEnrichmentController::class, 'activeJob'])->name('active-job');
             Route::get('/job-status/{jobId}', [CaseEnrichmentController::class, 'jobStatus'])->name('job-status');
+            Route::get('/export', [CaseEnrichmentController::class, 'export'])->name('export');
         });
     });
 
@@ -159,6 +160,7 @@ Route::prefix('enrichment')->name('enrichment.')->group(function () {
             Route::get('/unenriched', [SessionEnrichmentController::class, 'unenriched'])->name('unenriched');
             Route::get('/active-job', [SessionEnrichmentController::class, 'activeJob'])->name('active-job');
             Route::get('/job-status/{jobId}', [SessionEnrichmentController::class, 'jobStatus'])->name('job-status');
+            Route::get('/export', [SessionEnrichmentController::class, 'export'])->name('export');
         });
     });
 });

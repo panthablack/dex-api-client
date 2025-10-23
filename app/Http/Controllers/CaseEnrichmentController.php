@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\EnrichmentService;
+use App\Services\ExportService;
 use App\Jobs\EnrichCasesJob;
 use App\Enums\ResourceType;
 use App\Models\MigratedEnrichedCase;
@@ -14,10 +15,12 @@ use Illuminate\Support\Facades\Log;
 class CaseEnrichmentController extends Controller
 {
     protected EnrichmentService $enrichmentService;
+    protected ExportService $exportService;
 
-    public function __construct(EnrichmentService $enrichmentService)
+    public function __construct(EnrichmentService $enrichmentService, ExportService $exportService)
     {
         $this->enrichmentService = $enrichmentService;
+        $this->exportService = $exportService;
     }
 
     /**
@@ -325,5 +328,74 @@ class CaseEnrichmentController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Export enriched case data
+     * GET /enrichment/cases/api/export
+     */
+    public function export(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'format' => 'required|in:csv,json,xlsx'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        try {
+            $format = $request->format;
+            $data = MigratedEnrichedCase::all();
+
+            if ($data->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No enriched case data found'
+                ], 404);
+            }
+
+            $filename = 'enriched_cases_' . now()->format('Y-m-d_H-i-s');
+            $headerMapping = self::getEnrichedCaseHeaderMapping();
+
+            return $this->exportService->export($data, $headerMapping, $format, $filename);
+        } catch (\Exception $e) {
+            Log::error('Failed to export enriched cases: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get header mapping for enriched cases
+     * Static method to share with other controllers/services
+     */
+    public static function getEnrichedCaseHeaderMapping(): array
+    {
+        return [
+            'case_id' => 'Case ID',
+            'shallow_case_id' => 'Shallow Case ID',
+            'outlet_name' => 'Outlet Name',
+            'client_ids' => 'Client IDs (JSON)',
+            'outlet_activity_id' => 'Outlet Activity ID',
+            'total_number_of_unidentified_clients' => 'Total Unidentified Clients',
+            'client_attendance_profile_code' => 'Client Attendance Profile Code',
+            'created_date_time' => 'Created Date',
+            'end_date' => 'End Date',
+            'exit_reason_code' => 'Exit Reason Code',
+            'ag_business_type_code' => 'AG Business Type Code',
+            'program_activity_name' => 'Program Activity Name',
+            'sessions' => 'Sessions (JSON)',
+            'enriched_at' => 'Enriched At',
+            'verification_status' => 'Verification Status',
+            'verified_at' => 'Verified Date',
+            'verification_error' => 'Verification Error',
+            'api_response' => 'Raw API Data (JSON)',
+        ];
     }
 }

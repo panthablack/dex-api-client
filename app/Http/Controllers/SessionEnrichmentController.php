@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\EnrichmentService;
+use App\Services\ExportService;
 use App\Jobs\EnrichSessionsJob;
 use App\Enums\ResourceType;
 use App\Models\MigratedEnrichedSession;
@@ -14,10 +15,12 @@ use Illuminate\Support\Facades\Log;
 class SessionEnrichmentController extends Controller
 {
     protected EnrichmentService $enrichmentService;
+    protected ExportService $exportService;
 
-    public function __construct(EnrichmentService $enrichmentService)
+    public function __construct(EnrichmentService $enrichmentService, ExportService $exportService)
     {
         $this->enrichmentService = $enrichmentService;
+        $this->exportService = $exportService;
     }
 
     /**
@@ -325,5 +328,71 @@ class SessionEnrichmentController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Export enriched session data
+     * GET /enrichment/sessions/api/export
+     */
+    public function export(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'format' => 'required|in:csv,json,xlsx'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        try {
+            $format = $request->format;
+            $data = MigratedEnrichedSession::all();
+
+            if ($data->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No enriched session data found'
+                ], 404);
+            }
+
+            $filename = 'enriched_sessions_' . now()->format('Y-m-d_H-i-s');
+            $headerMapping = self::getEnrichedSessionHeaderMapping();
+
+            return $this->exportService->export($data, $headerMapping, $format, $filename);
+        } catch (\Exception $e) {
+            Log::error('Failed to export enriched sessions: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get header mapping for enriched sessions
+     * Static method to share with other controllers/services
+     */
+    public static function getEnrichedSessionHeaderMapping(): array
+    {
+        return [
+            'session_id' => 'Session ID',
+            'case_id' => 'Case ID',
+            'session_date' => 'Session Date',
+            'service_type_id' => 'Service Type ID',
+            'total_number_of_unidentified_clients' => 'Total Unidentified Clients',
+            'fees_charged' => 'Fees Charged',
+            'money_business_community_education_workshop_code' => 'Money/Business/Community Education Workshop Code',
+            'interpreter_present' => 'Interpreter Present',
+            'service_setting_code' => 'Service Setting Code',
+            'enriched_at' => 'Enriched At',
+            'verification_status' => 'Verification Status',
+            'verified_at' => 'Verified Date',
+            'verification_error' => 'Verification Error',
+            'data_migration_batch_id' => 'Data Migration Batch ID',
+            'api_response' => 'Raw API Data (JSON)',
+        ];
     }
 }

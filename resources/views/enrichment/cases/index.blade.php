@@ -248,6 +248,35 @@
       </div>
     </div>
 
+    <!-- Export Options -->
+    <div x-show="progress.enriched_cases > 0" class="card mt-4" x-cloak>
+      <div class="card-header">
+        <h5 class="card-title mb-0">Export Enriched Data</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">
+          You have <strong x-text="progress.enriched_cases"></strong> enriched cases ready for export.
+        </p>
+        <div class="d-flex gap-2">
+          <a href="{{ route('enrichment.cases.api.export', ['format' => 'csv']) }}"
+            class="btn btn-outline-primary">
+            <i class="fas fa-file-csv me-1"></i>
+            Export CSV
+          </a>
+          <a href="{{ route('enrichment.cases.api.export', ['format' => 'json']) }}"
+            class="btn btn-outline-secondary">
+            <i class="fas fa-file-code me-1"></i>
+            Export JSON
+          </a>
+          <a href="{{ route('enrichment.cases.api.export', ['format' => 'xlsx']) }}"
+            class="btn btn-outline-info">
+            <i class="fas fa-file-excel me-1"></i>
+            Export Excel
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- Restart Confirmation Modal -->
     <x-confirmation-modal id="restartEnrichmentModal" title="Restart Enrichment" :message="'<p class=\'mb-2\'>This will <strong>permanently delete all enriched case data</strong> and restart the enrichment process from scratch.</p><p class=\'text-danger mb-0\'><i class=\'fas fa-exclamation-triangle me-1\'></i><strong>This action cannot be undone.</strong></p>'"
       confirmText="Yes, Restart Enrichment" confirmClass="btn-danger" cancelText="Cancel"

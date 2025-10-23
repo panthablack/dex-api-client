@@ -16,6 +16,7 @@ use App\Jobs\InitiateDataMigration;
 use App\Models\MigratedCase;
 use App\Models\MigratedClient;
 use App\Models\MigratedSession;
+use App\Services\ExportService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -25,13 +26,16 @@ class DataMigrationController extends Controller
 {
     protected DataMigrationService $migrationService;
     protected VerificationService $newVerificationService;
+    protected ExportService $exportService;
 
     public function __construct(
         DataMigrationService $migrationService,
         VerificationService $newVerificationService,
+        ExportService $exportService,
     ) {
         $this->migrationService = $migrationService;
         $this->newVerificationService = $newVerificationService;
+        $this->exportService = $exportService;
     }
 
     /**
@@ -334,6 +338,7 @@ class DataMigrationController extends Controller
         $validResources = [
             ResourceType::CLIENT->value,
             ResourceType::CASE->value,
+            ResourceType::CLOSED_CASE->value,
             ResourceType::SESSION->value,
         ];
 
@@ -368,27 +373,23 @@ class DataMigrationController extends Controller
             // Get the data based on resource type
             switch ($resourceType) {
                 case ResourceType::CLIENT:
-                    $data = \App\Models\MigratedClient::whereIn('data_migration_batch_id', $batchIds)->get();
+                    $data = MigratedClient::whereIn('data_migration_batch_id', $batchIds)->get();
                     break;
                 case ResourceType::CASE:
-                    $data = \App\Models\MigratedCase::whereIn('data_migration_batch_id', $batchIds)->get();
+                    $data = MigratedCase::whereIn('data_migration_batch_id', $batchIds)->get();
+                    break;
+                case ResourceType::CLOSED_CASE:
+                    $data = MigratedCase::whereIn('data_migration_batch_id', $batchIds)->get();
                     break;
                 case ResourceType::SESSION:
-                    $data = \App\Models\MigratedSession::whereIn('data_migration_batch_id', $batchIds)->get();
+                    $data = MigratedSession::whereIn('data_migration_batch_id', $batchIds)->get();
                     break;
             }
 
-            // Convert to the requested format
             $filename = "{$migration->name}_{$resourceType->value}_" . now()->format('Y-m-d_H-i-s');
+            $headerMapping = self::getHeaderMappingForResourceType($resourceType);
 
-            switch ($format) {
-                case 'csv':
-                    return $this->exportToCsv($data, $filename);
-                case 'json':
-                    return $this->exportToJson($data, $filename);
-                case 'xlsx':
-                    return $this->exportToExcel($data, $filename);
-            }
+            return $this->exportService->export($data, $headerMapping, $format, $filename);
         } catch (\Exception $e) {
             Log::error('Failed to export migration data: ' . $e->getMessage());
             return response()->json([
@@ -396,95 +397,6 @@ class DataMigrationController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
-    }
-
-    /**
-     * Export data to CSV
-     */
-    protected function exportToCsv($data, $filename)
-    {
-        $csv = \League\Csv\Writer::createFromString('');
-
-        if ($data->isNotEmpty()) {
-            // Get the resource type from the model class
-            $modelClass = get_class($data->first());
-            $resourceType = $this->getResourceTypeFromModel($modelClass);
-
-            // Get header mapping and field order
-            $headerMapping = $this->getHeaderMapping($resourceType);
-            $fieldOrder = array_keys($headerMapping);
-
-            // Add headers (human-readable)
-            $headers = array_values($headerMapping);
-            $csv->insertOne($headers);
-
-            // Add data rows with proper formatting
-            foreach ($data as $row) {
-                $formattedRow = $this->formatRowForExport($row, $fieldOrder);
-                $csv->insertOne($formattedRow);
-            }
-        }
-
-        return response($csv->toString(), 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}.csv\""
-        ]);
-    }
-
-    /**
-     * Export data to JSON
-     */
-    protected function exportToJson($data, $filename)
-    {
-        if ($data->isNotEmpty()) {
-            // Get the resource type from the model class
-            $modelClass = get_class($data->first());
-            $resourceType = $this->getResourceTypeFromModel($modelClass);
-
-            // Get field order (same as CSV for consistency)
-            $headerMapping = $this->getHeaderMapping($resourceType);
-            $fieldOrder = array_keys($headerMapping);
-
-            // Transform data to only include relevant fields
-            $transformedData = $data->map(function ($row) use ($fieldOrder) {
-                $filteredRow = [];
-                foreach ($fieldOrder as $field) {
-                    $value = $row->$field;
-
-                    // Transform specific types for JSON
-                    $value = match (true) {
-                        // VerificationStatus enum
-                        $value instanceof VerificationStatus => $value->value,
-
-                        // Keep dates as ISO strings for JSON
-                        $value instanceof \Carbon\Carbon => $value->toISOString(),
-
-                        // Keep other values as-is for JSON (booleans, arrays, etc.)
-                        default => $value
-                    };
-
-                    $filteredRow[$field] = $value;
-                }
-                return $filteredRow;
-            });
-
-            return response()->json($transformedData, 200, [
-                'Content-Disposition' => "attachment; filename=\"{$filename}.json\""
-            ]);
-        }
-
-        return response()->json([], 200, [
-            'Content-Disposition' => "attachment; filename=\"{$filename}.json\""
-        ]);
-    }
-
-    /**
-     * Export data to Excel (simplified)
-     */
-    protected function exportToExcel($data, $filename)
-    {
-        // For now, export as CSV with .xlsx extension
-        return $this->exportToCsv($data, $filename . '.xlsx');
     }
 
     /**
@@ -523,12 +435,30 @@ class DataMigrationController extends Controller
         return view('data-exchange.migration.verification', compact('migration'));
     }
 
-
     /**
-     * Get header mappings for CSV export
+     * Get header mapping for a resource type
+     * Static method to share with other controllers
      */
-    private function getHeaderMapping(ResourceType $resourceType): array
+    public static function getHeaderMappingForResourceType(ResourceType $resourceType): array
     {
+        $caseMappings = [
+            'case_id' => 'Case ID',
+            'outlet_name' => 'Outlet Name',
+            'client_ids' => 'Client IDs (JSON)',
+            'outlet_activity_id' => 'Outlet Activity ID',
+            'total_number_of_unidentified_clients' => 'Total Number of Unidentified Clients',
+            'client_attendance_profile_code' => 'Client Attendance Profile Code',
+            'created_date_time' => 'Created Date Time',
+            'end_date' => 'End Date',
+            'exit_reason_code' => 'Exit Reason Code',
+            'ag_business_type_code' => 'AG Business Type Code',
+            'program_activity_name' => 'Program Activity Name',
+            'sessions' => 'Sessions',
+            'verification_status' => 'Verification Status',
+            'verified_at' => 'Verified Date',
+            'api_response' => 'Raw API Data (JSON)'
+        ];
+
         return match ($resourceType) {
             ResourceType::CLIENT => [
                 'client_id' => 'Client ID',
@@ -551,23 +481,8 @@ class DataMigrationController extends Controller
                 'verified_at' => 'Verified Date',
                 'api_response' => 'Raw API Data (JSON)'
             ],
-            ResourceType::CASE => [
-                'case_id' => 'Case ID',
-                'outlet_name' => 'Outlet Name',
-                'client_ids' => 'Client IDs (JSON)',
-                'outlet_activity_id' => 'Outlet Activity ID',
-                'total_number_of_unidentified_clients' => 'Total Number of Unidentified Clients',
-                'client_attendance_profile_code' => 'Client Attendance Profile Code',
-                'created_date_time' => 'Created Date Time',
-                'end_date' => 'End Date',
-                'exit_reason_code' => 'Exit Reason Code',
-                'ag_business_type_code' => 'AG Business Type Code',
-                'program_activity_name' => 'Program Activity Name',
-                'sessions' => 'Sessions',
-                'verification_status' => 'Verification Status',
-                'verified_at' => 'Verified Date',
-                'api_response' => 'Raw API Data (JSON)'
-            ],
+            ResourceType::CASE => $caseMappings,
+            ResourceType::CLOSED_CASE => $caseMappings,
             ResourceType::SESSION => [
                 'session_id' => 'Session ID',
                 'case_id' => 'Case ID',
@@ -583,59 +498,6 @@ class DataMigrationController extends Controller
                 'api_response' => 'Raw API Data (JSON)'
             ],
             default => []
-        };
-    }
-
-    /**
-     * Format a row for CSV export with proper value transformation
-     */
-    private function formatRowForExport($row, array $fieldOrder): array
-    {
-        $formattedRow = [];
-
-        foreach ($fieldOrder as $field) {
-            $value = $row->$field ?? '';
-
-            // Transform values based on type
-            $value = match (true) {
-                // Boolean values
-                is_bool($value) => $value ? 'Yes' : 'No',
-
-                // VerificationStatus enum
-                $value instanceof VerificationStatus => $value->value,
-
-                // Dates
-                $value instanceof \Carbon\Carbon => $value->format('Y-m-d H:i:s'),
-
-                // Make sure deep arrays and objects are JSON strings before conversion.
-                ArrayHelpers::isDeepArray($value) => json_encode($value),
-
-                // Simple Arrays (like reasons_for_assistance)
-                is_array($value) => implode('; ', $value),
-
-                // Null values
-                is_null($value) => '',
-
-                // Default: convert to string
-                default => (string) $value
-            };
-
-            $formattedRow[] = $value;
-        }
-
-        return $formattedRow;
-    }
-
-    /**
-     * Get resource type from model class
-     */
-    private function getResourceTypeFromModel(string $modelClass): ResourceType
-    {
-        return match ($modelClass) {
-            MigratedClient::class => ResourceType::CLIENT,
-            MigratedCase::class => ResourceType::CASE,
-            MigratedSession::class => ResourceType::SESSION,
-            default => throw new \Exception('Invalid type')
         };
     }
 
