@@ -23,11 +23,6 @@ class EnrichmentWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-    }
-
     /**
      * Helper to mock the process lock for enrichAllCases
      */
@@ -36,7 +31,18 @@ class EnrichmentWorkflowTest extends TestCase
         $lockMock = Mockery::mock();
         $lockMock->shouldReceive('get')->andReturn(true);
         $lockMock->shouldReceive('release')->once();
-        Cache::partialMock()->shouldReceive('lock')->with('enrichment:process', 3600)->andReturn($lockMock);
+
+        Cache::shouldReceive('lock')
+            ->with('enrichment:process', 3600)
+            ->andReturn($lockMock);
+
+        Cache::shouldReceive('get')
+            ->with('enrichment:paused', false)
+            ->andReturn(false);
+
+        Cache::shouldReceive('forget')
+            ->with('enrichment:paused')
+            ->andReturn(true);
     }
 
     public function test_full_workflow_shallow_case_migration_then_enrichment(): void

@@ -38,7 +38,7 @@ class DataMigrationService
         $filters = $data['filters'] ?? [];
         $resourceType = ResourceType::resolve($data['resource_type']);;
 
-        return DB::transaction(function () use ($data, $filters, $resourceType) {
+        $callback = function () use ($data, $filters, $resourceType) {
             // Lock the table and check for existing active migrations for this resource type
             $activeMigrations = DataMigration::lockForUpdate()
                 ->active()
@@ -65,7 +65,14 @@ class DataMigrationService
                 'total_items' => $totalItems,  // Set total items immediately
                 'status' => DataMigrationStatus::PENDING
             ]);
-        });
+        };
+
+        // Only wrap in transaction if we're not already in one (for testing compatibility)
+        if (DB::transactionLevel() > 0) {
+            return $callback();
+        }
+
+        return DB::transaction($callback);
     }
 
     /**
@@ -73,7 +80,7 @@ class DataMigrationService
      */
     public function startMigration(DataMigration $migration): void
     {
-        DB::transaction(function () use ($migration) {
+        $callback = function () use ($migration) {
             $migration->update([
                 'status' => DataMigrationStatus::IN_PROGRESS,
                 'started_at' => now()
@@ -82,7 +89,14 @@ class DataMigrationService
             // Create batches for all resource types, but respect dependencies
             $resourceType = ResourceType::resolve($migration->resource_type);
             $this->createBatchesForResource($migration, $resourceType);
-        });
+        };
+
+        // Only wrap in transaction if we're not already in one (for testing compatibility)
+        if (DB::transactionLevel() === 0) {
+            DB::transaction($callback);
+        } else {
+            $callback();
+        }
 
         // Refresh the migration to ensure we have the latest batch data
         $migration->refresh();

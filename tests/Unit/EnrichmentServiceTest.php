@@ -20,7 +20,7 @@ class EnrichmentServiceTest extends TestCase
     protected $dataExchangeService;
     protected $enrichmentService;
 
-    protected function setUp(): void
+    public function setUp(): void
     {
         parent::setUp();
 
@@ -37,7 +37,18 @@ class EnrichmentServiceTest extends TestCase
         $lockMock = Mockery::mock();
         $lockMock->shouldReceive('get')->andReturn(true);
         $lockMock->shouldReceive('release')->once();
-        Cache::partialMock()->shouldReceive('lock')->with('enrichment:process', 3600)->andReturn($lockMock);
+
+        Cache::shouldReceive('lock')
+            ->with('enrichment:process', 3600)
+            ->andReturn($lockMock);
+
+        Cache::shouldReceive('get')
+            ->with('enrichment:paused', false)
+            ->andReturn(false);
+
+        Cache::shouldReceive('forget')
+            ->with('enrichment:paused')
+            ->andReturn(true);
     }
 
     public function test_enrich_case_fetches_and_stores_enriched_data(): void
