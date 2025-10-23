@@ -375,7 +375,14 @@ class DataMigrationService
             // Check if this resource type can be processed (dependencies met)
             if ($this->canProcessResourceType($migration, $resourceType)) {
                 ProcessDataMigrationBatch::dispatch($batch);
-                $batch->update(['status' => DataMigrationBatchStatus::IN_PROGRESS->value]);
+
+                // Refresh from DB to handle sync mode where job executes immediately
+                $batch->refresh();
+
+                // Only update to IN_PROGRESS if still PENDING (job may have already completed in sync mode)
+                if ($batch->status === DataMigrationBatchStatus::PENDING) {
+                    $batch->update(['status' => DataMigrationBatchStatus::IN_PROGRESS->value]);
+                }
 
                 $dispatchedCount++;
 
@@ -1034,12 +1041,12 @@ class DataMigrationService
      */
     protected function updateMigrationProgress(DataMigration $migration): void
     {
-        $failedBatches = $migration->batches()->where('status', 'failed')->get();
+        $failedBatches = $migration->batches()->where('status', DataMigrationBatchStatus::FAILED)->get();
 
         // Check if migration is complete
         $totalBatches = $migration->batches()->count();
         $completedOrFailedBatches = $migration->batches()
-            ->whereIn('status', ['completed', 'failed'])
+            ->whereIn('status', [DataMigrationBatchStatus::COMPLETED, DataMigrationBatchStatus::FAILED])
             ->count();
 
         if ($totalBatches > 0 && $completedOrFailedBatches >= $totalBatches) {
@@ -1127,10 +1134,10 @@ class DataMigrationService
             'completed_at' => now()
         ]);
 
-        // Cancel pending batches
+        // Cancel pending batches (mark as failed)
         $migration->batches()
-            ->where('status', 'pending')
-            ->update(['status' => DataMigrationStatus::CANCELLED]);
+            ->where('status', DataMigrationBatchStatus::PENDING)
+            ->update(['status' => DataMigrationBatchStatus::FAILED]);
     }
 
     /**
