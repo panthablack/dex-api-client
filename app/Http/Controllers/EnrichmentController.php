@@ -269,8 +269,8 @@ class EnrichmentController extends Controller
     }
 
     /**
-     * Restart enrichment (truncates all enriched cases and starts fresh)
-     * POST /enrichment/restart
+     * Generates shallow sessions from enriched cases.
+     * POST /enrichment/sessions/generate
      */
     public function generateShallowSessions()
     {

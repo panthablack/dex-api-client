@@ -235,7 +235,7 @@
                 </tr>
               </thead>
               <tbody>
-                <template x-for="error in lastEnrichmentResult.errors" :key="error.case_id">
+                <template x-for="error in (lastEnrichmentResult?.errors || [])" :key="error.case_id">
                   <tr>
                     <td><code x-text="error.case_id"></code></td>
                     <td x-text="error.error"></td>
