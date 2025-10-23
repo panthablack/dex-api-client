@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\ResourceType;
 use App\Models\MigratedShallowCase;
 use App\Models\MigratedEnrichedCase;
 use App\Enums\VerificationStatus;
+use App\Models\MigratedEnrichedSession;
+use App\Models\MigratedShallowSession;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Collection;
@@ -66,7 +69,7 @@ class EnrichmentService
 
                     try {
                         // Skip if already enriched
-                        if ($this->isAlreadyEnriched($shallowCase->case_id)) {
+                        if ($this->isAlreadyEnriched(ResourceType::CASE, $shallowCase->case_id)) {
                             $stats['already_enriched']++;
                             continue;
                         }
@@ -105,6 +108,92 @@ class EnrichmentService
     }
 
     /**
+     * Enrich all shallow sessions that haven't been enriched yet
+     * One-at-a-time processing for maximum fault tolerance
+     * Uses process locking to prevent concurrent enrichment
+     *
+     * @return array Statistics about the enrichment process
+     * @throws \Exception If unable to acquire lock (another process is running)
+     */
+    public function enrichAllSessions(): array
+    {
+        // Acquire lock to prevent concurrent enrichment processes
+        $lock = Cache::lock('enrichment:process', 3600); // 1 hour timeout
+
+        if (!$lock->get()) {
+            throw new \Exception('Another enrichment process is already running. Please wait for it to complete.');
+        }
+
+        try {
+            $stats = [
+                'total_shallow_sessions' => 0,
+                'already_enriched' => 0,
+                'newly_enriched' => 0,
+                'failed' => 0,
+                'errors' => [],
+                'paused' => false
+            ];
+
+            // Clear pause flag at start
+            $this->clearPaused();
+
+            // Get all shallow sessions that need enrichment
+            $shallowSessions = MigratedShallowSession::all();
+            $stats['total_shallow_sessions'] = $shallowSessions->count();
+
+            if ($stats['total_shallow_sessions'] > 0) {
+                Log::info("Starting enrichment for {$stats['total_shallow_sessions']} shallow sessions");
+
+                // Process each session one at a time
+                foreach ($shallowSessions as $shallowSession) {
+                    // Check for pause request before processing each session
+                    if ($this->isPaused()) {
+                        Log::info("Enrichment paused by user request. Progress: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
+                        $stats['paused'] = true;
+                        break;
+                    }
+
+                    try {
+                        // Skip if already enriched
+                        if ($this->isAlreadyEnriched(ResourceType::CASE, $shallowSession->session_id)) {
+                            $stats['already_enriched']++;
+                            continue;
+                        }
+
+                        // Enrich this session
+                        $this->enrichSession($shallowSession);
+                        $stats['newly_enriched']++;
+
+                        if (env('DETAILED_LOGGING')) {
+                            Log::info("Enriched session {$shallowSession->session_id} ({$stats['newly_enriched']}/{$stats['total_shallow_sessions']})");
+                        }
+                    } catch (\Exception $e) {
+                        $stats['failed']++;
+                        $stats['errors'][] = [
+                            'session_id' => $shallowSession->session_id,
+                            'error' => $e->getMessage()
+                        ];
+
+                        Log::error("Failed to enrich session {$shallowSession->session_id}: {$e->getMessage()}");
+                        // Continue to next session - don't let one failure stop the whole process
+                    }
+                }
+            } else {
+                Log::info("No shallow sessions found to enrich");
+            }
+
+            Log::info("Enrichment complete: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
+
+            return $stats;
+        } catch (\Exception $e) {
+            throw $e;
+        } finally {
+            // Always release the lock when done
+            $lock->release();
+        }
+    }
+
+    /**
      * Enrich a single shallow case by fetching full case data from GetCase API
      *
      * @param MigratedShallowCase $shallowCase
@@ -124,6 +213,28 @@ class EnrichmentService
 
         // Store the enriched case
         return $this->storeEnrichedCase($shallowCase, $caseDataArray);
+    }
+
+    /**
+     * Enrich a single shallow session by fetching full session data from GetSession API
+     *
+     * @param MigratedShallowSession $shallowSession
+     * @return MigratedEnrichedSession
+     */
+    public function enrichSession(MigratedShallowSession $shallowSession): MigratedEnrichedSession
+    {
+        // Fetch full session data using GetSession API (one-at-a-time)
+        $sessionData = $this->dataExchangeService->getSessionById($shallowSession->session_id);
+
+        if (!$sessionData) {
+            throw new \Exception("Failed to fetch session data for {$shallowSession->session_id}");
+        }
+
+        // Convert stdClass to array (SOAP responses return objects)
+        $sessionDataArray = json_decode(json_encode($sessionData), true);
+
+        // Store the enriched session
+        return $this->storeEnrichedSession($shallowSession, $sessionDataArray);
     }
 
     /**
@@ -193,6 +304,79 @@ class EnrichmentService
                 'client_count' => $totalNumberOfUnidentifiedClients ?? count($clientIds ?? []),
                 'sessions' => $sessions,
                 'api_response' => $caseData,
+                'enriched_at' => now(),
+                'verification_status' => VerificationStatus::PENDING,
+            ]
+        );
+    }
+
+    /**
+     * Store enriched session data in the database
+     * Uses same extraction logic as DataMigrationService for consistency
+     *
+     * @param MigratedShallowSession $shallowSession
+     * @param array $sessionData Full session data from GetSession API
+     * @return MigratedEnrichedSession
+     */
+    protected function storeEnrichedSession(MigratedShallowSession $shallowSession, array $sessionData): MigratedEnrichedSession
+    {
+        // Extract client IDs using robust nested extraction
+        $clientIds = $this->extractClientIds($sessionData);
+
+        // Extract session IDs using robust nested extraction
+        $sessions = $this->extractSessions($sessionData);
+
+        // Extract fields using data_get() for nested structures (same as DataMigrationService)
+        // API response structure: Session.SessionDetail.FieldName or Session.FieldName
+        $outletName = $sessionData['outlet_name']
+            ?? $sessionData['OutletName']
+            ?? data_get($sessionData, 'Session.OutletName')
+            ?? data_get($sessionData, 'SessionDetail.OutletName')
+            ?? null;
+
+        $outletActivityId = $sessionData['outlet_activity_id']
+            ?? $sessionData['OutletActivityId']
+            ?? data_get($sessionData, 'Session.SessionDetail.OutletActivityId')
+            ?? data_get($sessionData, 'SessionDetail.OutletActivityId')
+            ?? 0;
+
+        $clientAttendanceProfileCode = $sessionData['client_attendance_profile_code']
+            ?? $sessionData['ClientAttendanceProfileCode']
+            ?? data_get($sessionData, 'Session.SessionDetail.ClientAttendanceProfileCode')
+            ?? data_get($sessionData, 'SessionDetail.ClientAttendanceProfileCode')
+            ?? null;
+
+        $createdDateTime = $sessionData['created_date_time']
+            ?? $sessionData['CreatedDateTime']
+            ?? data_get($sessionData, 'Session.CreatedDateTime')
+            ?? data_get($sessionData, 'SessionDetail.CreatedDateTime')
+            ?? null;
+
+        $endDate = $sessionData['end_date']
+            ?? $sessionData['EndDate']
+            ?? data_get($sessionData, 'Session.SessionDetail.EndDate')
+            ?? data_get($sessionData, 'SessionDetail.EndDate')
+            ?? null;
+
+        $totalNumberOfUnidentifiedClients = $sessionData['total_number_of_unidentified_clients']
+            ?? $sessionData['TotalNumberOfUnidentifiedClients']
+            ?? data_get($sessionData, 'Session.SessionDetail.TotalNumberOfUnidentifiedClients')
+            ?? data_get($sessionData, 'SessionDetail.TotalNumberOfUnidentifiedClients')
+            ?? null;
+
+        return MigratedEnrichedSession::updateOrCreate(
+            ['session_id' => $shallowSession->session_id],
+            [
+                'shallow_session_id' => $shallowSession->id,
+                'outlet_name' => $outletName,
+                'client_ids' => $clientIds,
+                'outlet_activity_id' => $outletActivityId,
+                'created_date_time' => $createdDateTime,
+                'end_date' => $endDate,
+                'client_attendance_profile_code' => $clientAttendanceProfileCode,
+                'client_count' => $totalNumberOfUnidentifiedClients ?? count($clientIds ?? []),
+                'sessions' => $sessions,
+                'api_response' => $sessionData,
                 'enriched_at' => now(),
                 'verification_status' => VerificationStatus::PENDING,
             ]
@@ -319,9 +503,11 @@ class EnrichmentService
      * @param string $caseId
      * @return bool
      */
-    protected function isAlreadyEnriched(string $caseId): bool
+    protected function isAlreadyEnriched(ResourceType $type, string $caseId): bool
     {
-        return MigratedEnrichedCase::where('case_id', $caseId)->exists();
+        if ($type === ResourceType::CASE)        return MigratedEnrichedCase::where('case_id', $caseId)->exists();
+        if ($type === ResourceType::SESSION)        return MigratedEnrichedSession::where('case_id', $caseId)->exists();
+        else return false;
     }
 
     /**
@@ -330,20 +516,37 @@ class EnrichmentService
      *
      * @return array
      */
-    public function getEnrichmentProgress(): array
+    public function getEnrichmentProgress(ResourceType $type): array
     {
-        $totalShallowCases = MigratedShallowCase::count();
-        $enrichedCases = MigratedEnrichedCase::count();
-        $unenrichedCount = $totalShallowCases - $enrichedCases;
+        if ($type === ResourceType::CASE) {
 
-        return [
-            'total_shallow_cases' => $totalShallowCases,
-            'enriched_cases' => $enrichedCases,
-            'unenriched_cases' => $unenrichedCount,
-            'progress_percentage' => $totalShallowCases > 0
-                ? round(($enrichedCases / $totalShallowCases) * 100, 2)
-                : 0,
-        ];
+            $totalShallowCases = MigratedShallowCase::count();
+            $enrichedCases = MigratedEnrichedCase::count();
+            $unenrichedCount = $totalShallowCases - $enrichedCases;
+
+            return [
+                'total_shallow_cases' => $totalShallowCases,
+                'enriched_cases' => $enrichedCases,
+                'unenriched_cases' => $unenrichedCount,
+                'progress_percentage' => $totalShallowCases > 0
+                    ? round(($enrichedCases / $totalShallowCases) * 100, 2)
+                    : 0,
+            ];
+        } else if ($type === ResourceType::SESSION) {
+
+            $totalShallowSessions = MigratedShallowSession::count();
+            $enrichedSessions = MigratedEnrichedSession::count();
+            $unenrichedCount = $totalShallowSessions - $enrichedSessions;
+
+            return [
+                'total_shallow_sessions' => $totalShallowSessions,
+                'enriched_sessions' => $enrichedSessions,
+                'unenriched_sessions' => $unenrichedCount,
+                'progress_percentage' => $totalShallowSessions > 0
+                    ? round(($enrichedSessions / $totalShallowSessions) * 100, 2)
+                    : 0,
+            ];
+        } else return [];
     }
 
     /**
@@ -358,6 +561,20 @@ class EnrichmentService
 
         return MigratedShallowCase::whereNotIn('case_id', $enrichedCaseIds)
             ->pluck('case_id');
+    }
+
+    /**
+     * Get session IDs that haven't been enriched yet
+     * Helper method for testing and batch processing
+     *
+     * @return Collection
+     */
+    public function getUnenrichedSessionIds(): Collection
+    {
+        $enrichedSessionIds = MigratedEnrichedSession::pluck('session_id');
+
+        return MigratedShallowSession::whereNotIn('session_id', $enrichedSessionIds)
+            ->pluck('session_id');
     }
 
     /**

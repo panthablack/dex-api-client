@@ -3,15 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Services\EnrichmentService;
-use App\Jobs\EnrichCasesJob;
+use App\Jobs\EnrichSessionsJob;
 use App\Enums\ResourceType;
-use App\Models\MigratedEnrichedCase;
+use App\Models\MigratedEnrichedSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class EnrichmentController extends Controller
+class SessionEnrichmentController extends Controller
 {
     protected EnrichmentService $enrichmentService;
 
@@ -25,13 +25,13 @@ class EnrichmentController extends Controller
      */
     public function index()
     {
-        // Check if SHALLOW_CASE migration is completed
-        $canEnrich = ResourceType::canEnrichCases();
+        // Check if SHALLOW_SESSION migration is completed
+        $canEnrich = ResourceType::canEnrichSessions();
 
         // Get current enrichment progress
-        $progress = $this->enrichmentService->getEnrichmentProgress();
+        $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::SESSION);
 
-        return view('enrichment.index', [
+        return view('enrichment.sessions.index', [
             'canEnrich' => $canEnrich,
             'progress' => $progress,
         ]);
@@ -47,17 +47,17 @@ class EnrichmentController extends Controller
     {
         try {
             // Check if enrichment is allowed
-            if (!ResourceType::canEnrichCases()) {
+            if (!ResourceType::canEnrichSessions()) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Cannot start enrichment. Please complete a SHALLOW_CASE migration first.'
+                    'error' => 'Cannot start enrichment. Please complete a SHALLOW_SESSION migration first.'
                 ], 422);
             }
 
             // Always dispatch to background queue
-            Log::info('Dispatching case enrichment to background queue');
+            Log::info('Dispatching session enrichment to background queue');
 
-            $job = new EnrichCasesJob();
+            $job = new EnrichSessionsJob();
             dispatch($job);
 
             return response()->json([
@@ -85,7 +85,7 @@ class EnrichmentController extends Controller
     public function progress(): JsonResponse
     {
         try {
-            $progress = $this->enrichmentService->getEnrichmentProgress();
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::SESSION);
 
             return response()->json([
                 'success' => true,
@@ -102,23 +102,23 @@ class EnrichmentController extends Controller
     }
 
     /**
-     * Get list of unenriched case IDs
+     * Get list of unenriched session IDs
      * GET /enrichment/unenriched
      */
     public function unenriched(): JsonResponse
     {
         try {
-            $unenrichedCaseIds = $this->enrichmentService->getUnenrichedCaseIds();
+            $unenrichedSessionIds = $this->enrichmentService->getUnenrichedSessionIds();
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'unenriched_case_ids' => $unenrichedCaseIds,
-                    'count' => $unenrichedCaseIds->count()
+                    'unenriched_session_ids' => $unenrichedSessionIds,
+                    'count' => $unenrichedSessionIds->count()
                 ]
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to get unenriched cases: ' . $e->getMessage());
+            Log::error('Failed to get unenriched sessions: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -134,7 +134,7 @@ class EnrichmentController extends Controller
     public function jobStatus(string $jobId): JsonResponse
     {
         try {
-            $status = EnrichCasesJob::getJobStatus($jobId);
+            $status = EnrichSessionsJob::getJobStatus($jobId);
 
             if (!$status) {
                 return response()->json([
@@ -164,7 +164,7 @@ class EnrichmentController extends Controller
     public function activeJob(): JsonResponse
     {
         try {
-            $activeJobId = EnrichCasesJob::getActiveJobId();
+            $activeJobId = EnrichSessionsJob::getActiveJobId();
 
             if (!$activeJobId) {
                 return response()->json([
@@ -174,7 +174,7 @@ class EnrichmentController extends Controller
             }
 
             // Get the job status
-            $status = EnrichCasesJob::getJobStatus($activeJobId);
+            $status = EnrichSessionsJob::getJobStatus($activeJobId);
 
             // If job status exists and is still active (queued, processing, or paused)
             if ($status && in_array($status['status'], ['queued', 'processing', 'paused'])) {
@@ -222,7 +222,7 @@ class EnrichmentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment will pause after completing the current case'
+                'message' => 'Enrichment will pause after completing the current session'
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to pause enrichment: ' . $e->getMessage());
@@ -244,10 +244,10 @@ class EnrichmentController extends Controller
             // Clear pause flag
             $this->enrichmentService->clearPaused();
 
-            // Start a new enrichment job (will auto-skip already enriched cases)
+            // Start a new enrichment job (will auto-skip already enriched sessions)
             Log::info('Resuming enrichment - dispatching new job');
 
-            $job = new EnrichCasesJob();
+            $job = new EnrichSessionsJob();
             dispatch($job);
 
             return response()->json([
@@ -269,36 +269,36 @@ class EnrichmentController extends Controller
     }
 
     /**
-     * Generates shallow sessions from enriched cases.
+     * Generates shallow sessions from enriched sessions.
      * POST /enrichment/sessions/generate
      */
     public function generateShallowSessions()
     {
-        $cases = MigratedEnrichedCase::all();
-        $caseIds = $cases->pluck('case_id');
-        $sessions = $cases->pluck('sessions');
-        $sessionIds = $cases->pluck('case_id');
+        $sessions = MigratedEnrichedSession::all();
+        $sessionIds = $sessions->pluck('session_id');
+        $sessions = $sessions->pluck('sessions');
+        $sessionIds = $sessions->pluck('session_id');
     }
 
     /**
-     * Restart enrichment (truncates all enriched cases and starts fresh)
+     * Restart enrichment (truncates all enriched sessions and starts fresh)
      * POST /enrichment/restart
      */
     public function restart(): JsonResponse
     {
         try {
             // Check if enrichment is allowed
-            if (!ResourceType::canEnrichCases()) {
+            if (!ResourceType::canEnrichSessions()) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Cannot restart enrichment. Please complete a SHALLOW_CASE migration first.'
+                    'error' => 'Cannot restart enrichment. Please complete a SHALLOW_SESSION migration first.'
                 ], 422);
             }
 
-            Log::info('Restarting enrichment - truncating all enriched cases');
+            Log::info('Restarting enrichment - truncating all enriched sessions');
 
-            // Truncate the migrated_enriched_cases table
-            DB::table('migrated_enriched_cases')->truncate();
+            // Truncate the migrated_enriched_sessions table
+            DB::table('migrated_enriched_sessions')->truncate();
 
             // Clear pause flag
             $this->enrichmentService->clearPaused();
@@ -306,7 +306,7 @@ class EnrichmentController extends Controller
             // Start a new enrichment job
             Log::info('Dispatching new enrichment job after restart');
 
-            $job = new EnrichCasesJob();
+            $job = new EnrichSessionsJob();
             dispatch($job);
 
             return response()->json([

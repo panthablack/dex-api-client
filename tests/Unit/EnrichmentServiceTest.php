@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Enums\ResourceType;
 use App\Services\EnrichmentService;
 use App\Services\DataExchangeService;
 use App\Models\MigratedShallowCase;
@@ -130,13 +131,13 @@ class EnrichmentServiceTest extends TestCase
             'verification_status' => VerificationStatus::PENDING,
         ]);
 
-        $result = $this->invokeMethod($this->enrichmentService, 'isAlreadyEnriched', ['CASE-003']);
+        $result = $this->invokeMethod($this->enrichmentService, 'isAlreadyEnriched', [ResourceType::CASE, 'CASE-003']);
         $this->assertTrue($result);
     }
 
     public function test_is_already_enriched_returns_false_when_not_enriched(): void
     {
-        $result = $this->invokeMethod($this->enrichmentService, 'isAlreadyEnriched', ['CASE-999']);
+        $result = $this->invokeMethod($this->enrichmentService, 'isAlreadyEnriched', [ResourceType::CASE, 'CASE-999']);
         $this->assertFalse($result);
     }
 
@@ -269,7 +270,7 @@ class EnrichmentServiceTest extends TestCase
             ]);
         }
 
-        $progress = $this->enrichmentService->getEnrichmentProgress();
+        $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::CASE);
 
         $this->assertEquals(5, $progress['total_shallow_cases']);
         $this->assertEquals(3, $progress['enriched_cases']);

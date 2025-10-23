@@ -4,7 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DataExchangeController;
 use App\Http\Controllers\DataMigrationController;
 use App\Http\Controllers\VerificationController;
-use App\Http\Controllers\EnrichmentController;
+use App\Http\Controllers\CaseEnrichmentController;
+use App\Http\Controllers\SessionEnrichmentController;
 
 Route::get('/', [DataExchangeController::class, 'index'])->name('home');
 
@@ -125,18 +126,39 @@ Route::prefix('data-migration')->name('data-migration.')->group(function () {
 
 // Enrichment routes
 Route::prefix('enrichment')->name('enrichment.')->group(function () {
-    // Main enrichment dashboard
-    Route::get('/', [EnrichmentController::class, 'index'])->name('index');
+    // Cases
+    Route::prefix('cases')->name('cases.')->group(function () {
+        // Main Case enrichment dashboard
+        Route::get('/', [CaseEnrichmentController::class, 'index'])->name('index');
 
-    // API endpoints for AJAX operations
-    Route::prefix('api')->name('api.')->group(function () {
-        Route::post('/start', [EnrichmentController::class, 'start'])->name('start');
-        Route::post('/pause', [EnrichmentController::class, 'pause'])->name('pause');
-        Route::post('/resume', [EnrichmentController::class, 'resume'])->name('resume');
-        Route::post('/restart', [EnrichmentController::class, 'restart'])->name('restart');
-        Route::get('/progress', [EnrichmentController::class, 'progress'])->name('progress');
-        Route::get('/unenriched', [EnrichmentController::class, 'unenriched'])->name('unenriched');
-        Route::get('/active-job', [EnrichmentController::class, 'activeJob'])->name('active-job');
-        Route::get('/job-status/{jobId}', [EnrichmentController::class, 'jobStatus'])->name('job-status');
+        // API endpoints for AJAX operations
+        Route::prefix('api')->name('api.')->group(function () {
+            Route::post('/start', [CaseEnrichmentController::class, 'start'])->name('start');
+            Route::post('/pause', [CaseEnrichmentController::class, 'pause'])->name('pause');
+            Route::post('/resume', [CaseEnrichmentController::class, 'resume'])->name('resume');
+            Route::post('/restart', [CaseEnrichmentController::class, 'restart'])->name('restart');
+            Route::get('/progress', [CaseEnrichmentController::class, 'progress'])->name('progress');
+            Route::get('/unenriched', [CaseEnrichmentController::class, 'unenriched'])->name('unenriched');
+            Route::get('/active-job', [CaseEnrichmentController::class, 'activeJob'])->name('active-job');
+            Route::get('/job-status/{jobId}', [CaseEnrichmentController::class, 'jobStatus'])->name('job-status');
+        });
+    });
+
+    // Sessions
+    Route::prefix('sessions')->name('sessions.')->group(function () {
+        // Main Session enrichment dashboard
+        Route::get('/', [SessionEnrichmentController::class, 'index'])->name('index');
+
+        // API endpoints for AJAX operations
+        Route::prefix('api')->name('api.')->group(function () {
+            Route::post('/start', [SessionEnrichmentController::class, 'start'])->name('start');
+            Route::post('/pause', [SessionEnrichmentController::class, 'pause'])->name('pause');
+            Route::post('/resume', [SessionEnrichmentController::class, 'resume'])->name('resume');
+            Route::post('/restart', [SessionEnrichmentController::class, 'restart'])->name('restart');
+            Route::get('/progress', [SessionEnrichmentController::class, 'progress'])->name('progress');
+            Route::get('/unenriched', [SessionEnrichmentController::class, 'unenriched'])->name('unenriched');
+            Route::get('/active-job', [SessionEnrichmentController::class, 'activeJob'])->name('active-job');
+            Route::get('/job-status/{jobId}', [SessionEnrichmentController::class, 'jobStatus'])->name('job-status');
+        });
     });
 });

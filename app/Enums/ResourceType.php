@@ -6,12 +6,14 @@ use \App\Helpers\EnumHelpers;
 use App\Models\MigratedCase;
 use App\Models\MigratedShallowCase;
 use App\Models\DataMigration;
+use App\Models\MigratedShallowSession;
 
 enum ResourceType: string
 {
     case CLIENT = 'CLIENT';
     case CASE = 'CASE';
     case SHALLOW_CASE = 'SHALLOW_CASE';
+    case SHALLOW_SESSION = 'SHALLOW_SESSION';
     case SHALLOW_CLOSED_CASE = 'SHALLOW_CLOSED_CASE';
     case ENRICHED_CASE = 'ENRICHED_CASE';
     case CASE_CLIENT = 'CASE_CLIENT';
@@ -84,6 +86,25 @@ enum ResourceType: string
         return DataMigration::where('resource_type', self::SHALLOW_CASE)
             ->where('status', \App\Enums\DataMigrationStatus::COMPLETED)
             ->exists();
+    }
+
+    /**
+     * Check if ENRICHED_SESSIONS can be triggered
+     * Requires available cases and shallow sessions
+     */
+    public static function canEnrichSessions(): bool
+    {
+        // Check for completed SHALLOW_CASE migration
+        $shallowSessions = MigratedShallowSession::all();
+        return DataMigration::where('resource_type', self::CASE)
+            ->where('status', \App\Enums\DataMigrationStatus::COMPLETED)
+            ->exists();
+
+        // if no shallow sessions, return false
+
+
+        if ($shallowSessionsValid) return true;
+        else return false;
     }
 
     public static function isMigratable($type): bool

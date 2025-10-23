@@ -19,7 +19,7 @@ use Mockery;
 /**
  * Integration tests for the full SHALLOW_CASE → Enrichment workflow
  */
-class EnrichmentWorkflowTest extends TestCase
+class CaseEnrichmentWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -203,14 +203,14 @@ class EnrichmentWorkflowTest extends TestCase
         $this->assertFalse(ResourceType::canEnrichCases());
 
         // Try to access enrichment dashboard
-        $response = $this->get(route('enrichment.index'));
+        $response = $this->get(route('enrichment.cases.index'));
 
         $response->assertOk();
         $response->assertViewHas('canEnrich', false);
         $response->assertSee('Prerequisite Required');
 
         // Try to start enrichment via API
-        $response = $this->postJson(route('enrichment.api.start'));
+        $response = $this->postJson(route('enrichment.cases.api.start'));
 
         $response->assertStatus(422);
         $response->assertJson([
@@ -230,7 +230,7 @@ class EnrichmentWorkflowTest extends TestCase
         $this->assertFalse(ResourceType::canEnrichCases());
 
         // Try to start enrichment
-        $response = $this->postJson(route('enrichment.api.start'));
+        $response = $this->postJson(route('enrichment.cases.api.start'));
 
         $response->assertStatus(422);
         $response->assertJson([
@@ -250,7 +250,7 @@ class EnrichmentWorkflowTest extends TestCase
         $this->assertTrue(ResourceType::canEnrichCases());
 
         // Dashboard should allow enrichment
-        $response = $this->get(route('enrichment.index'));
+        $response = $this->get(route('enrichment.cases.index'));
         $response->assertViewHas('canEnrich', true);
     }
 
@@ -348,7 +348,7 @@ class EnrichmentWorkflowTest extends TestCase
         $enrichmentService = new EnrichmentService(Mockery::mock(DataExchangeService::class));
 
         // Initial progress: 0%
-        $progress = $enrichmentService->getEnrichmentProgress();
+        $progress = $enrichmentService->getEnrichmentProgress(ResourceType::CASE);
         $this->assertEquals(10, $progress['total_shallow_cases']);
         $this->assertEquals(0, $progress['enriched_cases']);
         $this->assertEquals(10, $progress['unenriched_cases']);
@@ -367,7 +367,7 @@ class EnrichmentWorkflowTest extends TestCase
         }
 
         // Progress: 30%
-        $progress = $enrichmentService->getEnrichmentProgress();
+        $progress = $enrichmentService->getEnrichmentProgress(ResourceType::CASE);
         $this->assertEquals(10, $progress['total_shallow_cases']);
         $this->assertEquals(3, $progress['enriched_cases']);
         $this->assertEquals(7, $progress['unenriched_cases']);
@@ -386,7 +386,7 @@ class EnrichmentWorkflowTest extends TestCase
         }
 
         // Progress: 100%
-        $progress = $enrichmentService->getEnrichmentProgress();
+        $progress = $enrichmentService->getEnrichmentProgress(ResourceType::CASE);
         $this->assertEquals(10, $progress['total_shallow_cases']);
         $this->assertEquals(10, $progress['enriched_cases']);
         $this->assertEquals(0, $progress['unenriched_cases']);

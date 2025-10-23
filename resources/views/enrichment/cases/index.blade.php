@@ -278,7 +278,7 @@
 
         async checkForActiveJob() {
           try {
-            const response = await fetch('{{ route('enrichment.api.active-job') }}');
+            const response = await fetch('{{ route('enrichment.cases.api.active-job') }}');
             const data = await response.json();
 
             if (data.success && data.data) {
@@ -327,7 +327,7 @@
           this.lastEnrichmentResult = null;
 
           try {
-            const response = await fetch('{{ route('enrichment.api.start') }}', {
+            const response = await fetch('{{ route('enrichment.cases.api.start') }}', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -361,7 +361,7 @@
           }
 
           try {
-            const response = await fetch('{{ route('enrichment.api.pause') }}', {
+            const response = await fetch('{{ route('enrichment.cases.api.pause') }}', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -390,7 +390,7 @@
           }
 
           try {
-            const response = await fetch('{{ route('enrichment.api.resume') }}', {
+            const response = await fetch('{{ route('enrichment.cases.api.resume') }}', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -432,7 +432,7 @@
           if (!this.currentJobId) return;
 
           try {
-            const response = await fetch(`/enrichment/api/job-status/${this.currentJobId}`);
+            const response = await fetch('{{ route('enrichment.cases.api.job-status', ['jobId' => 'JOB_ID_PLACEHOLDER']) }}'.replace('JOB_ID_PLACEHOLDER', this.currentJobId));
             const data = await response.json();
 
             if (data.success) {
@@ -474,7 +474,7 @@
                 this.isPaused = false;
 
                 window.showToast('Background enrichment failed: ' + (data.data.data?.error || 'Unknown error'),
-                'error');
+                  'error');
               }
               // else: job is still processing (queued or processing)
             }
@@ -485,7 +485,7 @@
 
         async refreshProgress() {
           try {
-            const response = await fetch('{{ route('enrichment.api.progress') }}');
+            const response = await fetch('{{ route('enrichment.cases.api.progress') }}');
             const data = await response.json();
 
             if (data.success) {
@@ -518,7 +518,7 @@
           this.isPaused = false;
 
           try {
-            const response = await fetch('{{ route('enrichment.api.restart') }}', {
+            const response = await fetch('{{ route('enrichment.cases.api.restart') }}', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

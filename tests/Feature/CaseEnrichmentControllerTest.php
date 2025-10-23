@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 use Mockery;
 
-class EnrichmentControllerTest extends TestCase
+class CaseEnrichmentControllerTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -60,20 +60,20 @@ class EnrichmentControllerTest extends TestCase
             'data_migration_batch_id' => $batch->id,
         ]);
 
-        $response = $this->get(route('enrichment.index'));
+        $response = $this->get(route('enrichment.cases.index'));
 
         $response->assertOk();
-        $response->assertViewIs('enrichment.index');
+        $response->assertViewIs('enrichment.cases.index');
         $response->assertViewHas('canEnrich', true);
         $response->assertViewHas('progress');
     }
 
     public function test_index_shows_warning_when_no_shallow_case_migration(): void
     {
-        $response = $this->get(route('enrichment.index'));
+        $response = $this->get(route('enrichment.cases.index'));
 
         $response->assertOk();
-        $response->assertViewIs('enrichment.index');
+        $response->assertViewIs('enrichment.cases.index');
         $response->assertViewHas('canEnrich', false);
         $response->assertSee('Prerequisite Required');
     }
@@ -103,7 +103,7 @@ class EnrichmentControllerTest extends TestCase
             ]);
         }
 
-        $response = $this->getJson(route('enrichment.api.progress'));
+        $response = $this->getJson(route('enrichment.cases.api.progress'));
 
         $response->assertOk();
         $response->assertJson([
@@ -150,7 +150,7 @@ class EnrichmentControllerTest extends TestCase
             'verification_status' => VerificationStatus::PENDING,
         ]);
 
-        $response = $this->getJson(route('enrichment.api.unenriched'));
+        $response = $this->getJson(route('enrichment.cases.api.unenriched'));
 
         $response->assertOk();
         $response->assertJson([
@@ -168,7 +168,7 @@ class EnrichmentControllerTest extends TestCase
 
     public function test_start_endpoint_rejects_when_no_shallow_case_migration(): void
     {
-        $response = $this->postJson(route('enrichment.api.start'));
+        $response = $this->postJson(route('enrichment.cases.api.start'));
 
         $response->assertStatus(422);
         $response->assertJson([
@@ -202,7 +202,7 @@ class EnrichmentControllerTest extends TestCase
             'data_migration_batch_id' => $batch->id,
         ]);
 
-        $response = $this->postJson(route('enrichment.api.start'));
+        $response = $this->postJson(route('enrichment.cases.api.start'));
 
         $response->assertOk();
         $response->assertJson([
@@ -255,7 +255,7 @@ class EnrichmentControllerTest extends TestCase
             'verification_status' => VerificationStatus::PENDING,
         ]);
 
-        $response = $this->postJson(route('enrichment.api.start'));
+        $response = $this->postJson(route('enrichment.cases.api.start'));
 
         $response->assertOk();
         $response->assertJson([
@@ -298,7 +298,7 @@ class EnrichmentControllerTest extends TestCase
             'data_migration_batch_id' => $batch->id,
         ]);
 
-        $response = $this->postJson(route('enrichment.api.start'));
+        $response = $this->postJson(route('enrichment.cases.api.start'));
 
         $response->assertOk();
         $response->assertJson([

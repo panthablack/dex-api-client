@@ -202,11 +202,23 @@
               <i class="fas fa-database"></i> Data Migration
             </a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('enrichment.*') ? 'active' : '' }}"
-              href="{{ route('enrichment.index') }}">
-              <i class="fas fa-layer-group"></i> Case Enrichment
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {{ request()->routeIs('enrichment.*') ? 'active' : '' }}" href="#"
+              id="enrichmentDropdown" role="button" data-bs-toggle="dropdown">
+              <i class="fas fa-layer-group"></i> Enrichment
             </a>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item" href="{{ route('enrichment.cases.index') }}">
+                  Cases
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ route('enrichment.sessions.index') }}">
+                  Sessions
+                </a>
+              </li>
+            </ul>
           </li>
           <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('data-exchange.reference-data') ? 'active' : '' }}"
