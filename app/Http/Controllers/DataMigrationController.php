@@ -563,6 +563,7 @@ class DataMigrationController extends Controller
                 'exit_reason_code' => 'Exit Reason Code',
                 'ag_business_type_code' => 'AG Business Type Code',
                 'program_activity_name' => 'Program Activity Name',
+                'sessions' => 'Sessions',
                 'verification_status' => 'Verification Status',
                 'verified_at' => 'Verified Date',
                 'api_response' => 'Raw API Data (JSON)'

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Services\EnrichmentService;
 use App\Jobs\EnrichCasesJob;
 use App\Enums\ResourceType;
+use App\Models\MigratedEnrichedCase;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class EnrichmentController extends Controller
@@ -258,6 +260,65 @@ class EnrichmentController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to resume enrichment: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Restart enrichment (truncates all enriched cases and starts fresh)
+     * POST /enrichment/restart
+     */
+    public function generateShallowSessions()
+    {
+        $cases = MigratedEnrichedCase::all();
+        $caseIds = $cases->pluck('case_id');
+        $sessions = $cases->pluck('sessions');
+        $sessionIds = $cases->pluck('case_id');
+    }
+
+    /**
+     * Restart enrichment (truncates all enriched cases and starts fresh)
+     * POST /enrichment/restart
+     */
+    public function restart(): JsonResponse
+    {
+        try {
+            // Check if enrichment is allowed
+            if (!ResourceType::canEnrichCases()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Cannot restart enrichment. Please complete a SHALLOW_CASE migration first.'
+                ], 422);
+            }
+
+            Log::info('Restarting enrichment - truncating all enriched cases');
+
+            // Truncate the migrated_enriched_cases table
+            DB::table('migrated_enriched_cases')->truncate();
+
+            // Clear pause flag
+            $this->enrichmentService->clearPaused();
+
+            // Start a new enrichment job
+            Log::info('Dispatching new enrichment job after restart');
+
+            $job = new EnrichCasesJob();
+            dispatch($job);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Enrichment restarted. All previous enriched data has been cleared.',
+                'data' => [
+                    'job_id' => $job->getJobId(),
+                    'background' => true
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to restart enrichment: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,

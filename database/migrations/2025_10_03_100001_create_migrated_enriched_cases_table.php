@@ -33,6 +33,7 @@ return new class extends Migration
             $table->string('exit_reason_code')->nullable();
             $table->string('ag_business_type_code')->nullable();
             $table->string('program_activity_name')->nullable();
+            $table->json('sessions');
 
             // Enrichment tracking (simplified - no error fields)
             $table->json('api_response'); // Full GetCase result

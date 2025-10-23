@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('exit_reason_code')->nullable();
             $table->string('ag_business_type_code')->nullable();
             $table->string('program_activity_name')->nullable();
+            $table->json('sessions');
             $table->json('api_response')->nullable(); // Store full API response
             $table->foreignIdFor(DataMigrationBatch::class)->constrained();
             $table->enum('verification_status', [

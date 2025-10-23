@@ -148,6 +148,7 @@ class EnrichmentWorkflowTest extends TestCase
                 'shallow_case_id' => $i,
                 'outlet_activity_id' => 100 + $i,
                 'api_response' => ['manual' => true],
+                'sessions' => [],
                 'enriched_at' => now()->subHours(1),
                 'verification_status' => VerificationStatus::PENDING,
             ]);
@@ -354,6 +355,7 @@ class EnrichmentWorkflowTest extends TestCase
                 'shallow_case_id' => $i,
                 'outlet_activity_id' => 100,
                 'api_response' => [],
+                'sessions' => [],
                 'verification_status' => VerificationStatus::PENDING,
             ]);
         }
@@ -372,6 +374,7 @@ class EnrichmentWorkflowTest extends TestCase
                 'shallow_case_id' => $i,
                 'outlet_activity_id' => 100,
                 'api_response' => [],
+                'sessions' => [],
                 'verification_status' => VerificationStatus::PENDING,
             ]);
         }

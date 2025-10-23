@@ -7,13 +7,32 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h2 text-primary">Case Enrichment Dashboard</h1>
       <div class="btn-group">
-        <button @click="startEnrichment()" :disabled="!canEnrich || (isEnriching && !isPaused)" class="btn btn-primary" x-show="!isEnriching || isPaused">
+        <!-- Start/Resume button -->
+        <button @click="startEnrichment()" :disabled="!canEnrich || (isEnriching && !isPaused)" class="btn btn-primary"
+          x-show="(!isEnriching || isPaused) && !isCompleted">
           <i class="fas fa-play me-1"></i>
           <span x-text="isPaused ? 'Resume Enrichment' : 'Start Enrichment'"></span>
         </button>
-        <button @click="pauseEnrichment()" :disabled="!isEnriching || isPaused" class="btn btn-warning" x-show="isEnriching && !isPaused">
+
+        <!-- Pause button -->
+        <button @click="pauseEnrichment()" :disabled="!isEnriching || isPaused" class="btn btn-warning"
+          x-show="isEnriching && !isPaused">
           <i class="fas fa-pause me-1"></i>
           <span>Pause Enrichment</span>
+        </button>
+
+        <!-- Restart button (shown when 100% complete) -->
+        <button @click="showRestartModal()" :disabled="isEnriching" class="btn btn-warning"
+          x-show="isCompleted && !isEnriching">
+          <i class="fas fa-redo me-1"></i>
+          <span>Restart Enrichment</span>
+        </button>
+
+        <!-- Restart button (shown when 100% complete) -->
+        <button @click="generateShallowSessions()" :disabled="isEnriching" class="btn btn-info"
+          x-show="isCompleted && !isEnriching">
+          <i class="fas fa-redo me-1"></i>
+          <span>Generate Shallow Sessions</span>
         </button>
       </div>
     </div>
@@ -157,7 +176,8 @@
         </ul>
         <p class="mb-0 text-muted">
           <i class="fas fa-lightbulb me-1"></i>
-          <strong>Tip:</strong> You can navigate away from this page during enrichment. The job will continue running in the background. Return here to check progress.
+          <strong>Tip:</strong> You can navigate away from this page during enrichment. The job will continue running in
+          the background. Return here to check progress.
         </p>
       </div>
     </div>
@@ -228,6 +248,11 @@
       </div>
     </div>
 
+    <!-- Restart Confirmation Modal -->
+    <x-confirmation-modal id="restartEnrichmentModal" title="Restart Enrichment" :message="'<p class=\'mb-2\'>This will <strong>permanently delete all enriched case data</strong> and restart the enrichment process from scratch.</p><p class=\'text-danger mb-0\'><i class=\'fas fa-exclamation-triangle me-1\'></i><strong>This action cannot be undone.</strong></p>'"
+      confirmText="Yes, Restart Enrichment" confirmClass="btn-danger" cancelText="Cancel"
+      icon="fa-exclamation-triangle" iconClass="text-danger" />
+
   </div>
 
   <script>
@@ -240,6 +265,11 @@
         lastEnrichmentResult: null,
         pollInterval: null,
         currentJobId: null,
+
+        // Computed property to check if enrichment is 100% complete
+        get isCompleted() {
+          return this.progress.progress_percentage >= 100;
+        },
 
         async init() {
           // Check for any active enrichment jobs on page load
@@ -342,7 +372,8 @@
             const data = await response.json();
 
             if (data.success) {
-              window.showToast('Pause requested. Enrichment will stop after completing the current case...', 'info', 3000);
+              window.showToast('Pause requested. Enrichment will stop after completing the current case...', 'info',
+                3000);
               // Don't set isPaused yet - wait for job status to confirm
             } else {
               window.showToast('Failed to pause: ' + (data.error || 'Unknown error'), 'error');
@@ -442,7 +473,8 @@
                 this.isEnriching = false;
                 this.isPaused = false;
 
-                window.showToast('Background enrichment failed: ' + (data.data.data?.error || 'Unknown error'), 'error');
+                window.showToast('Background enrichment failed: ' + (data.data.data?.error || 'Unknown error'),
+                'error');
               }
               // else: job is still processing (queued or processing)
             }
@@ -461,6 +493,62 @@
             }
           } catch (error) {
             console.error('Failed to refresh progress:', error);
+          }
+        },
+
+        showRestartModal() {
+          const modal = new bootstrap.Modal(document.getElementById('restartEnrichmentModal'));
+          const confirmBtn = document.getElementById('restartEnrichmentModalConfirmBtn');
+
+          // Set up the confirm button click handler
+          confirmBtn.onclick = () => {
+            modal.hide();
+            this.restartEnrichment();
+          };
+
+          modal.show();
+        },
+
+        async restartEnrichment() {
+          if (this.isEnriching) {
+            return;
+          }
+
+          this.isEnriching = true;
+          this.isPaused = false;
+
+          try {
+            const response = await fetch('{{ route('enrichment.api.restart') }}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+              }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              // Clear the last enrichment result
+              this.lastEnrichmentResult = null;
+
+              // Refresh progress to show reset state
+              await this.refreshProgress();
+
+              // Start monitoring the new job
+              this.currentJobId = data.data.job_id;
+              window.showToast('Enrichment restarted. All previous data cleared. Monitoring progress...', 'info', 5000);
+              this.startPollingJobStatus();
+            } else {
+              window.showToast('Restart failed: ' + (data.error || 'Unknown error'), 'error');
+              this.isEnriching = false;
+              this.isPaused = false;
+            }
+          } catch (error) {
+            console.error('Restart error:', error);
+            window.showToast('Restart failed: ' + error.message, 'error');
+            this.isEnriching = false;
+            this.isPaused = false;
           }
         }
       };

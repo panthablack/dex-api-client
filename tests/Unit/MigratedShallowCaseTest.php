@@ -63,6 +63,7 @@ class MigratedShallowCaseTest extends TestCase
             'shallow_case_id' => $shallowCase->id,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
         ]);
 
         $this->assertInstanceOf(MigratedEnrichedCase::class, $shallowCase->enrichedCase);
@@ -97,6 +98,7 @@ class MigratedShallowCaseTest extends TestCase
             'shallow_case_id' => $shallowCase->id,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
         ]);
 
         $this->assertTrue($shallowCase->isEnriched());

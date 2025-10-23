@@ -48,7 +48,7 @@ class DataMigrationService
             if ($activeMigrations > 0) {
                 throw new \Exception(
                     "Cannot create migration: There is already an active migration for resource type '{$resourceType->value}'. " .
-                    "Please wait for the existing migration to complete or cancel it before starting a new one."
+                        "Please wait for the existing migration to complete or cancel it before starting a new one."
                 );
             }
 
@@ -630,6 +630,9 @@ class DataMigrationService
         // Extract client IDs array from various possible locations
         $clientIds = $this->extractClientIds($caseData);
 
+        // Extract session IDs using robust nested extraction
+        $sessions = $this->extractSessions($caseData);
+
         // Extract other fields with robust fallbacks
         $outletName = $caseData['outlet_name']
             ?? $caseData['OutletName']
@@ -692,6 +695,7 @@ class DataMigrationService
                 'exit_reason_code' => $exitReasonCode,
                 'ag_business_type_code' => $agBusinessTypeCode,
                 'program_activity_name' => $programActivityName,
+                'sessions' => $sessions,
                 'api_response' => $caseData,
                 'data_migration_batch_id' => $batchId,
             ]
@@ -760,6 +764,62 @@ class DataMigrationService
         // Fallback to single client ID as array
         $singleClientId = $this->extractClientId($caseData);
         return $singleClientId ? [$singleClientId] : null;
+    }
+
+    /**
+     * Extract session IDs from case data
+     * Handles various possible formats from the API
+     *
+     * @param array $caseData
+     * @return array
+     */
+    protected function extractSessions(array $caseData): array
+    {
+        // Try to extract as array first
+        if (isset($caseData['sessions']) && is_array($caseData['sessions'])) {
+            return array_values(array_filter($caseData['sessions']));
+        }
+
+        // Check for Sessions key with SessionId subkey (typical API format)
+        if (isset($caseData['Sessions']) && is_array($caseData['Sessions'])) {
+            if (isset($caseData['Sessions']['SessionId'])) {
+                $sessionIds = $caseData['Sessions']['SessionId'];
+                // Convert single string to array
+                if (is_string($sessionIds)) {
+                    return [$sessionIds];
+                }
+                if (is_array($sessionIds)) {
+                    return array_values(array_filter($sessionIds));
+                }
+            }
+            // If Sessions is just an array of IDs
+            return array_values(array_filter($caseData['Sessions']));
+        }
+
+        // Check for nested structure (Case.Sessions)
+        $sessionsData = data_get($caseData, 'Case.Sessions');
+        if ($sessionsData && is_array($sessionsData)) {
+            if (isset($sessionsData['SessionId'])) {
+                $sessionIds = $sessionsData['SessionId'];
+                if (is_string($sessionIds)) {
+                    return [$sessionIds];
+                }
+                if (is_array($sessionIds)) {
+                    return array_values(array_filter($sessionIds));
+                }
+            }
+            return array_values(array_filter($sessionsData));
+        }
+
+        // If we got a string, try to parse it
+        $sessionsString = $caseData['sessions'] ?? $caseData['Sessions'] ?? null;
+        if (is_string($sessionsString)) {
+            $sessionIds = array_map('trim', explode(',', $sessionsString));
+            return array_values(array_filter($sessionIds));
+        }
+
+        // Return empty array if nothing found
+        return [];
     }
 
     /**

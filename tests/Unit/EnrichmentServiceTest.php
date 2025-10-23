@@ -115,6 +115,7 @@ class EnrichmentServiceTest extends TestCase
             'shallow_case_id' => $shallowCase->id,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
             'verification_status' => VerificationStatus::PENDING,
         ]);
 
@@ -151,6 +152,7 @@ class EnrichmentServiceTest extends TestCase
             'shallow_case_id' => $shallowCase1->id,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
             'verification_status' => VerificationStatus::PENDING,
         ]);
 
@@ -251,6 +253,7 @@ class EnrichmentServiceTest extends TestCase
                 'shallow_case_id' => $i,
                 'outlet_activity_id' => 1,
                 'api_response' => [],
+                'sessions' => [],
                 'verification_status' => VerificationStatus::PENDING,
             ]);
         }
@@ -292,6 +295,7 @@ class EnrichmentServiceTest extends TestCase
             'shallow_case_id' => 1,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
             'verification_status' => VerificationStatus::PENDING,
         ]);
 

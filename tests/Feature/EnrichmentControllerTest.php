@@ -98,6 +98,7 @@ class EnrichmentControllerTest extends TestCase
                 'shallow_case_id' => $i,
                 'outlet_activity_id' => 100,
                 'api_response' => [],
+                'sessions' => [],
                 'verification_status' => VerificationStatus::PENDING,
             ]);
         }
@@ -145,6 +146,7 @@ class EnrichmentControllerTest extends TestCase
             'shallow_case_id' => 2,
             'outlet_activity_id' => 100,
             'api_response' => [],
+            'sessions' => [],
             'verification_status' => VerificationStatus::PENDING,
         ]);
 
@@ -249,6 +251,7 @@ class EnrichmentControllerTest extends TestCase
             'shallow_case_id' => $shallowCase1->id,
             'outlet_activity_id' => 2000,
             'api_response' => [],
+            'sessions' => [],
             'verification_status' => VerificationStatus::PENDING,
         ]);
 

@@ -52,51 +52,52 @@ class EnrichmentService
             $shallowCases = MigratedShallowCase::all();
             $stats['total_shallow_cases'] = $shallowCases->count();
 
-            if ($stats['total_shallow_cases'] === 0) {
+            if ($stats['total_shallow_cases'] > 0) {
+                Log::info("Starting enrichment for {$stats['total_shallow_cases']} shallow cases");
+
+                // Process each case one at a time
+                foreach ($shallowCases as $shallowCase) {
+                    // Check for pause request before processing each case
+                    if ($this->isPaused()) {
+                        Log::info("Enrichment paused by user request. Progress: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
+                        $stats['paused'] = true;
+                        break;
+                    }
+
+                    try {
+                        // Skip if already enriched
+                        if ($this->isAlreadyEnriched($shallowCase->case_id)) {
+                            $stats['already_enriched']++;
+                            continue;
+                        }
+
+                        // Enrich this case
+                        $this->enrichCase($shallowCase);
+                        $stats['newly_enriched']++;
+
+                        if (env('DETAILED_LOGGING')) {
+                            Log::info("Enriched case {$shallowCase->case_id} ({$stats['newly_enriched']}/{$stats['total_shallow_cases']})");
+                        }
+                    } catch (\Exception $e) {
+                        $stats['failed']++;
+                        $stats['errors'][] = [
+                            'case_id' => $shallowCase->case_id,
+                            'error' => $e->getMessage()
+                        ];
+
+                        Log::error("Failed to enrich case {$shallowCase->case_id}: {$e->getMessage()}");
+                        // Continue to next case - don't let one failure stop the whole process
+                    }
+                }
+            } else {
                 Log::info("No shallow cases found to enrich");
-                return $stats;
-            }
-
-            Log::info("Starting enrichment for {$stats['total_shallow_cases']} shallow cases");
-
-            // Process each case one at a time
-            foreach ($shallowCases as $shallowCase) {
-                // Check for pause request before processing each case
-                if ($this->isPaused()) {
-                    Log::info("Enrichment paused by user request. Progress: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
-                    $stats['paused'] = true;
-                    return $stats;
-                }
-
-                try {
-                    // Skip if already enriched
-                    if ($this->isAlreadyEnriched($shallowCase->case_id)) {
-                        $stats['already_enriched']++;
-                        continue;
-                    }
-
-                    // Enrich this case
-                    $this->enrichCase($shallowCase);
-                    $stats['newly_enriched']++;
-
-                    if (env('DETAILED_LOGGING')) {
-                        Log::info("Enriched case {$shallowCase->case_id} ({$stats['newly_enriched']}/{$stats['total_shallow_cases']})");
-                    }
-                } catch (\Exception $e) {
-                    $stats['failed']++;
-                    $stats['errors'][] = [
-                        'case_id' => $shallowCase->case_id,
-                        'error' => $e->getMessage()
-                    ];
-
-                    Log::error("Failed to enrich case {$shallowCase->case_id}: {$e->getMessage()}");
-                    // Continue to next case - don't let one failure stop the whole process
-                }
             }
 
             Log::info("Enrichment complete: {$stats['newly_enriched']} newly enriched, {$stats['already_enriched']} already enriched, {$stats['failed']} failed");
 
             return $stats;
+        } catch (\Exception $e) {
+            throw $e;
         } finally {
             // Always release the lock when done
             $lock->release();
@@ -137,6 +138,9 @@ class EnrichmentService
     {
         // Extract client IDs using robust nested extraction
         $clientIds = $this->extractClientIds($caseData);
+
+        // Extract session IDs using robust nested extraction
+        $sessions = $this->extractSessions($caseData);
 
         // Extract fields using data_get() for nested structures (same as DataMigrationService)
         // API response structure: Case.CaseDetail.FieldName or Case.FieldName
@@ -187,11 +191,68 @@ class EnrichmentService
                 'end_date' => $endDate,
                 'client_attendance_profile_code' => $clientAttendanceProfileCode,
                 'client_count' => $totalNumberOfUnidentifiedClients ?? count($clientIds ?? []),
+                'sessions' => $sessions,
                 'api_response' => $caseData,
                 'enriched_at' => now(),
                 'verification_status' => VerificationStatus::PENDING,
             ]
         );
+    }
+
+    /**
+     * Extract session IDs from case data
+     * Handles various possible formats from the API
+     *
+     * @param array $caseData
+     * @return array
+     */
+    protected function extractSessions(array $caseData): array
+    {
+        // Try to extract as array first
+        if (isset($caseData['sessions']) && is_array($caseData['sessions'])) {
+            return array_values(array_filter($caseData['sessions']));
+        }
+
+        // Check for Sessions key with SessionId subkey (typical API format)
+        if (isset($caseData['Sessions']) && is_array($caseData['Sessions'])) {
+            if (isset($caseData['Sessions']['SessionId'])) {
+                $sessionIds = $caseData['Sessions']['SessionId'];
+                // Convert single string to array
+                if (is_string($sessionIds)) {
+                    return [$sessionIds];
+                }
+                if (is_array($sessionIds)) {
+                    return array_values(array_filter($sessionIds));
+                }
+            }
+            // If Sessions is just an array of IDs
+            return array_values(array_filter($caseData['Sessions']));
+        }
+
+        // Check for nested structure (Case.Sessions)
+        $sessionsData = data_get($caseData, 'Case.Sessions');
+        if ($sessionsData && is_array($sessionsData)) {
+            if (isset($sessionsData['SessionId'])) {
+                $sessionIds = $sessionsData['SessionId'];
+                if (is_string($sessionIds)) {
+                    return [$sessionIds];
+                }
+                if (is_array($sessionIds)) {
+                    return array_values(array_filter($sessionIds));
+                }
+            }
+            return array_values(array_filter($sessionsData));
+        }
+
+        // If we got a string, try to parse it
+        $sessionsString = $caseData['sessions'] ?? $caseData['Sessions'] ?? null;
+        if (is_string($sessionsString)) {
+            $sessionIds = array_map('trim', explode(',', $sessionsString));
+            return array_values(array_filter($sessionIds));
+        }
+
+        // Return empty array if nothing found
+        return [];
     }
 
     /**

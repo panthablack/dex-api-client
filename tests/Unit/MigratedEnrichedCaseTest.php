@@ -31,6 +31,7 @@ class MigratedEnrichedCaseTest extends TestCase
             'client_ids' => ['CLIENT-001', 'CLIENT-002'],
             'outlet_activity_id' => 123,
             'api_response' => ['enriched' => 'data'],
+            'sessions' => [],
             'enriched_at' => now(),
         ]);
 
@@ -57,6 +58,7 @@ class MigratedEnrichedCaseTest extends TestCase
             'shallow_case_id' => $shallowCase->id,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
         ]);
 
         $this->assertInstanceOf(MigratedShallowCase::class, $enrichedCase->shallowCase);
@@ -77,6 +79,7 @@ class MigratedEnrichedCaseTest extends TestCase
             'shallow_case_id' => $shallowCase->id,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
         ]);
 
         // Test relationship exists and returns correct type
@@ -115,6 +118,7 @@ class MigratedEnrichedCaseTest extends TestCase
             'client_ids' => ['CLIENT-100', 'CLIENT-101'],
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
         ]);
 
         $clients = $enrichedCase->clients();
@@ -139,6 +143,7 @@ class MigratedEnrichedCaseTest extends TestCase
             'client_ids' => null,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
         ]);
 
         $clients = $enrichedCase->clients();
@@ -160,6 +165,7 @@ class MigratedEnrichedCaseTest extends TestCase
             'shallow_case_id' => $shallowCase->id,
             'outlet_activity_id' => 1,
             'api_response' => [],
+            'sessions' => [],
             'verification_status' => VerificationStatus::PENDING,
         ]);
 
@@ -185,6 +191,7 @@ class MigratedEnrichedCaseTest extends TestCase
             'end_date' => '2025-12-31',
             'outlet_activity_id' => 1,
             'api_response' => ['key' => 'value'],
+            'sessions' => [],
             'enriched_at' => '2025-01-15 10:00:00',
         ]);
 

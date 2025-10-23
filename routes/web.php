@@ -133,6 +133,7 @@ Route::prefix('enrichment')->name('enrichment.')->group(function () {
         Route::post('/start', [EnrichmentController::class, 'start'])->name('start');
         Route::post('/pause', [EnrichmentController::class, 'pause'])->name('pause');
         Route::post('/resume', [EnrichmentController::class, 'resume'])->name('resume');
+        Route::post('/restart', [EnrichmentController::class, 'restart'])->name('restart');
         Route::get('/progress', [EnrichmentController::class, 'progress'])->name('progress');
         Route::get('/unenriched', [EnrichmentController::class, 'unenriched'])->name('unenriched');
         Route::get('/active-job', [EnrichmentController::class, 'activeJob'])->name('active-job');
