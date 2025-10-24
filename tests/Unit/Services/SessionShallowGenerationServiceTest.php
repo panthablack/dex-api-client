@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use App\Services\SessionShallowGenerationService;
 use App\Models\MigratedCase;
 use App\Models\MigratedEnrichedCase;
@@ -22,14 +23,14 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->service = app(SessionShallowGenerationService::class);
     }
 
-    /** @test */
+    #[Test]
     public function canGenerate_returns_false_when_no_cases_available()
     {
         $result = $this->service->canGenerate();
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[Test]
     public function canGenerate_returns_true_when_migrated_cases_exist()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -45,7 +46,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function canGenerate_returns_true_when_enriched_cases_exist()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -60,14 +61,14 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function getAvailableSource_returns_null_when_no_cases()
     {
         $source = $this->service->getAvailableSource();
         $this->assertNull($source);
     }
 
-    /** @test */
+    #[Test]
     public function getAvailableSource_prefers_migrated_cases_over_enriched()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -89,7 +90,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertEquals('migrated_cases', $source);
     }
 
-    /** @test */
+    #[Test]
     public function getAvailableSource_returns_enriched_cases_when_no_migrated_cases()
     {
         MigratedEnrichedCase::factory()->create([
@@ -102,7 +103,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertEquals('migrated_enriched_cases', $source);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_throws_when_no_cases_available()
     {
         $this->expectException(\Exception::class);
@@ -111,7 +112,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->service->generateShallowSessions();
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_creates_shallow_sessions_from_migrated_cases()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -145,7 +146,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_skips_already_existing_sessions()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -173,7 +174,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertEquals(1, $stats['already_existed']);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_handles_multiple_cases()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -204,7 +205,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertEquals(3, MigratedShallowSession::count());
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_handles_empty_sessions_array_from_migrated_cases()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -222,7 +223,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertEquals('migrated_cases', $stats['source']);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_handles_empty_sessions_array()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -238,7 +239,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertEquals(0, $stats['total_sessions_found']);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_handles_single_session_object()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -264,7 +265,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_handles_various_session_id_formats()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -292,7 +293,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertDatabaseHas('migrated_shallow_sessions', ['session_id' => 'SESSION004']);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_handles_numeric_session_ids()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -316,7 +317,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertDatabaseHas('migrated_shallow_sessions', ['session_id' => '67890']);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_handles_invalid_sessions_gracefully()
     {
         $batch = DataMigrationBatch::factory()->create();
@@ -340,7 +341,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         $this->assertDatabaseHas('migrated_shallow_sessions', ['session_id' => 'SESSION002']);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_uses_enriched_cases_as_fallback()
     {
         // No migrated_cases, only enriched_cases
@@ -365,7 +366,7 @@ class SessionShallowGenerationServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function generateShallowSessions_logs_generation_start_and_completion()
     {
         $batch = DataMigrationBatch::factory()->create();
