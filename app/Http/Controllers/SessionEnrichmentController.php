@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Services\EnrichmentService;
 use App\Services\ExportService;
+use App\Services\SessionShallowGenerationService;
 use App\Jobs\EnrichSessionsJob;
 use App\Enums\ResourceType;
 use App\Models\MigratedEnrichedSession;
+use App\Models\MigratedCase;
+use App\Models\MigratedEnrichedCase;
+use App\Models\MigratedShallowSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -16,11 +20,16 @@ class SessionEnrichmentController extends Controller
 {
     protected EnrichmentService $enrichmentService;
     protected ExportService $exportService;
+    protected SessionShallowGenerationService $generationService;
 
-    public function __construct(EnrichmentService $enrichmentService, ExportService $exportService)
-    {
+    public function __construct(
+        EnrichmentService $enrichmentService,
+        ExportService $exportService,
+        SessionShallowGenerationService $generationService
+    ) {
         $this->enrichmentService = $enrichmentService;
         $this->exportService = $exportService;
+        $this->generationService = $generationService;
     }
 
     /**
@@ -28,15 +37,27 @@ class SessionEnrichmentController extends Controller
      */
     public function index()
     {
-        // Check if SHALLOW_SESSION migration is completed
+        // Check if cases are available (prerequisite)
+        $hasAvailableCases = MigratedCase::count() > 0 || MigratedEnrichedCase::count() > 0;
+
+        // Check if shallow sessions have been generated
+        $hasShallowSessions = MigratedShallowSession::count() > 0;
+
+        // Check if we can enrich sessions
         $canEnrich = ResourceType::canEnrichSessions();
 
         // Get current enrichment progress
         $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::SESSION);
 
+        // Get generation status
+        $availableSource = $this->generationService->getAvailableSource();
+
         return view('enrichment.sessions.index', [
+            'hasAvailableCases' => $hasAvailableCases,
+            'hasShallowSessions' => $hasShallowSessions,
             'canEnrich' => $canEnrich,
             'progress' => $progress,
+            'availableSource' => $availableSource,
         ]);
     }
 
@@ -272,15 +293,65 @@ class SessionEnrichmentController extends Controller
     }
 
     /**
-     * Generates shallow sessions from enriched sessions.
-     * POST /enrichment/sessions/generate
+     * Check if shallow sessions can be generated
+     * GET /enrichment/sessions/api/can-generate
      */
-    public function generateShallowSessions()
+    public function canGenerateShallowSessions(): JsonResponse
     {
-        $sessions = MigratedEnrichedSession::all();
-        $sessionIds = $sessions->pluck('session_id');
-        $sessions = $sessions->pluck('sessions');
-        $sessionIds = $sessions->pluck('session_id');
+        try {
+            $canGenerate = $this->generationService->canGenerate();
+            $availableSource = $this->generationService->getAvailableSource();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'can_generate' => $canGenerate,
+                    'source' => $availableSource,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to check generation status: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate shallow sessions from case data
+     * POST /enrichment/sessions/api/generate
+     */
+    public function generateShallowSessions(): JsonResponse
+    {
+        try {
+            // Check if generation is possible
+            if (!$this->generationService->canGenerate()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Cannot generate shallow sessions. Please complete a Case migration first.'
+                ], 422);
+            }
+
+            Log::info('Starting shallow session generation');
+
+            // Generate shallow sessions
+            $stats = $this->generationService->generateShallowSessions();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Generated {$stats['newly_created']} new shallow sessions",
+                'data' => $stats
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to generate shallow sessions: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

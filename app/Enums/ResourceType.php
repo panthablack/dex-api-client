@@ -90,21 +90,12 @@ enum ResourceType: string
 
     /**
      * Check if ENRICHED_SESSIONS can be triggered
-     * Requires available cases and shallow sessions
+     * Requires shallow sessions to exist (generated from case data)
      */
     public static function canEnrichSessions(): bool
     {
-        // Check for completed SHALLOW_CASE migration
-        $shallowSessions = MigratedShallowSession::all();
-        return DataMigration::where('resource_type', self::CASE)
-            ->where('status', \App\Enums\DataMigrationStatus::COMPLETED)
-            ->exists();
-
-        // if no shallow sessions, return false
-
-
-        if ($shallowSessionsValid) return true;
-        else return false;
+        // Check if shallow sessions exist
+        return MigratedShallowSession::count() > 0;
     }
 
     public static function isMigratable($type): bool

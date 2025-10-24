@@ -155,7 +155,7 @@ class EnrichmentService
 
                     try {
                         // Skip if already enriched
-                        if ($this->isAlreadyEnriched(ResourceType::CASE, $shallowSession->session_id)) {
+                        if ($this->isAlreadyEnriched(ResourceType::SESSION, $shallowSession->session_id)) {
                             $stats['already_enriched']++;
                             continue;
                         }
@@ -312,7 +312,7 @@ class EnrichmentService
 
     /**
      * Store enriched session data in the database
-     * Uses same extraction logic as DataMigrationService for consistency
+     * Uses fallback patterns to handle API response variations
      *
      * @param MigratedShallowSession $shallowSession
      * @param array $sessionData Full session data from GetSession API
@@ -320,62 +320,64 @@ class EnrichmentService
      */
     protected function storeEnrichedSession(MigratedShallowSession $shallowSession, array $sessionData): MigratedEnrichedSession
     {
-        // Extract client IDs using robust nested extraction
-        $clientIds = $this->extractClientIds($sessionData);
+        // Extract session-specific fields with fallback patterns
+        // API response structure varies: Session.FieldName or SessionDetail.FieldName or direct key
+        $caseId = $shallowSession->case_id;
 
-        // Extract session IDs using robust nested extraction
-        $sessions = $this->extractSessions($sessionData);
-
-        // Extract fields using data_get() for nested structures (same as DataMigrationService)
-        // API response structure: Session.SessionDetail.FieldName or Session.FieldName
-        $outletName = $sessionData['outlet_name']
-            ?? $sessionData['OutletName']
-            ?? data_get($sessionData, 'Session.OutletName')
-            ?? data_get($sessionData, 'SessionDetail.OutletName')
+        $sessionDate = $sessionData['session_date']
+            ?? $sessionData['SessionDate']
+            ?? data_get($sessionData, 'Session.SessionDate')
+            ?? data_get($sessionData, 'SessionDetail.SessionDate')
             ?? null;
 
-        $outletActivityId = $sessionData['outlet_activity_id']
-            ?? $sessionData['OutletActivityId']
-            ?? data_get($sessionData, 'Session.SessionDetail.OutletActivityId')
-            ?? data_get($sessionData, 'SessionDetail.OutletActivityId')
+        $serviceTypeId = $sessionData['service_type_id']
+            ?? $sessionData['ServiceTypeId']
+            ?? data_get($sessionData, 'Session.ServiceTypeId')
+            ?? data_get($sessionData, 'SessionDetail.ServiceTypeId')
             ?? 0;
-
-        $clientAttendanceProfileCode = $sessionData['client_attendance_profile_code']
-            ?? $sessionData['ClientAttendanceProfileCode']
-            ?? data_get($sessionData, 'Session.SessionDetail.ClientAttendanceProfileCode')
-            ?? data_get($sessionData, 'SessionDetail.ClientAttendanceProfileCode')
-            ?? null;
-
-        $createdDateTime = $sessionData['created_date_time']
-            ?? $sessionData['CreatedDateTime']
-            ?? data_get($sessionData, 'Session.CreatedDateTime')
-            ?? data_get($sessionData, 'SessionDetail.CreatedDateTime')
-            ?? null;
-
-        $endDate = $sessionData['end_date']
-            ?? $sessionData['EndDate']
-            ?? data_get($sessionData, 'Session.SessionDetail.EndDate')
-            ?? data_get($sessionData, 'SessionDetail.EndDate')
-            ?? null;
 
         $totalNumberOfUnidentifiedClients = $sessionData['total_number_of_unidentified_clients']
             ?? $sessionData['TotalNumberOfUnidentifiedClients']
-            ?? data_get($sessionData, 'Session.SessionDetail.TotalNumberOfUnidentifiedClients')
+            ?? data_get($sessionData, 'Session.TotalNumberOfUnidentifiedClients')
             ?? data_get($sessionData, 'SessionDetail.TotalNumberOfUnidentifiedClients')
+            ?? 0;
+
+        $feesCharged = $sessionData['fees_charged']
+            ?? $sessionData['FeesCharged']
+            ?? data_get($sessionData, 'Session.FeesCharged')
+            ?? data_get($sessionData, 'SessionDetail.FeesCharged')
+            ?? null;
+
+        $moneyBusinessCommunityEducationWorkshopCode = $sessionData['money_business_community_education_workshop_code']
+            ?? $sessionData['MoneyBusinessCommunityEducationWorkshopCode']
+            ?? data_get($sessionData, 'Session.MoneyBusinessCommunityEducationWorkshopCode')
+            ?? data_get($sessionData, 'SessionDetail.MoneyBusinessCommunityEducationWorkshopCode')
+            ?? null;
+
+        $interpreterPresent = $sessionData['interpreter_present']
+            ?? $sessionData['InterpreterPresent']
+            ?? data_get($sessionData, 'Session.InterpreterPresent')
+            ?? data_get($sessionData, 'SessionDetail.InterpreterPresent')
+            ?? false;
+
+        $serviceSettingCode = $sessionData['service_setting_code']
+            ?? $sessionData['ServiceSettingCode']
+            ?? data_get($sessionData, 'Session.ServiceSettingCode')
+            ?? data_get($sessionData, 'SessionDetail.ServiceSettingCode')
             ?? null;
 
         return MigratedEnrichedSession::updateOrCreate(
             ['session_id' => $shallowSession->session_id],
             [
+                'case_id' => $caseId,
                 'shallow_session_id' => $shallowSession->id,
-                'outlet_name' => $outletName,
-                'client_ids' => $clientIds,
-                'outlet_activity_id' => $outletActivityId,
-                'created_date_time' => $createdDateTime,
-                'end_date' => $endDate,
-                'client_attendance_profile_code' => $clientAttendanceProfileCode,
-                'client_count' => $totalNumberOfUnidentifiedClients ?? count($clientIds ?? []),
-                'sessions' => $sessions,
+                'session_date' => $sessionDate,
+                'service_type_id' => $serviceTypeId,
+                'total_number_of_unidentified_clients' => $totalNumberOfUnidentifiedClients,
+                'fees_charged' => $feesCharged,
+                'money_business_community_education_workshop_code' => $moneyBusinessCommunityEducationWorkshopCode,
+                'interpreter_present' => $interpreterPresent,
+                'service_setting_code' => $serviceSettingCode,
                 'api_response' => $sessionData,
                 'enriched_at' => now(),
                 'verification_status' => VerificationStatus::PENDING,
@@ -498,16 +500,21 @@ class EnrichmentService
     }
 
     /**
-     * Check if a case has already been enriched
+     * Check if a case/session has already been enriched
      *
-     * @param string $caseId
+     * @param ResourceType $type The resource type being checked
+     * @param string $id The case_id or session_id to check
      * @return bool
      */
-    protected function isAlreadyEnriched(ResourceType $type, string $caseId): bool
+    protected function isAlreadyEnriched(ResourceType $type, string $id): bool
     {
-        if ($type === ResourceType::CASE)        return MigratedEnrichedCase::where('case_id', $caseId)->exists();
-        if ($type === ResourceType::SESSION)        return MigratedEnrichedSession::where('case_id', $caseId)->exists();
-        else return false;
+        if ($type === ResourceType::CASE) {
+            return MigratedEnrichedCase::where('case_id', $id)->exists();
+        }
+        if ($type === ResourceType::SESSION) {
+            return MigratedEnrichedSession::where('session_id', $id)->exists();
+        }
+        return false;
     }
 
     /**

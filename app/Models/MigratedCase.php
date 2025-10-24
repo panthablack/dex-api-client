@@ -4,11 +4,13 @@ namespace App\Models;
 
 use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MigratedCase extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'case_id',
         'outlet_name',

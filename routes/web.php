@@ -152,6 +152,8 @@ Route::prefix('enrichment')->name('enrichment.')->group(function () {
 
         // API endpoints for AJAX operations
         Route::prefix('api')->name('api.')->group(function () {
+            Route::post('/generate', [SessionEnrichmentController::class, 'generateShallowSessions'])->name('generate');
+            Route::get('/can-generate', [SessionEnrichmentController::class, 'canGenerateShallowSessions'])->name('can-generate');
             Route::post('/start', [SessionEnrichmentController::class, 'start'])->name('start');
             Route::post('/pause', [SessionEnrichmentController::class, 'pause'])->name('pause');
             Route::post('/resume', [SessionEnrichmentController::class, 'resume'])->name('resume');
