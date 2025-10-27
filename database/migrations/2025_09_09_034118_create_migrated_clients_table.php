@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('migrated_clients', function (Blueprint $table) {
             $table->id();
-            $table->string('client_id')->unique()->index();
+            $table->string('client_id')->unique();
             $table->string('slk')->nullable();
             $table->boolean('consent_to_provide_details')->default(false);
             $table->boolean('consented_for_future_contacts')->default(false);

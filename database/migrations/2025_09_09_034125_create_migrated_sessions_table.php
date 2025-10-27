@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('migrated_sessions', function (Blueprint $table) {
             $table->id();
             $table->string('case_id')->index();
-            $table->string('session_id')->unique()->index();
+            $table->string('session_id')->unique();
             $table->date('session_date');
             $table->integer('service_type_id');
             $table->integer('total_number_of_unidentified_clients');

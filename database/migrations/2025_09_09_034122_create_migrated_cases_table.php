@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('migrated_cases', function (Blueprint $table) {
             $table->id();
-            $table->string('case_id')->unique()->index();
+            $table->string('case_id')->unique();
             $table->string('outlet_name')->nullable();
             $table->json('client_ids')->nullable(); // Array of client IDs
             $table->integer('outlet_activity_id');

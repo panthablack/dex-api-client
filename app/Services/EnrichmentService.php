@@ -224,7 +224,11 @@ class EnrichmentService
     public function enrichSession(MigratedShallowSession $shallowSession): MigratedEnrichedSession
     {
         // Fetch full session data using GetSession API (one-at-a-time)
-        $sessionData = $this->dataExchangeService->getSessionById($shallowSession->session_id);
+        // Must pass both SessionId and CaseId to the DSS API
+        $sessionData = $this->dataExchangeService->getSessionById(
+            $shallowSession->session_id,
+            $shallowSession->case_id
+        );
 
         if (!$sessionData) {
             throw new \Exception("Failed to fetch session data for {$shallowSession->session_id}");
@@ -322,55 +326,64 @@ class EnrichmentService
     {
         // Extract session-specific fields with fallback patterns
         // API response structure varies: Session.FieldName or SessionDetail.FieldName or direct key
+        $shallowSessionId = $shallowSession->id;
         $caseId = $shallowSession->case_id;
+        $sessionId = $shallowSession->session_id;
 
         $sessionDate = $sessionData['session_date']
             ?? $sessionData['SessionDate']
+            ?? data_get($sessionData, 'Session.SessionDetails.SessionDate')
+            ?? data_get($sessionData, 'SessionDetails.SessionDate')
             ?? data_get($sessionData, 'Session.SessionDate')
-            ?? data_get($sessionData, 'SessionDetail.SessionDate')
             ?? null;
 
         $serviceTypeId = $sessionData['service_type_id']
             ?? $sessionData['ServiceTypeId']
+            ?? data_get($sessionData, 'Session.SessionDetails.ServiceTypeId')
             ?? data_get($sessionData, 'Session.ServiceTypeId')
-            ?? data_get($sessionData, 'SessionDetail.ServiceTypeId')
+            ?? data_get($sessionData, 'SessionDetails.ServiceTypeId')
             ?? 0;
 
         $totalNumberOfUnidentifiedClients = $sessionData['total_number_of_unidentified_clients']
             ?? $sessionData['TotalNumberOfUnidentifiedClients']
+            ?? data_get($sessionData, 'Session.SessionDetails.TotalNumberOfUnidentifiedClients')
             ?? data_get($sessionData, 'Session.TotalNumberOfUnidentifiedClients')
-            ?? data_get($sessionData, 'SessionDetail.TotalNumberOfUnidentifiedClients')
+            ?? data_get($sessionData, 'SessionDetails.TotalNumberOfUnidentifiedClients')
             ?? 0;
 
         $feesCharged = $sessionData['fees_charged']
             ?? $sessionData['FeesCharged']
+            ?? data_get($sessionData, 'Session.SessionDetails.FeesCharged')
             ?? data_get($sessionData, 'Session.FeesCharged')
-            ?? data_get($sessionData, 'SessionDetail.FeesCharged')
+            ?? data_get($sessionData, 'SessionDetails.FeesCharged')
             ?? null;
 
         $moneyBusinessCommunityEducationWorkshopCode = $sessionData['money_business_community_education_workshop_code']
             ?? $sessionData['MoneyBusinessCommunityEducationWorkshopCode']
+            ?? data_get($sessionData, 'Session.SessionDetails.MoneyBusinessCommunityEducationWorkshopCode')
             ?? data_get($sessionData, 'Session.MoneyBusinessCommunityEducationWorkshopCode')
-            ?? data_get($sessionData, 'SessionDetail.MoneyBusinessCommunityEducationWorkshopCode')
+            ?? data_get($sessionData, 'SessionDetails.MoneyBusinessCommunityEducationWorkshopCode')
             ?? null;
 
         $interpreterPresent = $sessionData['interpreter_present']
             ?? $sessionData['InterpreterPresent']
+            ?? data_get($sessionData, 'Session.SessionDetails.InterpreterPresent')
             ?? data_get($sessionData, 'Session.InterpreterPresent')
-            ?? data_get($sessionData, 'SessionDetail.InterpreterPresent')
+            ?? data_get($sessionData, 'SessionDetails.InterpreterPresent')
             ?? false;
 
         $serviceSettingCode = $sessionData['service_setting_code']
             ?? $sessionData['ServiceSettingCode']
+            ?? data_get($sessionData, 'Session.SessionDetails.ServiceSettingCode')
             ?? data_get($sessionData, 'Session.ServiceSettingCode')
-            ?? data_get($sessionData, 'SessionDetail.ServiceSettingCode')
+            ?? data_get($sessionData, 'SessionDetails.ServiceSettingCode')
             ?? null;
 
         return MigratedEnrichedSession::updateOrCreate(
-            ['session_id' => $shallowSession->session_id],
             [
                 'case_id' => $caseId,
-                'shallow_session_id' => $shallowSession->id,
+                'session_id' => $sessionId,
+                'shallow_session_id' => $shallowSessionId,
                 'session_date' => $sessionDate,
                 'service_type_id' => $serviceTypeId,
                 'total_number_of_unidentified_clients' => $totalNumberOfUnidentifiedClients,

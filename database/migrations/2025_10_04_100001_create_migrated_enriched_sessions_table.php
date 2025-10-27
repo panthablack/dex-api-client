@@ -14,7 +14,8 @@ return new class extends Migration
     {
         Schema::create('migrated_enriched_sessions', function (Blueprint $table) {
             $table->id();
-            $table->string('case_id')->unique()->index();
+            $table->string('session_id')->unique();
+            $table->string('case_id');
 
             // Reference to shallow session
             $table->foreignId('shallow_session_id')
@@ -42,9 +43,6 @@ return new class extends Migration
             $table->timestamp('verified_at')->nullable();
             $table->text('verification_error')->nullable();
             $table->timestamps();
-
-            // Foreign key to migrated cases
-            $table->foreign('case_id')->references('case_id')->on('migrated_enriched_cases')->onDelete('cascade');
         });
     }
 

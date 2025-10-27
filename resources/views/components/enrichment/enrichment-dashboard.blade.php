@@ -76,7 +76,7 @@
             <div class="card h-100">
                 <div class="card-body d-flex align-items-center">
                     <div class="flex-shrink-0">
-                        <div class="bg-info-opacity-10 p-3 rounded">
+                        <div class="bg-info bg-opacity-10 p-3 rounded">
                             <i class="fas fa-percentage text-info fa-lg"></i>
                         </div>
                     </div>

@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('migrated_enriched_cases', function (Blueprint $table) {
             $table->id();
-            $table->string('case_id')->unique()->index();
+            $table->string('case_id')->unique();
 
             // Reference to shallow case
             $table->foreignId('shallow_case_id')

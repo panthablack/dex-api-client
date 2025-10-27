@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('migrated_shallow_sessions', function (Blueprint $table) {
             $table->id();
-            $table->string('session_id')->unique()->index();
+            $table->string('session_id')->unique();
             $table->string('case_id')->index();
             $table->timestamps();
         });

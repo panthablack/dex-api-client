@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('migrated_shallow_cases', function (Blueprint $table) {
             $table->id();
-            $table->string('case_id')->unique()->index();
+            $table->string('case_id')->unique();
             $table->string('outlet_name')->nullable();
             $table->date('created_date_time')->nullable();
             $table->string('client_attendance_profile_code')->nullable();
