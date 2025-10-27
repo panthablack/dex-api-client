@@ -258,18 +258,15 @@
           You have <strong x-text="progress.enriched_cases"></strong> enriched cases ready for export.
         </p>
         <div class="d-flex gap-2">
-          <a href="{{ route('enrichment.cases.api.export', ['format' => 'csv']) }}"
-            class="btn btn-outline-primary">
+          <a href="{{ route('enrichment.cases.api.export', ['format' => 'csv']) }}" class="btn btn-outline-primary">
             <i class="fas fa-file-csv me-1"></i>
             Export CSV
           </a>
-          <a href="{{ route('enrichment.cases.api.export', ['format' => 'json']) }}"
-            class="btn btn-outline-secondary">
+          <a href="{{ route('enrichment.cases.api.export', ['format' => 'json']) }}" class="btn btn-outline-secondary">
             <i class="fas fa-file-code me-1"></i>
             Export JSON
           </a>
-          <a href="{{ route('enrichment.cases.api.export', ['format' => 'xlsx']) }}"
-            class="btn btn-outline-info">
+          <a href="{{ route('enrichment.cases.api.export', ['format' => 'xlsx']) }}" class="btn btn-outline-info">
             <i class="fas fa-file-excel me-1"></i>
             Export Excel
           </a>
@@ -384,6 +381,10 @@
           }
         },
 
+        async generateShallowSessions() {
+          window.location = '/enrichment/sessions';
+        },
+
         async pauseEnrichment() {
           if (!this.isEnriching || this.isPaused) {
             return;
@@ -461,7 +462,9 @@
           if (!this.currentJobId) return;
 
           try {
-            const response = await fetch('{{ route('enrichment.cases.api.job-status', ['jobId' => 'JOB_ID_PLACEHOLDER']) }}'.replace('JOB_ID_PLACEHOLDER', this.currentJobId));
+            const response = await fetch(
+              '{{ route('enrichment.cases.api.job-status', ['jobId' => 'JOB_ID_PLACEHOLDER']) }}'.replace(
+                'JOB_ID_PLACEHOLDER', this.currentJobId));
             const data = await response.json();
 
             if (data.success) {
