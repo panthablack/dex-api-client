@@ -3,13 +3,17 @@
 namespace App\Services;
 
 use App\Enums\ResourceType;
+use App\Models\EnrichmentBatch;
+use App\Models\EnrichmentProcess;
 use App\Models\MigratedShallowCase;
 use App\Models\MigratedEnrichedCase;
 use App\Enums\VerificationStatus;
 use App\Models\MigratedEnrichedSession;
 use App\Models\MigratedShallowSession;
+use App\Jobs\ProcessEnrichmentBatch;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
 class EnrichmentService
@@ -19,6 +23,248 @@ class EnrichmentService
     public function __construct(DataExchangeService $dataExchangeService)
     {
         $this->dataExchangeService = $dataExchangeService;
+    }
+
+    /**
+     * Initialize enrichment process - creates batches and dispatches first batch jobs
+     * This is the entry point for the new batch-based enrichment system
+     *
+     * @param ResourceType $resourceType The type of resources to enrich (CASE or SESSION)
+     * @return EnrichmentProcess
+     * @throws \Exception If unable to create batches or no items to enrich
+     */
+    public function initializeEnrichment(ResourceType $resourceType): EnrichmentProcess
+    {
+        // Check for existing active enrichment of same type
+        $activeEnrichment = EnrichmentProcess::active()
+            ->where('resource_type', $resourceType)
+            ->first();
+
+        if ($activeEnrichment) {
+            throw new \Exception(
+                "Cannot start enrichment: There is already an active enrichment process for {$resourceType->value}. " .
+                "Please wait for it to complete or restart it."
+            );
+        }
+
+        // Count total items to enrich
+        $totalItems = $this->countUnenrichedItems($resourceType);
+
+        if ($totalItems === 0) {
+            throw new \Exception("No unenriched {$resourceType->value} items found");
+        }
+
+        if (env('DETAILED_LOGGING')) {
+            Log::info("Initializing enrichment for {$resourceType->value}: {$totalItems} items found");
+        }
+
+        // Create enrichment process record
+        $process = EnrichmentProcess::create([
+            'resource_type' => $resourceType,
+            'status' => 'PENDING',
+            'total_items' => $totalItems,
+        ]);
+
+        // Create batches for this process
+        $this->createBatchesForResource($process, $resourceType);
+
+        // Update process status
+        $process->update(['status' => 'IN_PROGRESS', 'started_at' => now()]);
+
+        // Dispatch initial batch jobs synchronously (up to 3 initial batches)
+        $this->dispatchBatches($process, 3);
+
+        if (env('DETAILED_LOGGING')) {
+            Log::info("Created enrichment process {$process->id} with {$process->batches()->count()} batches and dispatched initial batch jobs");
+        }
+
+        return $process;
+    }
+
+    /**
+     * Count total unenriched items for a resource type
+     *
+     * @param ResourceType $resourceType
+     * @return int
+     */
+    protected function countUnenrichedItems(ResourceType $resourceType): int
+    {
+        if ($resourceType === ResourceType::CASE) {
+            return MigratedShallowCase::count();
+        } else if ($resourceType === ResourceType::SESSION) {
+            return MigratedShallowSession::count();
+        }
+        return 0;
+    }
+
+    /**
+     * Create all batches for a resource type
+     *
+     * @param EnrichmentProcess $process
+     * @param ResourceType $resourceType
+     * @return void
+     */
+    protected function createBatchesForResource(EnrichmentProcess $process, ResourceType $resourceType): void
+    {
+        $batchSize = 100; // Default batch size
+        $totalItems = $process->total_items;
+        $totalBatches = ceil($totalItems / $batchSize);
+
+        if (env('DETAILED_LOGGING')) {
+            Log::info("Creating {$totalBatches} batches for {$resourceType->value} enrichment");
+        }
+
+        // Get all unenriched IDs
+        if ($resourceType === ResourceType::CASE) {
+            $unenrichedIds = $this->getUnenrichedCaseIds()->toArray();
+        } else if ($resourceType === ResourceType::SESSION) {
+            $unenrichedIds = $this->getUnenrichedSessionIds()->toArray();
+        } else {
+            throw new \Exception("Invalid resource type: {$resourceType->value}");
+        }
+
+        // Create batch records
+        $chunks = array_chunk($unenrichedIds, $batchSize);
+        foreach ($chunks as $batchNumber => $itemIds) {
+            EnrichmentBatch::create([
+                'enrichment_process_id' => $process->id,
+                'batch_number' => $batchNumber + 1,
+                'status' => 'PENDING',
+                'item_ids' => $itemIds,
+                'batch_size' => count($itemIds),
+            ]);
+        }
+    }
+
+    /**
+     * Process a single batch of enrichment items
+     *
+     * @param EnrichmentBatch $batch
+     * @return void
+     * @throws \Exception
+     */
+    public function processBatch(EnrichmentBatch $batch): void
+    {
+        try {
+            $batch->update([
+                'status' => 'IN_PROGRESS',
+                'started_at' => now()
+            ]);
+
+            $process = $batch->process;
+            $resourceType = $process->resource_type;
+            $itemIds = $batch->item_ids;
+            $processed = 0;
+            $failed = 0;
+
+            if (env('DETAILED_LOGGING')) {
+                Log::info("Processing batch {$batch->batch_number} with " . count($itemIds) . " items");
+            }
+
+            // Process each item in the batch
+            foreach ($itemIds as $itemId) {
+                try {
+                    if ($resourceType === ResourceType::CASE) {
+                        $shallowCase = MigratedShallowCase::where('case_id', $itemId)->first();
+                        if ($shallowCase && !$this->isAlreadyEnriched(ResourceType::CASE, $itemId)) {
+                            $this->enrichCase($shallowCase);
+                            $processed++;
+                        }
+                    } else if ($resourceType === ResourceType::SESSION) {
+                        $shallowSession = MigratedShallowSession::where('session_id', $itemId)->first();
+                        if ($shallowSession && !$this->isAlreadyEnriched(ResourceType::SESSION, $itemId)) {
+                            $this->enrichSession($shallowSession);
+                            $processed++;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $failed++;
+                    Log::error("Failed to enrich {$resourceType->value} {$itemId}: {$e->getMessage()}");
+                    // Continue to next item - don't stop on individual failures
+                }
+            }
+
+            // Update batch with results
+            $batch->update([
+                'status' => 'COMPLETED',
+                'items_processed' => $processed,
+                'items_failed' => $failed,
+                'completed_at' => now()
+            ]);
+
+            if (env('DETAILED_LOGGING')) {
+                Log::info("Batch {$batch->batch_number} complete: {$processed} processed, {$failed} failed");
+            }
+
+            // Dispatch next pending batch
+            $this->dispatchBatches($process);
+
+        } catch (\Exception $e) {
+            Log::error("Batch processing failed: " . $e->getMessage());
+            $batch->onFail($e);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get pending batches for a process
+     *
+     * @param EnrichmentProcess $process
+     * @return Collection
+     */
+    public function getPendingBatches(EnrichmentProcess $process): Collection
+    {
+        return $process->batches()
+            ->where('status', 'PENDING')
+            ->orderBy('batch_number')
+            ->get();
+    }
+
+    /**
+     * Dispatch pending batches for processing
+     * Dispatches up to $limit batches, then stops to allow cascading dispatch
+     *
+     * @param EnrichmentProcess $process
+     * @param int $limit Maximum batches to dispatch
+     * @return void
+     */
+    public function dispatchBatches(EnrichmentProcess $process, int $limit = 1): void
+    {
+        // Check if process is paused
+        if ($process->paused_at) {
+            if (env('DETAILED_LOGGING')) {
+                Log::info("Enrichment process {$process->id} is paused, not dispatching batches");
+            }
+            return;
+        }
+
+        $pendingBatches = $this->getPendingBatches($process);
+        $dispatchedCount = 0;
+
+        foreach ($pendingBatches as $batch) {
+            if ($dispatchedCount >= $limit) {
+                break;
+            }
+
+            ProcessEnrichmentBatch::dispatch($batch);
+            $dispatchedCount++;
+
+            if (env('DETAILED_LOGGING')) {
+                Log::info("Dispatched batch {$batch->batch_number} for processing");
+            }
+        }
+
+        if ($dispatchedCount === 0 && $pendingBatches->count() === 0) {
+            // All batches processed, mark process as complete
+            $process->update([
+                'status' => 'COMPLETED',
+                'completed_at' => now()
+            ]);
+
+            if (env('DETAILED_LOGGING')) {
+                Log::info("Enrichment process {$process->id} completed");
+            }
+        }
     }
 
     /**

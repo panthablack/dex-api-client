@@ -12,7 +12,6 @@ use App\Resources\Filters;
 use App\Models\DataMigration;
 use App\Services\DataMigrationService;
 use App\Services\VerificationService;
-use App\Jobs\InitiateDataMigration;
 use App\Models\MigratedCase;
 use App\Models\MigratedClient;
 use App\Models\MigratedSession;
@@ -108,8 +107,8 @@ class DataMigrationController extends Controller
                 'batch_size' => $request->batch_size ?? 100
             ]);
 
-            // Dispatch job to initiate the migration
-            InitiateDataMigration::dispatch($migration);
+            // Start the migration and dispatch initial batch jobs
+            $this->migrationService->startMigration($migration);
 
             return redirect()->route('data-migration.show', $migration)
                 ->with('success', 'Data migration created and initiated successfully');

@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\EnrichmentService;
 use App\Services\ExportService;
-use App\Jobs\EnrichCasesJob;
+use App\Models\EnrichmentProcess;
 use App\Enums\ResourceType;
 use App\Models\MigratedEnrichedCase;
 use Illuminate\Http\Request;
@@ -44,7 +44,7 @@ class CaseEnrichmentController extends Controller
      * Start the enrichment process
      * POST /enrichment/start
      *
-     * Always runs in background mode to prevent browser timeout
+     * Creates batches and dispatches initial batch jobs
      */
     public function start(Request $request): JsonResponse
     {
@@ -57,18 +57,19 @@ class CaseEnrichmentController extends Controller
                 ], 422);
             }
 
-            // Always dispatch to background queue
-            Log::info('Dispatching case enrichment to background queue');
+            Log::info('Initializing case enrichment process');
 
-            $job = new EnrichCasesJob();
-            dispatch($job);
+            // Initialize enrichment (creates process, batches, and dispatches initial batch jobs)
+            $process = $this->enrichmentService->initializeEnrichment(ResourceType::CASE);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment job dispatched to background queue',
+                'message' => 'Enrichment process started',
                 'data' => [
-                    'job_id' => $job->getJobId(),
-                    'background' => true
+                    'process_id' => $process->id,
+                    'total_items' => $process->total_items,
+                    'batch_count' => $process->batches()->count(),
+                    'status' => $process->status
                 ]
             ]);
         } catch (\Exception $e) {
@@ -84,15 +85,43 @@ class CaseEnrichmentController extends Controller
     /**
      * Get enrichment progress
      * GET /enrichment/progress
+     *
+     * Returns progress from the current/latest enrichment process
      */
     public function progress(): JsonResponse
     {
         try {
-            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::CASE);
+            // Get the latest case enrichment process
+            $process = EnrichmentProcess::where('resource_type', ResourceType::CASE)
+                ->latest()
+                ->first();
+
+            if (!$process) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'total_items' => 0,
+                        'processed_items' => 0,
+                        'progress_percentage' => 0,
+                        'status' => null
+                    ]
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
-                'data' => $progress
+                'data' => [
+                    'total_items' => $process->total_items,
+                    'processed_items' => $process->processed_items,
+                    'failed_items' => $process->failed_items,
+                    'progress_percentage' => $process->progress_percentage,
+                    'success_rate' => $process->success_rate,
+                    'status' => $process->status,
+                    'completed_batches' => $process->batches()->where('status', 'COMPLETED')->count(),
+                    'total_batches' => $process->batches()->count(),
+                    'started_at' => $process->started_at,
+                    'completed_at' => $process->completed_at
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to get enrichment progress: ' . $e->getMessage());
@@ -214,18 +243,37 @@ class CaseEnrichmentController extends Controller
     /**
      * Pause the currently running enrichment process
      * POST /enrichment/pause
+     *
+     * Sets paused_at timestamp on the active process
      */
     public function pause(): JsonResponse
     {
         try {
-            // Set pause flag
-            $this->enrichmentService->setPaused();
+            // Find the active case enrichment process
+            $process = EnrichmentProcess::where('resource_type', ResourceType::CASE)
+                ->where('status', 'IN_PROGRESS')
+                ->latest()
+                ->first();
 
-            Log::info('Enrichment pause requested');
+            if (!$process) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No active enrichment process found'
+                ], 404);
+            }
+
+            // Set pause timestamp
+            $process->update(['paused_at' => now()]);
+
+            Log::info("Enrichment process {$process->id} paused");
 
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment will pause after completing the current case'
+                'message' => 'Enrichment paused. Current batch will complete before stopping.',
+                'data' => [
+                    'process_id' => $process->id,
+                    'paused_at' => $process->paused_at
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to pause enrichment: ' . $e->getMessage());
@@ -238,27 +286,41 @@ class CaseEnrichmentController extends Controller
     }
 
     /**
-     * Resume enrichment (clears pause flag and starts new job)
+     * Resume enrichment (clears pause flag and redispatches pending batches)
      * POST /enrichment/resume
      */
     public function resume(): JsonResponse
     {
         try {
-            // Clear pause flag
-            $this->enrichmentService->clearPaused();
+            // Find the paused case enrichment process
+            $process = EnrichmentProcess::where('resource_type', ResourceType::CASE)
+                ->where('status', 'IN_PROGRESS')
+                ->whereNotNull('paused_at')
+                ->latest()
+                ->first();
 
-            // Start a new enrichment job (will auto-skip already enriched cases)
-            Log::info('Resuming enrichment - dispatching new job');
+            if (!$process) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No paused enrichment process found'
+                ], 404);
+            }
 
-            $job = new EnrichCasesJob();
-            dispatch($job);
+            // Clear pause timestamp
+            $process->update(['paused_at' => null]);
+
+            Log::info("Resuming enrichment process {$process->id}");
+
+            // Redispatch pending batches
+            $this->enrichmentService->dispatchBatches($process, 3);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Enrichment resumed',
                 'data' => [
-                    'job_id' => $job->getJobId(),
-                    'background' => true
+                    'process_id' => $process->id,
+                    'status' => $process->status,
+                    'pending_batches' => $this->enrichmentService->getPendingBatches($process)->count()
                 ]
             ]);
         } catch (\Exception $e) {
@@ -298,26 +360,29 @@ class CaseEnrichmentController extends Controller
                 ], 422);
             }
 
-            Log::info('Restarting enrichment - truncating all enriched cases');
+            Log::info('Restarting enrichment - clearing all enriched cases');
 
             // Truncate the migrated_enriched_cases table
             DB::table('migrated_enriched_cases')->truncate();
 
-            // Clear pause flag
-            $this->enrichmentService->clearPaused();
+            // Mark old process as failed (if exists)
+            $oldProcess = EnrichmentProcess::where('resource_type', ResourceType::CASE)
+                ->where('status', '!=', 'COMPLETED')
+                ->update(['status' => 'FAILED', 'completed_at' => now()]);
 
-            // Start a new enrichment job
-            Log::info('Dispatching new enrichment job after restart');
+            Log::info('Creating new enrichment process');
 
-            $job = new EnrichCasesJob();
-            dispatch($job);
+            // Create new enrichment process with batches and dispatch initial jobs
+            $process = $this->enrichmentService->initializeEnrichment(ResourceType::CASE);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Enrichment restarted. All previous enriched data has been cleared.',
                 'data' => [
-                    'job_id' => $job->getJobId(),
-                    'background' => true
+                    'process_id' => $process->id,
+                    'total_items' => $process->total_items,
+                    'batch_count' => $process->batches()->count(),
+                    'status' => $process->status
                 ]
             ]);
         } catch (\Exception $e) {

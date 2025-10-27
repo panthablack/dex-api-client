@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Services\EnrichmentService;
 use App\Services\ExportService;
 use App\Services\SessionShallowGenerationService;
-use App\Jobs\EnrichSessionsJob;
 use App\Enums\ResourceType;
+use App\Models\EnrichmentProcess;
 use App\Models\MigratedEnrichedSession;
 use App\Models\MigratedCase;
 use App\Models\MigratedEnrichedCase;
@@ -65,7 +65,7 @@ class SessionEnrichmentController extends Controller
      * Start the enrichment process
      * POST /enrichment/start
      *
-     * Always runs in background mode to prevent browser timeout
+     * Creates batches and dispatches initial batch jobs
      */
     public function start(Request $request): JsonResponse
     {
@@ -78,18 +78,19 @@ class SessionEnrichmentController extends Controller
                 ], 422);
             }
 
-            // Always dispatch to background queue
-            Log::info('Dispatching session enrichment to background queue');
+            Log::info('Initializing session enrichment process');
 
-            $job = new EnrichSessionsJob();
-            dispatch($job);
+            // Initialize enrichment (creates process, batches, and dispatches initial batch jobs)
+            $process = $this->enrichmentService->initializeEnrichment(ResourceType::SESSION);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment job dispatched to background queue',
+                'message' => 'Enrichment process started',
                 'data' => [
-                    'job_id' => $job->getJobId(),
-                    'background' => true
+                    'process_id' => $process->id,
+                    'total_items' => $process->total_items,
+                    'batch_count' => $process->batches()->count(),
+                    'status' => $process->status
                 ]
             ]);
         } catch (\Exception $e) {
@@ -105,15 +106,43 @@ class SessionEnrichmentController extends Controller
     /**
      * Get enrichment progress
      * GET /enrichment/progress
+     *
+     * Returns progress from the current/latest enrichment process
      */
     public function progress(): JsonResponse
     {
         try {
-            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::SESSION);
+            // Get the latest session enrichment process
+            $process = EnrichmentProcess::where('resource_type', ResourceType::SESSION)
+                ->latest()
+                ->first();
+
+            if (!$process) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'total_items' => 0,
+                        'processed_items' => 0,
+                        'progress_percentage' => 0,
+                        'status' => null
+                    ]
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
-                'data' => $progress
+                'data' => [
+                    'total_items' => $process->total_items,
+                    'processed_items' => $process->processed_items,
+                    'failed_items' => $process->failed_items,
+                    'progress_percentage' => $process->progress_percentage,
+                    'success_rate' => $process->success_rate,
+                    'status' => $process->status,
+                    'completed_batches' => $process->batches()->where('status', 'COMPLETED')->count(),
+                    'total_batches' => $process->batches()->count(),
+                    'started_at' => $process->started_at,
+                    'completed_at' => $process->completed_at
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to get enrichment progress: ' . $e->getMessage());
@@ -152,101 +181,39 @@ class SessionEnrichmentController extends Controller
     }
 
     /**
-     * Get background job status
-     * GET /enrichment/job-status/{jobId}
-     */
-    public function jobStatus(string $jobId): JsonResponse
-    {
-        try {
-            $status = EnrichSessionsJob::getJobStatus($jobId);
-
-            if (!$status) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Job not found'
-                ], 404);
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $status
-            ]);
-        } catch (\Exception $e) {
-            Log::error("Failed to get job status for {$jobId}: " . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get currently active enrichment job
-     * GET /enrichment/active-job
-     */
-    public function activeJob(): JsonResponse
-    {
-        try {
-            $activeJobId = EnrichSessionsJob::getActiveJobId();
-
-            if (!$activeJobId) {
-                return response()->json([
-                    'success' => true,
-                    'data' => null
-                ]);
-            }
-
-            // Get the job status
-            $status = EnrichSessionsJob::getJobStatus($activeJobId);
-
-            // If job status exists and is still active (queued, processing, or paused)
-            if ($status && in_array($status['status'], ['queued', 'processing', 'paused'])) {
-                return response()->json([
-                    'success' => true,
-                    'data' => $status
-                ]);
-            }
-
-            // Job completed or failed, clear active marker
-            if ($status && in_array($status['status'], ['completed', 'failed'])) {
-                // Return the completed/failed job one last time
-                return response()->json([
-                    'success' => true,
-                    'data' => $status
-                ]);
-            }
-
-            // No active job
-            return response()->json([
-                'success' => true,
-                'data' => null
-            ]);
-        } catch (\Exception $e) {
-            Log::error("Failed to get active job: " . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Pause the currently running enrichment process
      * POST /enrichment/pause
+     *
+     * Sets paused_at timestamp on the active process
      */
     public function pause(): JsonResponse
     {
         try {
-            // Set pause flag
-            $this->enrichmentService->setPaused();
+            // Find the active session enrichment process
+            $process = EnrichmentProcess::where('resource_type', ResourceType::SESSION)
+                ->where('status', 'IN_PROGRESS')
+                ->latest()
+                ->first();
 
-            Log::info('Enrichment pause requested');
+            if (!$process) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No active enrichment process found'
+                ], 404);
+            }
+
+            // Set pause timestamp
+            $process->update(['paused_at' => now()]);
+
+            Log::info("Enrichment process {$process->id} paused");
 
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment will pause after completing the current session'
+                'message' => 'Enrichment paused. Current batch will complete before stopping.',
+                'data' => [
+                    'process_id' => $process->id,
+                    'paused_at' => $process->paused_at
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to pause enrichment: ' . $e->getMessage());
@@ -259,27 +226,41 @@ class SessionEnrichmentController extends Controller
     }
 
     /**
-     * Resume enrichment (clears pause flag and starts new job)
+     * Resume enrichment (clears pause flag and redispatches pending batches)
      * POST /enrichment/resume
      */
     public function resume(): JsonResponse
     {
         try {
-            // Clear pause flag
-            $this->enrichmentService->clearPaused();
+            // Find the paused session enrichment process
+            $process = EnrichmentProcess::where('resource_type', ResourceType::SESSION)
+                ->where('status', 'IN_PROGRESS')
+                ->whereNotNull('paused_at')
+                ->latest()
+                ->first();
 
-            // Start a new enrichment job (will auto-skip already enriched sessions)
-            Log::info('Resuming enrichment - dispatching new job');
+            if (!$process) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No paused enrichment process found'
+                ], 404);
+            }
 
-            $job = new EnrichSessionsJob();
-            dispatch($job);
+            // Clear pause timestamp
+            $process->update(['paused_at' => null]);
+
+            Log::info("Resuming enrichment process {$process->id}");
+
+            // Redispatch pending batches
+            $this->enrichmentService->dispatchBatches($process, 3);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Enrichment resumed',
                 'data' => [
-                    'job_id' => $job->getJobId(),
-                    'background' => true
+                    'process_id' => $process->id,
+                    'status' => $process->status,
+                    'pending_batches' => $this->enrichmentService->getPendingBatches($process)->count()
                 ]
             ]);
         } catch (\Exception $e) {
@@ -369,26 +350,29 @@ class SessionEnrichmentController extends Controller
                 ], 422);
             }
 
-            Log::info('Restarting enrichment - truncating all enriched sessions');
+            Log::info('Restarting enrichment - clearing all enriched sessions');
 
             // Truncate the migrated_enriched_sessions table
             DB::table('migrated_enriched_sessions')->truncate();
 
-            // Clear pause flag
-            $this->enrichmentService->clearPaused();
+            // Mark old process as failed (if exists)
+            $oldProcess = EnrichmentProcess::where('resource_type', ResourceType::SESSION)
+                ->where('status', '!=', 'COMPLETED')
+                ->update(['status' => 'FAILED', 'completed_at' => now()]);
 
-            // Start a new enrichment job
-            Log::info('Dispatching new enrichment job after restart');
+            Log::info('Creating new enrichment process');
 
-            $job = new EnrichSessionsJob();
-            dispatch($job);
+            // Create new enrichment process with batches and dispatch initial jobs
+            $process = $this->enrichmentService->initializeEnrichment(ResourceType::SESSION);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Enrichment restarted. All previous enriched data has been cleared.',
                 'data' => [
-                    'job_id' => $job->getJobId(),
-                    'background' => true
+                    'process_id' => $process->id,
+                    'total_items' => $process->total_items,
+                    'batch_count' => $process->batches()->count(),
+                    'status' => $process->status
                 ]
             ]);
         } catch (\Exception $e) {
