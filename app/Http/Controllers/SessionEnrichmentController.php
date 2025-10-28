@@ -83,14 +83,19 @@ class SessionEnrichmentController extends Controller
             // Initialize enrichment (creates process, batches, and dispatches initial batch jobs)
             $process = $this->enrichmentService->initializeEnrichment(ResourceType::SESSION);
 
+            // Get current progress
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::SESSION);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment process started',
+                'message' => 'Enrichment process started. Processing in background...',
                 'data' => [
                     'process_id' => $process->id,
                     'total_items' => $process->total_items,
-                    'batch_count' => $process->batches()->count(),
-                    'status' => $process->status
+                    'batches_created' => $process->batches()->count(),
+                    'batches_dispatched' => $process->batches()->where('status', '!=', 'PENDING')->count(),
+                    'status' => $process->status,
+                    'progress' => $progress
                 ]
             ]);
         } catch (\Exception $e) {
@@ -112,37 +117,12 @@ class SessionEnrichmentController extends Controller
     public function progress(): JsonResponse
     {
         try {
-            // Get the latest session enrichment process
-            $process = EnrichmentProcess::where('resource_type', ResourceType::SESSION)
-                ->latest()
-                ->first();
-
-            if (!$process) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'total_items' => 0,
-                        'processed_items' => 0,
-                        'progress_percentage' => 0,
-                        'status' => null
-                    ]
-                ]);
-            }
+            // Return the same format as the index page
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::SESSION);
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'total_items' => $process->total_items,
-                    'processed_items' => $process->processed_items,
-                    'failed_items' => $process->failed_items,
-                    'progress_percentage' => $process->progress_percentage,
-                    'success_rate' => $process->success_rate,
-                    'status' => $process->status,
-                    'completed_batches' => $process->batches()->where('status', 'COMPLETED')->count(),
-                    'total_batches' => $process->batches()->count(),
-                    'started_at' => $process->started_at,
-                    'completed_at' => $process->completed_at
-                ]
+                'data' => $progress
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to get enrichment progress: ' . $e->getMessage());
@@ -254,13 +234,17 @@ class SessionEnrichmentController extends Controller
             // Redispatch pending batches
             $this->enrichmentService->dispatchBatches($process, 3);
 
+            // Get current progress
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::SESSION);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment resumed',
+                'message' => 'Enrichment resumed. Processing in background...',
                 'data' => [
                     'process_id' => $process->id,
                     'status' => $process->status,
-                    'pending_batches' => $this->enrichmentService->getPendingBatches($process)->count()
+                    'pending_batches' => $this->enrichmentService->getPendingBatches($process)->count(),
+                    'progress' => $progress
                 ]
             ]);
         } catch (\Exception $e) {
@@ -356,7 +340,7 @@ class SessionEnrichmentController extends Controller
             DB::table('migrated_enriched_sessions')->truncate();
 
             // Mark old process as failed (if exists)
-            $oldProcess = EnrichmentProcess::where('resource_type', ResourceType::SESSION)
+            EnrichmentProcess::where('resource_type', ResourceType::SESSION)
                 ->where('status', '!=', 'COMPLETED')
                 ->update(['status' => 'FAILED', 'completed_at' => now()]);
 
@@ -365,14 +349,19 @@ class SessionEnrichmentController extends Controller
             // Create new enrichment process with batches and dispatch initial jobs
             $process = $this->enrichmentService->initializeEnrichment(ResourceType::SESSION);
 
+            // Get current progress
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::SESSION);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment restarted. All previous enriched data has been cleared.',
+                'message' => 'Enrichment restarted. All previous enriched data has been cleared. Processing in background...',
                 'data' => [
                     'process_id' => $process->id,
                     'total_items' => $process->total_items,
-                    'batch_count' => $process->batches()->count(),
-                    'status' => $process->status
+                    'batches_created' => $process->batches()->count(),
+                    'batches_dispatched' => $process->batches()->where('status', '!=', 'PENDING')->count(),
+                    'status' => $process->status,
+                    'progress' => $progress
                 ]
             ]);
         } catch (\Exception $e) {

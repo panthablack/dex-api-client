@@ -158,8 +158,6 @@ Route::prefix('enrichment')->name('enrichment.')->group(function () {
             Route::post('/restart', [SessionEnrichmentController::class, 'restart'])->name('restart');
             Route::get('/progress', [SessionEnrichmentController::class, 'progress'])->name('progress');
             Route::get('/unenriched', [SessionEnrichmentController::class, 'unenriched'])->name('unenriched');
-            Route::get('/active-job', [SessionEnrichmentController::class, 'activeJob'])->name('active-job');
-            Route::get('/job-status/{jobId}', [SessionEnrichmentController::class, 'jobStatus'])->name('job-status');
             Route::get('/export', [SessionEnrichmentController::class, 'export'])->name('export');
         });
     });

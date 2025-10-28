@@ -52,6 +52,15 @@ class SessionEnrichmentControllerTest extends TestCase
 
     public function test_progress_endpoint_returns_correct_stats(): void
     {
+        // Create shallow sessions first
+        for ($i = 1; $i <= 3; $i++) {
+            MigratedShallowSession::create([
+                'session_id' => "SESSION-{$i}",
+                'case_id' => "CASE-{$i}",
+                'api_response' => [],
+            ]);
+        }
+
         // Create enrichment process with batches
         $process = \App\Models\EnrichmentProcess::create([
             'resource_type' => ResourceType::SESSION,
@@ -97,26 +106,18 @@ class SessionEnrichmentControllerTest extends TestCase
         $response->assertJsonStructure([
             'success',
             'data' => [
-                'total_items',
-                'processed_items',
-                'failed_items',
+                'total_shallow_sessions',
+                'enriched_sessions',
+                'unenriched_sessions',
                 'progress_percentage',
-                'success_rate',
-                'status',
-                'completed_batches',
-                'total_batches',
-                'started_at',
-                'completed_at',
             ]
         ]);
 
         // Verify specific values
         $data = $response->json('data');
-        $this->assertEquals(3, $data['total_items']);
-        $this->assertEquals(2, $data['processed_items']);
-        $this->assertEquals(0, $data['failed_items']);
-        $this->assertEquals(1, $data['completed_batches']);
-        $this->assertEquals(2, $data['total_batches']);
+        $this->assertEquals(3, $data['total_shallow_sessions']);
+        $this->assertEquals(2, $data['enriched_sessions']);
+        $this->assertEquals(1, $data['unenriched_sessions']);
     }
 
     public function test_unenriched_endpoint_returns_correct_session_ids(): void
@@ -200,15 +201,17 @@ class SessionEnrichmentControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson([
             'success' => true,
-            'message' => 'Enrichment process started',
+            'message' => 'Enrichment process started. Processing in background...',
         ]);
 
         // Verify response contains process data
         $data = $response->json('data');
         $this->assertArrayHasKey('process_id', $data);
         $this->assertArrayHasKey('total_items', $data);
-        $this->assertArrayHasKey('batch_count', $data);
+        $this->assertArrayHasKey('batches_created', $data);
+        $this->assertArrayHasKey('batches_dispatched', $data);
         $this->assertArrayHasKey('status', $data);
+        $this->assertArrayHasKey('progress', $data);
 
         // Verify batch jobs were dispatched (initialization is now synchronous)
         Queue::assertPushed(\App\Jobs\ProcessEnrichmentBatch::class);
@@ -247,7 +250,7 @@ class SessionEnrichmentControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson([
             'success' => true,
-            'message' => 'Enrichment process started',
+            'message' => 'Enrichment process started. Processing in background...',
         ]);
 
         // Verify batch jobs were dispatched (skip logic is handled in initializeEnrichment)
@@ -316,8 +319,11 @@ class SessionEnrichmentControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson([
             'success' => true,
-            'message' => 'Enrichment resumed',
+            'message' => 'Enrichment resumed. Processing in background...',
         ]);
+
+        $data = $response->json('data');
+        $this->assertArrayHasKey('progress', $data);
 
         // Verify process pause was cleared
         $process->refresh();
@@ -362,7 +368,7 @@ class SessionEnrichmentControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson([
             'success' => true,
-            'message' => 'Enrichment restarted. All previous enriched data has been cleared.',
+            'message' => 'Enrichment restarted. All previous enriched data has been cleared. Processing in background...',
         ]);
 
         // Verify old data was truncated
@@ -373,7 +379,11 @@ class SessionEnrichmentControllerTest extends TestCase
         // Verify new process was created
         $data = $response->json('data');
         $this->assertArrayHasKey('process_id', $data);
+        $this->assertArrayHasKey('total_items', $data);
+        $this->assertArrayHasKey('batches_created', $data);
+        $this->assertArrayHasKey('batches_dispatched', $data);
         $this->assertArrayHasKey('status', $data);
+        $this->assertArrayHasKey('progress', $data);
     }
 
     public function test_restart_endpoint_fails_when_no_shallow_sessions(): void
