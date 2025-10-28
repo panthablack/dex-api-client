@@ -44,7 +44,7 @@ class EnrichmentService
         if ($activeEnrichment) {
             throw new \Exception(
                 "Cannot start enrichment: There is already an active enrichment process for {$resourceType->value}. " .
-                "Please wait for it to complete or restart it."
+                    "Please wait for it to complete or restart it."
             );
         }
 
@@ -199,7 +199,6 @@ class EnrichmentService
 
             // Dispatch next pending batch
             $this->dispatchBatches($process);
-
         } catch (\Exception $e) {
             Log::error("Batch processing failed: " . $e->getMessage());
             $batch->onFail($e);
@@ -628,8 +627,10 @@ class EnrichmentService
 
         return MigratedEnrichedSession::updateOrCreate(
             [
-                'case_id' => $caseId,
                 'session_id' => $sessionId,
+            ],
+            [
+                'case_id' => $caseId,
                 'shallow_session_id' => $shallowSessionId,
                 'session_date' => $sessionDate,
                 'service_type_id' => $serviceTypeId,
