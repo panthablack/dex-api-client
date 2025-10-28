@@ -44,7 +44,8 @@ class CaseEnrichmentController extends Controller
      * Start the enrichment process
      * POST /enrichment/start
      *
-     * Creates batches and dispatches initial batch jobs
+     * Creates batches and dispatches initial batch jobs (asynchronously)
+     * Returns immediately with initial setup stats
      */
     public function start(Request $request): JsonResponse
     {
@@ -62,14 +63,19 @@ class CaseEnrichmentController extends Controller
             // Initialize enrichment (creates process, batches, and dispatches initial batch jobs)
             $process = $this->enrichmentService->initializeEnrichment(ResourceType::CASE);
 
+            // Get current progress
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::CASE);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment process started',
+                'message' => 'Enrichment process started. Processing in background...',
                 'data' => [
                     'process_id' => $process->id,
                     'total_items' => $process->total_items,
-                    'batch_count' => $process->batches()->count(),
-                    'status' => $process->status
+                    'batches_created' => $process->batches()->count(),
+                    'batches_dispatched' => $process->batches()->where('status', '!=', 'PENDING')->count(),
+                    'status' => $process->status,
+                    'progress' => $progress
                 ]
             ]);
         } catch (\Exception $e) {
@@ -86,42 +92,17 @@ class CaseEnrichmentController extends Controller
      * Get enrichment progress
      * GET /enrichment/progress
      *
-     * Returns progress from the current/latest enrichment process
+     * Returns progress stats in format expected by the frontend
      */
     public function progress(): JsonResponse
     {
         try {
-            // Get the latest case enrichment process
-            $process = EnrichmentProcess::where('resource_type', ResourceType::CASE)
-                ->latest()
-                ->first();
-
-            if (!$process) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'total_items' => 0,
-                        'processed_items' => 0,
-                        'progress_percentage' => 0,
-                        'status' => null
-                    ]
-                ]);
-            }
+            // Return the same format as the index page
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::CASE);
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'total_items' => $process->total_items,
-                    'processed_items' => $process->processed_items,
-                    'failed_items' => $process->failed_items,
-                    'progress_percentage' => $process->progress_percentage,
-                    'success_rate' => $process->success_rate,
-                    'status' => $process->status,
-                    'completed_batches' => $process->batches()->where('status', 'COMPLETED')->count(),
-                    'total_batches' => $process->batches()->count(),
-                    'started_at' => $process->started_at,
-                    'completed_at' => $process->completed_at
-                ]
+                'data' => $progress
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to get enrichment progress: ' . $e->getMessage());
@@ -159,86 +140,6 @@ class CaseEnrichmentController extends Controller
         }
     }
 
-    /**
-     * Get background job status
-     * GET /enrichment/job-status/{jobId}
-     */
-    public function jobStatus(string $jobId): JsonResponse
-    {
-        try {
-            $status = EnrichCasesJob::getJobStatus($jobId);
-
-            if (!$status) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Job not found'
-                ], 404);
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $status
-            ]);
-        } catch (\Exception $e) {
-            Log::error("Failed to get job status for {$jobId}: " . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get currently active enrichment job
-     * GET /enrichment/active-job
-     */
-    public function activeJob(): JsonResponse
-    {
-        try {
-            $activeJobId = EnrichCasesJob::getActiveJobId();
-
-            if (!$activeJobId) {
-                return response()->json([
-                    'success' => true,
-                    'data' => null
-                ]);
-            }
-
-            // Get the job status
-            $status = EnrichCasesJob::getJobStatus($activeJobId);
-
-            // If job status exists and is still active (queued, processing, or paused)
-            if ($status && in_array($status['status'], ['queued', 'processing', 'paused'])) {
-                return response()->json([
-                    'success' => true,
-                    'data' => $status
-                ]);
-            }
-
-            // Job completed or failed, clear active marker
-            if ($status && in_array($status['status'], ['completed', 'failed'])) {
-                // Return the completed/failed job one last time
-                return response()->json([
-                    'success' => true,
-                    'data' => $status
-                ]);
-            }
-
-            // No active job
-            return response()->json([
-                'success' => true,
-                'data' => null
-            ]);
-        } catch (\Exception $e) {
-            Log::error("Failed to get active job: " . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
 
     /**
      * Pause the currently running enrichment process
@@ -314,13 +215,17 @@ class CaseEnrichmentController extends Controller
             // Redispatch pending batches
             $this->enrichmentService->dispatchBatches($process, 3);
 
+            // Get current progress
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::CASE);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment resumed',
+                'message' => 'Enrichment resumed. Processing in background...',
                 'data' => [
                     'process_id' => $process->id,
                     'status' => $process->status,
-                    'pending_batches' => $this->enrichmentService->getPendingBatches($process)->count()
+                    'pending_batches' => $this->enrichmentService->getPendingBatches($process)->count(),
+                    'progress' => $progress
                 ]
             ]);
         } catch (\Exception $e) {
@@ -375,14 +280,19 @@ class CaseEnrichmentController extends Controller
             // Create new enrichment process with batches and dispatch initial jobs
             $process = $this->enrichmentService->initializeEnrichment(ResourceType::CASE);
 
+            // Get current progress
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::CASE);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Enrichment restarted. All previous enriched data has been cleared.',
+                'message' => 'Enrichment restarted. All previous enriched data has been cleared. Processing in background...',
                 'data' => [
                     'process_id' => $process->id,
                     'total_items' => $process->total_items,
-                    'batch_count' => $process->batches()->count(),
-                    'status' => $process->status
+                    'batches_created' => $process->batches()->count(),
+                    'batches_dispatched' => $process->batches()->where('status', '!=', 'PENDING')->count(),
+                    'status' => $process->status,
+                    'progress' => $progress
                 ]
             ]);
         } catch (\Exception $e) {

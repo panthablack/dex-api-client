@@ -139,8 +139,6 @@ Route::prefix('enrichment')->name('enrichment.')->group(function () {
             Route::post('/restart', [CaseEnrichmentController::class, 'restart'])->name('restart');
             Route::get('/progress', [CaseEnrichmentController::class, 'progress'])->name('progress');
             Route::get('/unenriched', [CaseEnrichmentController::class, 'unenriched'])->name('unenriched');
-            Route::get('/active-job', [CaseEnrichmentController::class, 'activeJob'])->name('active-job');
-            Route::get('/job-status/{jobId}', [CaseEnrichmentController::class, 'jobStatus'])->name('job-status');
             Route::get('/export', [CaseEnrichmentController::class, 'export'])->name('export');
         });
     });

@@ -135,26 +135,19 @@ class CaseEnrichmentControllerTest extends TestCase
         $response->assertJsonStructure([
             'success',
             'data' => [
-                'total_items',
-                'processed_items',
-                'failed_items',
+                'total_shallow_cases',
+                'enriched_cases',
+                'unenriched_cases',
                 'progress_percentage',
-                'success_rate',
-                'status',
-                'completed_batches',
-                'total_batches',
-                'started_at',
-                'completed_at',
             ]
         ]);
 
         // Verify specific values
         $data = $response->json('data');
-        $this->assertEquals(3, $data['total_items']);
-        $this->assertEquals(2, $data['processed_items']);
-        $this->assertEquals(0, $data['failed_items']);
-        $this->assertEquals(1, $data['completed_batches']);
-        $this->assertEquals(2, $data['total_batches']);
+        $this->assertEquals(3, $data['total_shallow_cases']);
+        $this->assertEquals(2, $data['enriched_cases']);
+        $this->assertEquals(1, $data['unenriched_cases']);
+        $this->assertEquals(66.67, $data['progress_percentage']);
     }
 
     public function test_unenriched_endpoint_returns_correct_case_ids(): void
@@ -247,15 +240,16 @@ class CaseEnrichmentControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson([
             'success' => true,
-            'message' => 'Enrichment process started',
+            'message' => 'Enrichment process started. Processing in background...',
         ]);
 
-        // Verify response contains process_id, total_items, batch_count, and status
+        // Verify response contains process_id, total_items, batches_created, and status
         $data = $response->json('data');
         $this->assertArrayHasKey('process_id', $data);
         $this->assertArrayHasKey('total_items', $data);
-        $this->assertArrayHasKey('batch_count', $data);
+        $this->assertArrayHasKey('batches_created', $data);
         $this->assertArrayHasKey('status', $data);
+        $this->assertArrayHasKey('progress', $data);
 
         // Verify batch jobs were dispatched (initialization is now synchronous)
         Queue::assertPushed(\App\Jobs\ProcessEnrichmentBatch::class);
@@ -301,7 +295,7 @@ class CaseEnrichmentControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson([
             'success' => true,
-            'message' => 'Enrichment process started',
+            'message' => 'Enrichment process started. Processing in background...',
         ]);
 
         // Verify batch jobs were dispatched (skip logic is handled in initializeEnrichment)
@@ -344,7 +338,7 @@ class CaseEnrichmentControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson([
             'success' => true,
-            'message' => 'Enrichment process started',
+            'message' => 'Enrichment process started. Processing in background...',
         ]);
 
         // Verify batch jobs were dispatched (error handling is tested in EnrichmentService tests)

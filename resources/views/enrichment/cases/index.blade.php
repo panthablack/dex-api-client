@@ -290,7 +290,6 @@
         isPaused: false,
         lastEnrichmentResult: null,
         pollInterval: null,
-        currentJobId: null,
 
         // Computed property to check if enrichment is 100% complete
         get isCompleted() {
@@ -298,43 +297,8 @@
         },
 
         async init() {
-          // Check for any active enrichment jobs on page load
-          await this.checkForActiveJob();
-        },
-
-        async checkForActiveJob() {
-          try {
-            const response = await fetch('{{ route('enrichment.cases.api.active-job') }}');
-            const data = await response.json();
-
-            if (data.success && data.data) {
-              const job = data.data;
-
-              // If there's an active job (queued, processing, or paused), resume monitoring
-              if (job.status === 'queued' || job.status === 'processing') {
-                this.currentJobId = job.job_id;
-                this.isEnriching = true;
-                this.isPaused = false;
-                window.showToast('Resuming monitoring of enrichment job...', 'info', 3000);
-                this.startPollingJobStatus();
-              } else if (job.status === 'paused') {
-                this.currentJobId = job.job_id;
-                this.isEnriching = true;
-                this.isPaused = true;
-                this.lastEnrichmentResult = job.data;
-                window.showToast('Enrichment is paused. Click Resume to continue.', 'warning', 5000);
-              } else if (job.status === 'completed') {
-                // Show completed results
-                this.lastEnrichmentResult = job.data;
-                window.showToast('Previous enrichment completed', 'success', 3000);
-              } else if (job.status === 'failed') {
-                // Show failure message
-                window.showToast('Previous enrichment failed: ' + (job.data?.error || 'Unknown error'), 'error', 5000);
-              }
-            }
-          } catch (error) {
-            console.error('Failed to check for active job:', error);
-          }
+          // Check for active enrichment by polling progress periodically
+          await this.refreshProgress();
         },
 
         async startEnrichment() {
@@ -364,10 +328,11 @@
             const data = await response.json();
 
             if (data.success) {
-              // Always background mode: start polling for job status
-              this.currentJobId = data.data.job_id;
-              window.showToast('Enrichment job started. Monitoring progress...', 'info', 3000);
-              this.startPollingJobStatus();
+              // Update progress from response
+              this.progress = data.data.progress || this.progress;
+              window.showToast(data.message || 'Enrichment started. Processing in background...', 'info', 3000);
+              // Start polling for progress updates
+              this.startPollingProgress();
             } else {
               window.showToast('Enrichment failed: ' + (data.error || 'Unknown error'), 'error');
               this.isEnriching = false;
@@ -431,10 +396,11 @@
             const data = await response.json();
 
             if (data.success) {
-              this.currentJobId = data.data.job_id;
               this.isPaused = false;
-              window.showToast('Enrichment resumed. Monitoring progress...', 'success', 3000);
-              this.startPollingJobStatus();
+              this.isEnriching = true;
+              this.progress = data.data.progress || this.progress;
+              window.showToast('Enrichment resumed. Processing in background...', 'success', 3000);
+              this.startPollingProgress();
             } else {
               window.showToast('Failed to resume: ' + (data.error || 'Unknown error'), 'error');
             }
@@ -444,75 +410,18 @@
           }
         },
 
-        startPollingJobStatus() {
+        async startPollingProgress() {
           if (this.pollInterval) {
             clearInterval(this.pollInterval);
           }
 
-          // Poll every 2 seconds
+          // Poll every 2 seconds for progress updates
           this.pollInterval = setInterval(async () => {
-            await this.checkJobStatus();
+            await this.refreshProgress();
           }, 2000);
 
-          // Also check immediately
-          this.checkJobStatus();
-        },
-
-        async checkJobStatus() {
-          if (!this.currentJobId) return;
-
-          try {
-            const response = await fetch(
-              '{{ route('enrichment.cases.api.job-status', ['jobId' => 'JOB_ID_PLACEHOLDER']) }}'.replace(
-                'JOB_ID_PLACEHOLDER', this.currentJobId));
-            const data = await response.json();
-
-            if (data.success) {
-              const jobStatus = data.data.status;
-
-              // Update progress
-              await this.refreshProgress();
-
-              if (jobStatus === 'completed') {
-                // Job finished successfully
-                clearInterval(this.pollInterval);
-                this.pollInterval = null;
-                this.isEnriching = false;
-                this.isPaused = false;
-                this.lastEnrichmentResult = data.data.data;
-
-                window.showToast(
-                  `Background enrichment completed! ${data.data.data.newly_enriched} cases enriched, ${data.data.data.already_enriched} already enriched, ${data.data.data.failed} failed.`,
-                  'success',
-                  8000
-                );
-              } else if (jobStatus === 'paused') {
-                // Job was paused
-                clearInterval(this.pollInterval);
-                this.pollInterval = null;
-                this.isPaused = true;
-                this.lastEnrichmentResult = data.data.data;
-
-                window.showToast(
-                  `Enrichment paused. Progress: ${data.data.data.newly_enriched} newly enriched, ${data.data.data.already_enriched} already enriched. Click Resume to continue.`,
-                  'warning',
-                  8000
-                );
-              } else if (jobStatus === 'failed') {
-                // Job failed
-                clearInterval(this.pollInterval);
-                this.pollInterval = null;
-                this.isEnriching = false;
-                this.isPaused = false;
-
-                window.showToast('Background enrichment failed: ' + (data.data.data?.error || 'Unknown error'),
-                  'error');
-              }
-              // else: job is still processing (queued or processing)
-            }
-          } catch (error) {
-            console.error('Failed to check job status:', error);
-          }
+          // Also refresh immediately
+          await this.refreshProgress();
         },
 
         async refreshProgress() {
@@ -521,7 +430,28 @@
             const data = await response.json();
 
             if (data.success) {
+              const previousPercentage = this.progress.progress_percentage;
               this.progress = data.data;
+
+              // Check if enrichment has completed
+              if (this.progress.progress_percentage >= 100 && previousPercentage < 100) {
+                // Just completed
+                clearInterval(this.pollInterval);
+                this.pollInterval = null;
+                this.isEnriching = false;
+                this.isPaused = false;
+                this.lastEnrichmentResult = {
+                  total_shallow_cases: this.progress.total_shallow_cases,
+                  enriched_cases: this.progress.enriched_cases,
+                  unenriched_cases: this.progress.unenriched_cases
+                };
+
+                window.showToast(
+                  `Enrichment completed! ${this.progress.enriched_cases} cases enriched.`,
+                  'success',
+                  5000
+                );
+              }
             }
           } catch (error) {
             console.error('Failed to refresh progress:', error);
@@ -564,13 +494,11 @@
               // Clear the last enrichment result
               this.lastEnrichmentResult = null;
 
-              // Refresh progress to show reset state
-              await this.refreshProgress();
+              // Update progress from response
+              this.progress = data.data.progress || this.progress;
 
-              // Start monitoring the new job
-              this.currentJobId = data.data.job_id;
-              window.showToast('Enrichment restarted. All previous data cleared. Monitoring progress...', 'info', 5000);
-              this.startPollingJobStatus();
+              window.showToast('Enrichment restarted. All previous data cleared. Processing in background...', 'info', 5000);
+              this.startPollingProgress();
             } else {
               window.showToast('Restart failed: ' + (data.error || 'Unknown error'), 'error');
               this.isEnriching = false;
