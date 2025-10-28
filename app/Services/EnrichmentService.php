@@ -174,7 +174,7 @@ class EnrichmentService
                     } else if ($resourceType === ResourceType::SESSION) {
                         $shallowSession = MigratedShallowSession::where('session_id', $itemId)->first();
                         if ($shallowSession && !$this->isAlreadyEnriched(ResourceType::SESSION, $itemId)) {
-                            $this->enrichSession($shallowSession);
+                            $newSession = $this->enrichSession($shallowSession);
                             $processed++;
                         }
                     }

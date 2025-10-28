@@ -12,6 +12,7 @@ class MigratedEnrichedSession extends Model
     protected $fillable = [
         'case_id',
         'session_id',
+        'shallow_session_id',
         'session_date',
         'service_type_id',
         'total_number_of_unidentified_clients',
@@ -21,6 +22,7 @@ class MigratedEnrichedSession extends Model
         'service_setting_code',
         'api_response',
         'data_migration_batch_id',
+        'enriched_at',
         'verification_status',
         'verified_at',
         'verification_error'
