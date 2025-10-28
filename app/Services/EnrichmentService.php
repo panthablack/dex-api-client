@@ -14,6 +14,7 @@ use App\Jobs\ProcessEnrichmentBatch;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Collection;
 
 class EnrichmentService
@@ -106,7 +107,7 @@ class EnrichmentService
      */
     protected function createBatchesForResource(EnrichmentProcess $process, ResourceType $resourceType): void
     {
-        $batchSize = 100; // Default batch size
+        $batchSize = Config::get('enrichment.enrichmentBatchSize', 100);
         $totalItems = $process->total_items;
         $totalBatches = ceil($totalItems / $batchSize);
 
