@@ -138,6 +138,18 @@ class EnrichmentService
     }
 
     /**
+     * Check if a failure should be injected for stress testing
+     * Only applies if STRESS_TEST_FAILURE_RATE is set in env
+     * Returns true 10% of the time when enabled
+     *
+     * @return bool
+     */
+    protected function shouldInjectFailure(): bool
+    {
+        return (rand(1, 100) <= env('STRESS_TEST_FAILURE_RATE', 0));
+    }
+
+    /**
      * Process a single batch of enrichment items
      *
      * @param EnrichmentBatch $batch
@@ -168,12 +180,20 @@ class EnrichmentService
                     if ($resourceType === ResourceType::CASE) {
                         $shallowCase = MigratedShallowCase::where('case_id', $itemId)->first();
                         if ($shallowCase && !$this->isAlreadyEnriched(ResourceType::CASE, $itemId)) {
+                            // Inject failure for stress testing if enabled
+                            if ($this->shouldInjectFailure()) {
+                                throw new \Exception("Injected failure for stress testing (10% failure rate enabled)");
+                            }
                             $this->enrichCase($shallowCase);
                             $processed++;
                         }
                     } else if ($resourceType === ResourceType::SESSION) {
                         $shallowSession = MigratedShallowSession::where('session_id', $itemId)->first();
                         if ($shallowSession && !$this->isAlreadyEnriched(ResourceType::SESSION, $itemId)) {
+                            // Inject failure for stress testing if enabled
+                            if ($this->shouldInjectFailure()) {
+                                throw new \Exception("Injected failure for stress testing (10% failure rate enabled)");
+                            }
                             $newSession = $this->enrichSession($shallowSession);
                             $processed++;
                         }
@@ -320,6 +340,11 @@ class EnrichmentService
                             continue;
                         }
 
+                        // Inject failure for stress testing if enabled
+                        if ($this->shouldInjectFailure()) {
+                            throw new \Exception("Injected failure for stress testing (10% failure rate enabled)");
+                        }
+
                         // Enrich this case
                         $this->enrichCase($shallowCase);
                         $stats['newly_enriched']++;
@@ -404,6 +429,11 @@ class EnrichmentService
                         if ($this->isAlreadyEnriched(ResourceType::SESSION, $shallowSession->session_id)) {
                             $stats['already_enriched']++;
                             continue;
+                        }
+
+                        // Inject failure for stress testing if enabled
+                        if ($this->shouldInjectFailure()) {
+                            throw new \Exception("Injected failure for stress testing (10% failure rate enabled)");
                         }
 
                         // Enrich this session
