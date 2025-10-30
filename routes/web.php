@@ -137,6 +137,7 @@ Route::prefix('enrichment')->name('enrichment.')->group(function () {
             Route::post('/pause', [CaseEnrichmentController::class, 'pause'])->name('pause');
             Route::post('/resume', [CaseEnrichmentController::class, 'resume'])->name('resume');
             Route::post('/restart', [CaseEnrichmentController::class, 'restart'])->name('restart');
+            Route::post('/retry', [CaseEnrichmentController::class, 'retry'])->name('retry');
             Route::get('/progress', [CaseEnrichmentController::class, 'progress'])->name('progress');
             Route::get('/unenriched', [CaseEnrichmentController::class, 'unenriched'])->name('unenriched');
             Route::get('/export', [CaseEnrichmentController::class, 'export'])->name('export');
@@ -156,6 +157,7 @@ Route::prefix('enrichment')->name('enrichment.')->group(function () {
             Route::post('/pause', [SessionEnrichmentController::class, 'pause'])->name('pause');
             Route::post('/resume', [SessionEnrichmentController::class, 'resume'])->name('resume');
             Route::post('/restart', [SessionEnrichmentController::class, 'restart'])->name('restart');
+            Route::post('/retry', [SessionEnrichmentController::class, 'retry'])->name('retry');
             Route::get('/progress', [SessionEnrichmentController::class, 'progress'])->name('progress');
             Route::get('/unenriched', [SessionEnrichmentController::class, 'unenriched'])->name('unenriched');
             Route::get('/export', [SessionEnrichmentController::class, 'export'])->name('export');

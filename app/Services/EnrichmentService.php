@@ -141,11 +141,17 @@ class EnrichmentService
      * Check if a failure should be injected for stress testing
      * Only applies if STRESS_TEST_FAILURE_RATE is set in env
      * Returns true 10% of the time when enabled
+     * Disabled during testing to prevent interference with test assertions
      *
      * @return bool
      */
     protected function shouldInjectFailure(): bool
     {
+        // Don't inject failures during testing
+        if (app()->environment('testing')) {
+            return false;
+        }
+
         return (rand(1, 100) <= env('STRESS_TEST_FAILURE_RATE', 0));
     }
 
@@ -811,38 +817,93 @@ class EnrichmentService
     /**
      * Get enrichment progress statistics
      * Used for UI progress display
+     * Includes failure counts and completion status
      *
      * @return array
      */
     public function getEnrichmentProgress(ResourceType $type): array
     {
         if ($type === ResourceType::CASE) {
-
             $totalShallowCases = MigratedShallowCase::count();
             $enrichedCases = MigratedEnrichedCase::count();
             $unenrichedCount = $totalShallowCases - $enrichedCases;
+
+            $failedItems = 0;
+            $isCompleted = false;
+
+            // Get active or most recent enrichment process for failure tracking
+            try {
+                $activeProcess = EnrichmentProcess::where('resource_type', $type)
+                    ->orderByDesc('created_at')
+                    ->with('batches')
+                    ->first();
+
+                if ($activeProcess) {
+                    // Get batch statistics in a single query
+                    $batches = $activeProcess->batches;
+                    $failedItems = (int) $batches->sum('items_failed');
+                    $totalBatches = $batches->count();
+                    $completedBatches = $batches->filter(fn($b) => in_array($b->status, ['COMPLETED', 'FAILED']))->count();
+                    $isCompleted = ($totalBatches > 0 && $completedBatches === $totalBatches);
+                }
+            } catch (\Exception $e) {
+                // If there's any issue querying the process, continue without failure data
+                Log::debug("Error retrieving enrichment progress: {$e->getMessage()}");
+            }
+
+            // Progress is based on total processed (successful + failed)
+            $totalProcessed = $enrichedCases + $failedItems;
 
             return [
                 'total_shallow_cases' => $totalShallowCases,
                 'enriched_cases' => $enrichedCases,
                 'unenriched_cases' => $unenrichedCount,
+                'failed_items' => $failedItems,
                 'progress_percentage' => $totalShallowCases > 0
-                    ? round(($enrichedCases / $totalShallowCases) * 100, 2)
+                    ? round(($totalProcessed / $totalShallowCases) * 100, 2)
                     : 0,
+                'is_completed' => $isCompleted,
             ];
         } else if ($type === ResourceType::SESSION) {
-
             $totalShallowSessions = MigratedShallowSession::count();
             $enrichedSessions = MigratedEnrichedSession::count();
             $unenrichedCount = $totalShallowSessions - $enrichedSessions;
+
+            $failedItems = 0;
+            $isCompleted = false;
+
+            // Get active or most recent enrichment process for failure tracking
+            try {
+                $activeProcess = EnrichmentProcess::where('resource_type', $type)
+                    ->orderByDesc('created_at')
+                    ->with('batches')
+                    ->first();
+
+                if ($activeProcess) {
+                    // Get batch statistics in a single query
+                    $batches = $activeProcess->batches;
+                    $failedItems = (int) $batches->sum('items_failed');
+                    $totalBatches = $batches->count();
+                    $completedBatches = $batches->filter(fn($b) => in_array($b->status, ['COMPLETED', 'FAILED']))->count();
+                    $isCompleted = ($totalBatches > 0 && $completedBatches === $totalBatches);
+                }
+            } catch (\Exception $e) {
+                // If there's any issue querying the process, continue without failure data
+                Log::debug("Error retrieving enrichment progress: {$e->getMessage()}");
+            }
+
+            // Progress is based on total processed (successful + failed)
+            $totalProcessed = $enrichedSessions + $failedItems;
 
             return [
                 'total_shallow_sessions' => $totalShallowSessions,
                 'enriched_sessions' => $enrichedSessions,
                 'unenriched_sessions' => $unenrichedCount,
+                'failed_items' => $failedItems,
                 'progress_percentage' => $totalShallowSessions > 0
-                    ? round(($enrichedSessions / $totalShallowSessions) * 100, 2)
+                    ? round(($totalProcessed / $totalShallowSessions) * 100, 2)
                     : 0,
+                'is_completed' => $isCompleted,
             ];
         } else return [];
     }

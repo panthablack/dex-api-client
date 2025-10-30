@@ -34,11 +34,11 @@
             Shallow sessions will be extracted from your case data to prepare for enrichment.
           </p>
 
-          @if($availableSource)
+          @if ($availableSource)
             <div class="alert alert-info mb-3">
               <i class="fas fa-info-circle me-2"></i>
               <strong>Data Source:</strong>
-              @if($availableSource === 'migrated_cases')
+              @if ($availableSource === 'migrated_cases')
                 Cases from <strong>Case Migration</strong>
               @elseif($availableSource === 'migrated_enriched_cases')
                 Cases from <strong>Case Enrichment</strong>
@@ -77,29 +77,22 @@
               <span x-text="generationProgress + '%'"></span> Complete
             </p>
             <div class="progress">
-              <div class="progress-bar progress-bar-striped progress-bar-animated"
-                   role="progressbar"
-                   :aria-valuenow="generationProgress"
-                   aria-valuemin="0"
-                   aria-valuemax="100"
-                   :style="`width: ${generationProgress}%`">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                :aria-valuenow="generationProgress" aria-valuemin="0" aria-valuemax="100"
+                :style="`width: ${generationProgress}%`">
               </div>
             </div>
           </div>
 
           <!-- Generate Button -->
           <div class="d-flex gap-2">
-            <button @click="generateShallowSessions()"
-                    :disabled="isGenerating"
-                    x-show="!generationComplete"
-                    class="btn btn-primary">
+            <button @click="generateShallowSessions()" :disabled="isGenerating" x-show="!generationComplete"
+              class="btn btn-primary">
               <i class="fas fa-play me-1"></i>
               <span x-text="isGenerating ? 'Generating...' : 'Generate Shallow Sessions'"></span>
             </button>
 
-            <button @click="reloadPage()"
-                    x-show="generationComplete"
-                    class="btn btn-success">
+            <button @click="reloadPage()" x-show="generationComplete" class="btn btn-success">
               <i class="fas fa-check me-1"></i>
               Continue to Enrichment
             </button>
@@ -142,11 +135,18 @@
             <span>Pause Enrichment</span>
           </button>
 
-          <!-- Restart button (shown when 100% complete) -->
+          <!-- Restart button (shown when completed with failures) -->
           <button @click="showRestartModal()" :disabled="isEnriching" class="btn btn-warning"
-            x-show="isCompleted && !isEnriching">
+            x-show="isCompleted && !isEnriching && hasFailures">
             <i class="fas fa-redo me-1"></i>
             <span>Restart Enrichment</span>
+          </button>
+
+          <!-- Retry button (shown when completed with failures) -->
+          <button @click="retryEnrichment()" :disabled="isEnriching" class="btn btn-primary"
+            x-show="isCompleted && !isEnriching && hasFailures">
+            <i class="fas fa-sync me-1"></i>
+            <span>Retry Failed Items</span>
           </button>
         </div>
       </div>
@@ -188,7 +188,8 @@
               </div>
               <div class="ms-3">
                 <h6 class="card-title text-muted mb-1">Total Shallow Sessions</h6>
-                <h4 class="mb-0" x-text="progress.total_shallow_sessions">{{ $progress['total_shallow_sessions'] }}</h4>
+                <h4 class="mb-0" x-text="progress.total_shallow_sessions">{{ $progress['total_shallow_sessions'] }}
+                </h4>
               </div>
             </div>
           </div>
@@ -236,7 +237,7 @@
               </div>
               <div class="ms-3">
                 <h6 class="card-title text-muted mb-1">Progress</h6>
-                <h4 class="mb-0" x-text="progress.progress_percentage + '%'">{{ $progress['progress_percentage'] }}%</h4>
+                <h4 class="mb-0" x-text="getProcessedPercentage() + '%'">{{ $progress['progress_percentage'] }}%</h4>
               </div>
             </div>
           </div>
@@ -258,11 +259,19 @@
             </span>
           </div>
           <div class="progress" style="height: 30px;">
+            <!-- Green bar for successful enrichments -->
             <div class="progress-bar progress-bar-striped"
               :class="{ 'progress-bar-animated': isEnriching && !isPaused, 'bg-warning': isPaused, 'bg-success': !isPaused }"
-              role="progressbar" :style="'width: ' + progress.progress_percentage + '%'"
-              :aria-valuenow="progress.progress_percentage" aria-valuemin="0" aria-valuemax="100">
-              <span x-text="progress.progress_percentage + '%'"></span>
+              role="progressbar" :style="'width: ' + getSuccessPercentage() + '%'"
+              :aria-valuenow="getSuccessPercentage()" aria-valuemin="0" aria-valuemax="100"
+              :title="progress.enriched_sessions + ' enriched sessions'">
+              <span x-text="getSuccessPercentage() + '%'"></span>
+            </div>
+            <!-- Red bar for failed items -->
+            <div class="progress-bar progress-bar-striped bg-danger" x-show="hasFailures" role="progressbar"
+              :style="'width: ' + getFailurePercentage() + '%'" :aria-valuenow="getFailurePercentage()"
+              aria-valuemin="0" aria-valuemax="100" :title="progress.failed_items + ' failed items'">
+              <span x-text="getFailurePercentage() + '%'"></span>
             </div>
           </div>
         </div>
@@ -276,7 +285,8 @@
             About Session Enrichment
           </h5>
           <p class="card-text">
-            Session enrichment fetches complete session data from the DSS API one session at a time, providing maximum fault
+            Session enrichment fetches complete session data from the DSS API one session at a time, providing maximum
+            fault
             tolerance. The process runs in the background to prevent browser timeout.
           </p>
           <ul>
@@ -328,7 +338,7 @@
               <div class="text-center p-3">
                 <i class="fas fa-exclamation-triangle text-danger fa-2x mb-2"></i>
                 <h6 class="text-muted">Failed</h6>
-                <h4 x-text="lastEnrichmentResult?.failed || 0"></h4>
+                <h4 x-text="lastEnrichmentResult?.failed_items || 0"></h4>
               </div>
             </div>
           </div>
@@ -381,8 +391,7 @@
               <i class="fas fa-file-code me-1"></i>
               Export JSON
             </a>
-            <a href="{{ route('enrichment.sessions.api.export', ['format' => 'xlsx']) }}"
-              class="btn btn-outline-info">
+            <a href="{{ route('enrichment.sessions.api.export', ['format' => 'xlsx']) }}" class="btn btn-outline-info">
               <i class="fas fa-file-excel me-1"></i>
               Export Excel
             </a>
@@ -415,9 +424,37 @@
         generationError: null,
         generationComplete: false,
 
-        // Computed property to check if enrichment is 100% complete
+        // Computed property to check if enrichment is complete
         get isCompleted() {
-          return this.progress.progress_percentage >= 100;
+          return this.progress.is_completed === true;
+        },
+
+        // Computed property to check if there are failed items
+        get hasFailures() {
+          return this.progress.failed_items > 0;
+        },
+
+        // Shared calculation methods - single source of truth for all progress calculations
+        getSuccessPercentage() {
+          if (!this.progress.total_shallow_sessions || this.progress.total_shallow_sessions === 0) {
+            return 0;
+          }
+          return Math.round((this.progress.enriched_sessions / this.progress.total_shallow_sessions) * 100, 2);
+        },
+
+        getFailurePercentage() {
+          if (!this.progress.total_shallow_sessions || this.progress.total_shallow_sessions === 0) {
+            return 0;
+          }
+          return Math.round((this.progress.failed_items / this.progress.total_shallow_sessions) * 100, 2);
+        },
+
+        getProcessedPercentage() {
+          if (!this.progress.total_shallow_sessions || this.progress.total_shallow_sessions === 0) {
+            return 0;
+          }
+          const totalProcessed = this.progress.enriched_sessions + this.progress.failed_items;
+          return Math.round((totalProcessed / this.progress.total_shallow_sessions) * 100, 2);
         },
 
         async init() {
@@ -549,11 +586,11 @@
             const data = await response.json();
 
             if (data.success) {
-              const previousPercentage = this.progress.progress_percentage;
+              const wasCompleted = this.isCompleted;
               this.progress = data.data;
 
-              // Check if enrichment has completed
-              if (this.progress.progress_percentage >= 100 && previousPercentage < 100) {
+              // Check if enrichment has just completed (including partial completion with failures)
+              if (this.progress.is_completed && !wasCompleted) {
                 // Just completed
                 clearInterval(this.pollInterval);
                 this.pollInterval = null;
@@ -562,14 +599,15 @@
                 this.lastEnrichmentResult = {
                   total_shallow_sessions: this.progress.total_shallow_sessions,
                   enriched_sessions: this.progress.enriched_sessions,
-                  unenriched_sessions: this.progress.unenriched_sessions
+                  unenriched_sessions: this.progress.unenriched_sessions,
+                  failed_items: this.progress.failed_items || 0
                 };
 
-                window.showToast(
-                  `Enrichment completed! ${this.progress.enriched_sessions} sessions enriched.`,
-                  'success',
-                  5000
-                );
+                const message = this.progress.failed_items > 0 ?
+                  `Enrichment completed with errors. ${this.progress.enriched_sessions} sessions enriched, ${this.progress.failed_items} failed.` :
+                  `Enrichment completed! ${this.progress.enriched_sessions} sessions enriched.`;
+
+                window.showToast(message, this.progress.failed_items > 0 ? 'warning' : 'success', 5000);
               }
             }
           } catch (error) {
@@ -616,7 +654,8 @@
               // Update progress from response
               this.progress = data.data.progress || this.progress;
 
-              window.showToast('Enrichment restarted. All previous data cleared. Processing in background...', 'info', 5000);
+              window.showToast('Enrichment restarted. All previous data cleared. Processing in background...', 'info',
+                5000);
               this.startPollingProgress();
             } else {
               window.showToast('Restart failed: ' + (data.error || 'Unknown error'), 'error');
@@ -631,6 +670,47 @@
           }
         },
 
+        async retryEnrichment() {
+          if (this.isEnriching) {
+            return;
+          }
+
+          this.isEnriching = true;
+          this.isPaused = false;
+
+          try {
+            const response = await fetch('{{ route('enrichment.sessions.api.retry') }}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+              }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              // Clear the last enrichment result
+              this.lastEnrichmentResult = null;
+
+              // Update progress from response
+              this.progress = data.data.progress || this.progress;
+
+              window.showToast('Retrying failed items. Processing in background...', 'info', 5000);
+              this.startPollingProgress();
+            } else {
+              window.showToast('Retry failed: ' + (data.error || 'Unknown error'), 'error');
+              this.isEnriching = false;
+              this.isPaused = false;
+            }
+          } catch (error) {
+            console.error('Retry error:', error);
+            window.showToast('Retry failed: ' + error.message, 'error');
+            this.isEnriching = false;
+            this.isPaused = false;
+          }
+        },
+
         // Shallow Session Generation Methods
         async generateShallowSessions() {
           this.isGenerating = true;
@@ -639,7 +719,7 @@
           this.generationProgress = 0;
 
           try {
-            const response = await fetch('{{ route("enrichment.sessions.api.generate") }}', {
+            const response = await fetch('{{ route('enrichment.sessions.api.generate') }}', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

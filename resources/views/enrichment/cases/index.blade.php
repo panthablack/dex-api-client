@@ -21,17 +21,24 @@
           <span>Pause Enrichment</span>
         </button>
 
-        <!-- Restart button (shown when 100% complete) -->
+        <!-- Restart button (shown when completed with failures) -->
         <button @click="showRestartModal()" :disabled="isEnriching" class="btn btn-warning"
-          x-show="isCompleted && !isEnriching">
+          x-show="isCompleted && !isEnriching && hasFailures">
           <i class="fas fa-redo me-1"></i>
           <span>Restart Enrichment</span>
         </button>
 
-        <!-- Restart button (shown when 100% complete) -->
+        <!-- Retry button (shown when completed with failures) -->
+        <button @click="retryEnrichment()" :disabled="isEnriching" class="btn btn-primary"
+          x-show="isCompleted && !isEnriching && hasFailures">
+          <i class="fas fa-sync me-1"></i>
+          <span>Retry Failed Items</span>
+        </button>
+
+        <!-- Generate Shallow Sessions button (shown when 100% successful) -->
         <button @click="generateShallowSessions()" :disabled="isEnriching" class="btn btn-info"
-          x-show="isCompleted && !isEnriching">
-          <i class="fas fa-redo me-1"></i>
+          x-show="isCompleted && !isEnriching && !hasFailures">
+          <i class="fas fa-forward me-1"></i>
           <span>Generate Shallow Sessions</span>
         </button>
       </div>
@@ -123,7 +130,7 @@
             </div>
             <div class="ms-3">
               <h6 class="card-title text-muted mb-1">Progress</h6>
-              <h4 class="mb-0" x-text="progress.progress_percentage + '%'">{{ $progress['progress_percentage'] }}%</h4>
+              <h4 class="mb-0" x-text="getProcessedPercentage() + '%'">{{ $progress['progress_percentage'] }}%</h4>
             </div>
           </div>
         </div>
@@ -145,11 +152,18 @@
           </span>
         </div>
         <div class="progress" style="height: 30px;">
+          <!-- Green bar for successful enrichments -->
           <div class="progress-bar progress-bar-striped"
             :class="{ 'progress-bar-animated': isEnriching && !isPaused, 'bg-warning': isPaused, 'bg-success': !isPaused }"
-            role="progressbar" :style="'width: ' + progress.progress_percentage + '%'"
-            :aria-valuenow="progress.progress_percentage" aria-valuemin="0" aria-valuemax="100">
-            <span x-text="progress.progress_percentage + '%'"></span>
+            role="progressbar" :style="'width: ' + getSuccessPercentage() + '%'" :aria-valuenow="getSuccessPercentage()"
+            aria-valuemin="0" aria-valuemax="100" :title="progress.enriched_cases + ' enriched cases'">
+            <span x-text="getSuccessPercentage() + '%'"></span>
+          </div>
+          <!-- Red bar for failed items -->
+          <div class="progress-bar progress-bar-striped bg-danger" x-show="hasFailures" role="progressbar"
+            :style="'width: ' + getFailurePercentage() + '%'" :aria-valuenow="getFailurePercentage()" aria-valuemin="0"
+            aria-valuemax="100" :title="progress.failed_items + ' failed items'">
+            <span x-text="getFailurePercentage() + '%'"></span>
           </div>
         </div>
       </div>
@@ -215,7 +229,7 @@
             <div class="text-center p-3">
               <i class="fas fa-exclamation-triangle text-danger fa-2x mb-2"></i>
               <h6 class="text-muted">Failed</h6>
-              <h4 x-text="lastEnrichmentResult?.failed || 0"></h4>
+              <h4 x-text="lastEnrichmentResult?.failed_items || 0"></h4>
             </div>
           </div>
         </div>
@@ -291,9 +305,37 @@
         lastEnrichmentResult: null,
         pollInterval: null,
 
-        // Computed property to check if enrichment is 100% complete
+        // Computed property to check if enrichment is complete
         get isCompleted() {
-          return this.progress.progress_percentage >= 100;
+          return this.progress.is_completed === true;
+        },
+
+        // Computed property to check if there are failed items
+        get hasFailures() {
+          return this.progress.failed_items > 0;
+        },
+
+        // Shared calculation methods - single source of truth for all progress calculations
+        getSuccessPercentage() {
+          if (!this.progress.total_shallow_cases || this.progress.total_shallow_cases === 0) {
+            return 0;
+          }
+          return Math.round((this.progress.enriched_cases / this.progress.total_shallow_cases) * 100, 2);
+        },
+
+        getFailurePercentage() {
+          if (!this.progress.total_shallow_cases || this.progress.total_shallow_cases === 0) {
+            return 0;
+          }
+          return Math.round((this.progress.failed_items / this.progress.total_shallow_cases) * 100, 2);
+        },
+
+        getProcessedPercentage() {
+          if (!this.progress.total_shallow_cases || this.progress.total_shallow_cases === 0) {
+            return 0;
+          }
+          const totalProcessed = this.progress.enriched_cases + this.progress.failed_items;
+          return Math.round((totalProcessed / this.progress.total_shallow_cases) * 100, 2);
         },
 
         async init() {
@@ -430,11 +472,11 @@
             const data = await response.json();
 
             if (data.success) {
-              const previousPercentage = this.progress.progress_percentage;
+              const wasCompleted = this.isCompleted;
               this.progress = data.data;
 
-              // Check if enrichment has completed
-              if (this.progress.progress_percentage >= 100 && previousPercentage < 100) {
+              // Check if enrichment has just completed (including partial completion with failures)
+              if (this.progress.is_completed && !wasCompleted) {
                 // Just completed
                 clearInterval(this.pollInterval);
                 this.pollInterval = null;
@@ -443,14 +485,15 @@
                 this.lastEnrichmentResult = {
                   total_shallow_cases: this.progress.total_shallow_cases,
                   enriched_cases: this.progress.enriched_cases,
-                  unenriched_cases: this.progress.unenriched_cases
+                  unenriched_cases: this.progress.unenriched_cases,
+                  failed_items: this.progress.failed_items || 0
                 };
 
-                window.showToast(
-                  `Enrichment completed! ${this.progress.enriched_cases} cases enriched.`,
-                  'success',
-                  5000
-                );
+                const message = this.progress.failed_items > 0 ?
+                  `Enrichment completed with errors. ${this.progress.enriched_cases} cases enriched, ${this.progress.failed_items} failed.` :
+                  `Enrichment completed! ${this.progress.enriched_cases} cases enriched.`;
+
+                window.showToast(message, this.progress.failed_items > 0 ? 'warning' : 'success', 5000);
               }
             }
           } catch (error) {
@@ -497,7 +540,8 @@
               // Update progress from response
               this.progress = data.data.progress || this.progress;
 
-              window.showToast('Enrichment restarted. All previous data cleared. Processing in background...', 'info', 5000);
+              window.showToast('Enrichment restarted. All previous data cleared. Processing in background...', 'info',
+                5000);
               this.startPollingProgress();
             } else {
               window.showToast('Restart failed: ' + (data.error || 'Unknown error'), 'error');
@@ -507,6 +551,47 @@
           } catch (error) {
             console.error('Restart error:', error);
             window.showToast('Restart failed: ' + error.message, 'error');
+            this.isEnriching = false;
+            this.isPaused = false;
+          }
+        },
+
+        async retryEnrichment() {
+          if (this.isEnriching) {
+            return;
+          }
+
+          this.isEnriching = true;
+          this.isPaused = false;
+
+          try {
+            const response = await fetch('{{ route('enrichment.cases.api.retry') }}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+              }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              // Clear the last enrichment result
+              this.lastEnrichmentResult = null;
+
+              // Update progress from response
+              this.progress = data.data.progress || this.progress;
+
+              window.showToast('Retrying failed items. Processing in background...', 'info', 5000);
+              this.startPollingProgress();
+            } else {
+              window.showToast('Retry failed: ' + (data.error || 'Unknown error'), 'error');
+              this.isEnriching = false;
+              this.isPaused = false;
+            }
+          } catch (error) {
+            console.error('Retry error:', error);
+            window.showToast('Retry failed: ' + error.message, 'error');
             this.isEnriching = false;
             this.isPaused = false;
           }

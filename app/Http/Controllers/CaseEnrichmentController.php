@@ -306,6 +306,62 @@ class CaseEnrichmentController extends Controller
     }
 
     /**
+     * Retry enrichment of failed items
+     * POST /enrichment/cases/api/retry
+     *
+     * Retries enrichment of items that were not successfully enriched in previous attempts
+     * Keeps successfully enriched items and creates a new process for remaining items
+     */
+    public function retry(): JsonResponse
+    {
+        try {
+            // Check if enrichment is allowed
+            if (!ResourceType::canEnrichCases()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Cannot retry enrichment. Please complete a SHALLOW_CASE migration first.'
+                ], 422);
+            }
+
+            Log::info('Retrying enrichment of failed cases');
+
+            // Mark old process as completed if not already
+            EnrichmentProcess::where('resource_type', ResourceType::CASE)
+                ->where('status', '!=', 'COMPLETED')
+                ->update(['status' => 'COMPLETED', 'completed_at' => now()]);
+
+            Log::info('Creating new enrichment process for unenriched items');
+
+            // Create new enrichment process with batches and dispatch initial jobs
+            // initializeEnrichment will only include unenriched items
+            $process = $this->enrichmentService->initializeEnrichment(ResourceType::CASE);
+
+            // Get current progress
+            $progress = $this->enrichmentService->getEnrichmentProgress(ResourceType::CASE);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Retrying enrichment for remaining items. Processing in background...',
+                'data' => [
+                    'process_id' => $process->id,
+                    'total_items' => $process->total_items,
+                    'batches_created' => $process->batches()->count(),
+                    'batches_dispatched' => $process->batches()->where('status', '!=', 'PENDING')->count(),
+                    'status' => $process->status,
+                    'progress' => $progress
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to retry enrichment: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Export enriched case data
      * GET /enrichment/cases/api/export
      */
