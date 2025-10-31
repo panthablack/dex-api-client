@@ -148,9 +148,7 @@ class EnrichmentService
     protected function shouldInjectFailure(): bool
     {
         // Don't inject failures during testing
-        if (app()->environment('testing')) {
-            return false;
-        }
+        if (app()->environment('testing') || !env('STRESS_TEST_FAILURE_RATE')) return false;
 
         return (rand(1, 100) <= env('STRESS_TEST_FAILURE_RATE', 0));
     }
@@ -175,6 +173,8 @@ class EnrichmentService
             $itemIds = $batch->item_ids;
             $processed = 0;
             $failed = 0;
+            $skipped = 0;
+            $failedIds = [];
 
             if (env('DETAILED_LOGGING')) {
                 Log::info("Processing batch {$batch->batch_number} with " . count($itemIds) . " items");
@@ -185,42 +185,72 @@ class EnrichmentService
                 try {
                     if ($resourceType === ResourceType::CASE) {
                         $shallowCase = MigratedShallowCase::where('case_id', $itemId)->first();
-                        if ($shallowCase && !$this->isAlreadyEnriched(ResourceType::CASE, $itemId)) {
-                            // Inject failure for stress testing if enabled
-                            if ($this->shouldInjectFailure()) {
-                                throw new \Exception("Injected failure for stress testing (10% failure rate enabled)");
-                            }
-                            $this->enrichCase($shallowCase);
-                            $processed++;
+
+                        // Item no longer exists in shallow table - skip it
+                        if (!$shallowCase) {
+                            $skipped++;
+                            continue;
                         }
+
+                        // Item already enriched - skip it
+                        if ($this->isAlreadyEnriched(ResourceType::CASE, $itemId)) {
+                            $skipped++;
+                            continue;
+                        }
+
+                        // Inject failure for stress testing if enabled
+                        if ($this->shouldInjectFailure()) {
+                            $failRate = env('STRESS_TEST_FAILURE_RATE');
+                            throw new \Exception("Injected failure for stress testing ($failRate failure rate enabled)");
+                        }
+                        $this->enrichCase($shallowCase);
+                        $processed++;
                     } else if ($resourceType === ResourceType::SESSION) {
                         $shallowSession = MigratedShallowSession::where('session_id', $itemId)->first();
-                        if ($shallowSession && !$this->isAlreadyEnriched(ResourceType::SESSION, $itemId)) {
-                            // Inject failure for stress testing if enabled
-                            if ($this->shouldInjectFailure()) {
-                                throw new \Exception("Injected failure for stress testing (10% failure rate enabled)");
-                            }
-                            $newSession = $this->enrichSession($shallowSession);
-                            $processed++;
+
+                        // Item no longer exists in shallow table - skip it
+                        if (!$shallowSession) {
+                            $skipped++;
+                            continue;
                         }
+
+                        // Item already enriched - skip it
+                        if ($this->isAlreadyEnriched(ResourceType::SESSION, $itemId)) {
+                            $skipped++;
+                            continue;
+                        }
+
+                        // Inject failure for stress testing if enabled
+                        if ($this->shouldInjectFailure()) {
+                            $failRate = env('STRESS_TEST_FAILURE_RATE');
+                            throw new \Exception("Injected failure for stress testing ($failRate failure rate enabled)");
+                        }
+                        $this->enrichSession($shallowSession);
+                        $processed++;
                     }
                 } catch (\Exception $e) {
                     $failed++;
+                    $failedIds[] = $itemId;
                     Log::error("Failed to enrich {$resourceType->value} {$itemId}: {$e->getMessage()}");
                     // Continue to next item - don't stop on individual failures
                 }
             }
 
+            // Determine batch status: COMPLETED if no failures, PARTIAL if some failures, FAILED if outer exception
+            $batchStatus = $failed > 0 ? 'PARTIAL' : 'COMPLETED';
+
             // Update batch with results
             $batch->update([
-                'status' => 'COMPLETED',
+                'status' => $batchStatus,
                 'items_processed' => $processed,
                 'items_failed' => $failed,
+                'items_skipped' => $skipped,
+                'failed_item_ids' => $failedIds,
                 'completed_at' => now()
             ]);
 
             if (env('DETAILED_LOGGING')) {
-                Log::info("Batch {$batch->batch_number} complete: {$processed} processed, {$failed} failed");
+                Log::info("Batch {$batch->batch_number} complete: {$processed} processed, {$failed} failed, {$skipped} skipped - status: {$batchStatus}");
             }
 
             // Dispatch next pending batch
@@ -348,7 +378,8 @@ class EnrichmentService
 
                         // Inject failure for stress testing if enabled
                         if ($this->shouldInjectFailure()) {
-                            throw new \Exception("Injected failure for stress testing (10% failure rate enabled)");
+                            $failRate = env('STRESS_TEST_FAILURE_RATE');
+                            throw new \Exception("Injected failure for stress testing ($failRate failure rate enabled)");
                         }
 
                         // Enrich this case
@@ -439,7 +470,8 @@ class EnrichmentService
 
                         // Inject failure for stress testing if enabled
                         if ($this->shouldInjectFailure()) {
-                            throw new \Exception("Injected failure for stress testing (10% failure rate enabled)");
+                            $failRate = env('STRESS_TEST_FAILURE_RATE');
+                            throw new \Exception("Injected failure for stress testing ($failRate failure rate enabled)");
                         }
 
                         // Enrich this session
@@ -829,6 +861,7 @@ class EnrichmentService
             $unenrichedCount = $totalShallowCases - $enrichedCases;
 
             $failedItems = 0;
+            $itemsSkipped = 0;
             $isCompleted = false;
 
             // Get active or most recent enrichment process for failure tracking
@@ -839,11 +872,24 @@ class EnrichmentService
                     ->first();
 
                 if ($activeProcess) {
-                    // Get batch statistics in a single query
+                    // Get the list of items that are currently unenriched
+                    $unenrichedCaseIds = $this->getUnenrichedCaseIds()->toArray();
+
+                    // Count only failures for items still in the unenriched list
                     $batches = $activeProcess->batches;
-                    $failedItems = (int) $batches->sum('items_failed');
+                    foreach ($batches as $batch) {
+                        // Count failed items that are still unenriched
+                        foreach (($batch->failed_item_ids ?? []) as $failedId) {
+                            if (in_array($failedId, $unenrichedCaseIds)) {
+                                $failedItems++;
+                            }
+                        }
+                        // Add skipped items
+                        $itemsSkipped += (int) ($batch->items_skipped ?? 0);
+                    }
+
                     $totalBatches = $batches->count();
-                    $completedBatches = $batches->filter(fn($b) => in_array($b->status, ['COMPLETED', 'FAILED']))->count();
+                    $completedBatches = $batches->filter(fn($b) => in_array($b->status, ['COMPLETED', 'PARTIAL', 'FAILED']))->count();
                     $isCompleted = ($totalBatches > 0 && $completedBatches === $totalBatches);
                 }
             } catch (\Exception $e) {
@@ -851,17 +897,18 @@ class EnrichmentService
                 Log::debug("Error retrieving enrichment progress: {$e->getMessage()}");
             }
 
-            // Progress is based on total processed (successful + failed)
-            $totalProcessed = $enrichedCases + $failedItems;
+            // Progress is based on total enriched (only successful ones count)
+            $progressPercentage = $totalShallowCases > 0
+                ? round(($enrichedCases / $totalShallowCases) * 100, 2)
+                : 0;
 
             return [
                 'total_shallow_cases' => $totalShallowCases,
                 'enriched_cases' => $enrichedCases,
                 'unenriched_cases' => $unenrichedCount,
                 'failed_items' => $failedItems,
-                'progress_percentage' => $totalShallowCases > 0
-                    ? round(($totalProcessed / $totalShallowCases) * 100, 2)
-                    : 0,
+                'items_skipped' => $itemsSkipped,
+                'progress_percentage' => $progressPercentage,
                 'is_completed' => $isCompleted,
             ];
         } else if ($type === ResourceType::SESSION) {
@@ -870,6 +917,7 @@ class EnrichmentService
             $unenrichedCount = $totalShallowSessions - $enrichedSessions;
 
             $failedItems = 0;
+            $itemsSkipped = 0;
             $isCompleted = false;
 
             // Get active or most recent enrichment process for failure tracking
@@ -880,11 +928,24 @@ class EnrichmentService
                     ->first();
 
                 if ($activeProcess) {
-                    // Get batch statistics in a single query
+                    // Get the list of items that are currently unenriched
+                    $unenrichedSessionIds = $this->getUnenrichedSessionIds()->toArray();
+
+                    // Count only failures for items still in the unenriched list
                     $batches = $activeProcess->batches;
-                    $failedItems = (int) $batches->sum('items_failed');
+                    foreach ($batches as $batch) {
+                        // Count failed items that are still unenriched
+                        foreach (($batch->failed_item_ids ?? []) as $failedId) {
+                            if (in_array($failedId, $unenrichedSessionIds)) {
+                                $failedItems++;
+                            }
+                        }
+                        // Add skipped items
+                        $itemsSkipped += (int) ($batch->items_skipped ?? 0);
+                    }
+
                     $totalBatches = $batches->count();
-                    $completedBatches = $batches->filter(fn($b) => in_array($b->status, ['COMPLETED', 'FAILED']))->count();
+                    $completedBatches = $batches->filter(fn($b) => in_array($b->status, ['COMPLETED', 'PARTIAL', 'FAILED']))->count();
                     $isCompleted = ($totalBatches > 0 && $completedBatches === $totalBatches);
                 }
             } catch (\Exception $e) {
@@ -892,17 +953,18 @@ class EnrichmentService
                 Log::debug("Error retrieving enrichment progress: {$e->getMessage()}");
             }
 
-            // Progress is based on total processed (successful + failed)
-            $totalProcessed = $enrichedSessions + $failedItems;
+            // Progress is based on total enriched (only successful ones count)
+            $progressPercentage = $totalShallowSessions > 0
+                ? round(($enrichedSessions / $totalShallowSessions) * 100, 2)
+                : 0;
 
             return [
                 'total_shallow_sessions' => $totalShallowSessions,
                 'enriched_sessions' => $enrichedSessions,
                 'unenriched_sessions' => $unenrichedCount,
                 'failed_items' => $failedItems,
-                'progress_percentage' => $totalShallowSessions > 0
-                    ? round(($totalProcessed / $totalShallowSessions) * 100, 2)
-                    : 0,
+                'items_skipped' => $itemsSkipped,
+                'progress_percentage' => $progressPercentage,
                 'is_completed' => $isCompleted,
             ];
         } else return [];

@@ -19,6 +19,8 @@ class EnrichmentBatch extends Model
         'batch_size',
         'items_processed',
         'items_failed',
+        'items_skipped',
+        'failed_item_ids',
         'error_message',
         'started_at',
         'completed_at',
@@ -26,6 +28,7 @@ class EnrichmentBatch extends Model
 
     protected $casts = [
         'item_ids' => 'array',
+        'failed_item_ids' => 'array',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
@@ -43,7 +46,7 @@ class EnrichmentBatch extends Model
      */
     public function isIncomplete(): bool
     {
-        return !in_array($this->status, ['COMPLETED', 'FAILED']);
+        return !in_array($this->status, ['COMPLETED', 'PARTIAL', 'FAILED']);
     }
 
     /**
@@ -76,6 +79,14 @@ class EnrichmentBatch extends Model
     public function isCompleted(): bool
     {
         return $this->status === 'COMPLETED';
+    }
+
+    /**
+     * Check if batch is partial (completed with some failures)
+     */
+    public function isPartial(): bool
+    {
+        return $this->status === 'PARTIAL';
     }
 
     /**
