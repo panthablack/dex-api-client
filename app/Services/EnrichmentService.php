@@ -59,11 +59,15 @@ class EnrichmentService
             Log::info("Initializing enrichment for {$resourceType->value}: {$totalItems} items found");
         }
 
+        // Count how many items are already enriched at this moment
+        $enrichedItemsAtStart = $this->countEnrichedItems($resourceType);
+
         // Create enrichment process record
         $process = EnrichmentProcess::create([
             'resource_type' => $resourceType,
             'status' => 'PENDING',
             'total_items' => $totalItems,
+            'enriched_items_at_start' => $enrichedItemsAtStart,
         ]);
 
         // Create batches for this process
@@ -94,6 +98,22 @@ class EnrichmentService
             return MigratedShallowCase::count();
         } else if ($resourceType === ResourceType::SESSION) {
             return MigratedShallowSession::count();
+        }
+        return 0;
+    }
+
+    /**
+     * Count total enriched items for a resource type
+     *
+     * @param ResourceType $resourceType
+     * @return int
+     */
+    protected function countEnrichedItems(ResourceType $resourceType): int
+    {
+        if ($resourceType === ResourceType::CASE) {
+            return MigratedEnrichedCase::count();
+        } else if ($resourceType === ResourceType::SESSION) {
+            return MigratedEnrichedSession::count();
         }
         return 0;
     }
@@ -862,6 +882,7 @@ class EnrichmentService
 
             $failedItems = 0;
             $itemsSkipped = 0;
+            $newlyEnriched = 0;
             $isCompleted = false;
 
             // Get active or most recent enrichment process for failure tracking
@@ -884,8 +905,10 @@ class EnrichmentService
                                 $failedItems++;
                             }
                         }
-                        // Add skipped items
+                        // Add skipped items (already enriched)
                         $itemsSkipped += (int) ($batch->items_skipped ?? 0);
+                        // Add newly enriched items (successfully processed in current batch)
+                        $newlyEnriched += (int) ($batch->items_processed ?? 0);
                     }
 
                     $totalBatches = $batches->count();
@@ -902,12 +925,25 @@ class EnrichmentService
                 ? round(($enrichedCases / $totalShallowCases) * 100, 2)
                 : 0;
 
+            // Calculate newly enriched and already enriched based on the state at process start
+            $alreadyEnrichedCount = 0;
+            $newlyEnrichedCount = 0;
+            if ($activeProcess && isset($activeProcess->enriched_items_at_start)) {
+                $alreadyEnrichedCount = $activeProcess->enriched_items_at_start;
+                $newlyEnrichedCount = $enrichedCases - $alreadyEnrichedCount;
+            } else {
+                // Fallback to current count if no process found (all are newly enriched)
+                $newlyEnrichedCount = $enrichedCases;
+            }
+
             return [
                 'total_shallow_cases' => $totalShallowCases,
                 'enriched_cases' => $enrichedCases,
                 'unenriched_cases' => $unenrichedCount,
                 'failed_items' => $failedItems,
                 'items_skipped' => $itemsSkipped,
+                'newly_enriched' => $newlyEnrichedCount,
+                'already_enriched' => $alreadyEnrichedCount,
                 'progress_percentage' => $progressPercentage,
                 'is_completed' => $isCompleted,
             ];
@@ -918,6 +954,7 @@ class EnrichmentService
 
             $failedItems = 0;
             $itemsSkipped = 0;
+            $newlyEnriched = 0;
             $isCompleted = false;
 
             // Get active or most recent enrichment process for failure tracking
@@ -940,8 +977,10 @@ class EnrichmentService
                                 $failedItems++;
                             }
                         }
-                        // Add skipped items
+                        // Add skipped items (already enriched)
                         $itemsSkipped += (int) ($batch->items_skipped ?? 0);
+                        // Add newly enriched items (successfully processed in current batch)
+                        $newlyEnriched += (int) ($batch->items_processed ?? 0);
                     }
 
                     $totalBatches = $batches->count();
@@ -958,12 +997,25 @@ class EnrichmentService
                 ? round(($enrichedSessions / $totalShallowSessions) * 100, 2)
                 : 0;
 
+            // Calculate newly enriched and already enriched based on the state at process start
+            $alreadyEnrichedCount = 0;
+            $newlyEnrichedCount = 0;
+            if ($activeProcess && isset($activeProcess->enriched_items_at_start)) {
+                $alreadyEnrichedCount = $activeProcess->enriched_items_at_start;
+                $newlyEnrichedCount = $enrichedSessions - $alreadyEnrichedCount;
+            } else {
+                // Fallback to current count if no process found (all are newly enriched)
+                $newlyEnrichedCount = $enrichedSessions;
+            }
+
             return [
                 'total_shallow_sessions' => $totalShallowSessions,
                 'enriched_sessions' => $enrichedSessions,
                 'unenriched_sessions' => $unenrichedCount,
                 'failed_items' => $failedItems,
                 'items_skipped' => $itemsSkipped,
+                'newly_enriched' => $newlyEnrichedCount,
+                'already_enriched' => $alreadyEnrichedCount,
                 'progress_percentage' => $progressPercentage,
                 'is_completed' => $isCompleted,
             ];

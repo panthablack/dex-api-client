@@ -341,6 +341,18 @@
         async init() {
           // Check for active enrichment by polling progress periodically
           await this.refreshProgress();
+
+          // If enrichment is already completed, populate results from current progress
+          if (this.progress.is_completed && !this.lastEnrichmentResult) {
+            this.lastEnrichmentResult = {
+              total_shallow_cases: this.progress.total_shallow_cases,
+              enriched_cases: this.progress.enriched_cases,
+              unenriched_cases: this.progress.unenriched_cases,
+              failed_items: this.progress.failed_items || 0,
+              newly_enriched: this.progress.newly_enriched || 0,
+              already_enriched: this.progress.already_enriched || 0
+            };
+          }
         },
 
         async startEnrichment() {
@@ -486,7 +498,9 @@
                   total_shallow_cases: this.progress.total_shallow_cases,
                   enriched_cases: this.progress.enriched_cases,
                   unenriched_cases: this.progress.unenriched_cases,
-                  failed_items: this.progress.failed_items || 0
+                  failed_items: this.progress.failed_items || 0,
+                  newly_enriched: this.progress.newly_enriched || 0,
+                  already_enriched: this.progress.already_enriched || 0
                 };
 
                 const message = this.progress.failed_items > 0 ?
