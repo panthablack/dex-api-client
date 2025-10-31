@@ -16,6 +16,7 @@ class EnrichmentProcess extends Model
         'resource_type',
         'status',
         'total_items',
+        'enriched_items_at_start',
         'started_at',
         'completed_at',
         'paused_at',
