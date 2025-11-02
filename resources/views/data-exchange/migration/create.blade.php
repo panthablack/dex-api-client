@@ -100,8 +100,8 @@
             </div>
 
             <div class="form-check">
-              <input type="radio" name="resource_type" value="SHALLOW_CLOSED_CASE" id="SHALLOW_CLOSED_CASE" class="form-check-input"
-                {{ old('resource_type') == 'SHALLOW_CLOSED_CASE' ? 'checked' : '' }} required>
+              <input type="radio" name="resource_type" value="SHALLOW_CLOSED_CASE" id="SHALLOW_CLOSED_CASE"
+                class="form-check-input" {{ old('resource_type') == 'SHALLOW_CLOSED_CASE' ? 'checked' : '' }} required>
               <label for="SHALLOW_CLOSED_CASE" class="form-check-label d-flex align-items-center">
                 <span>Shallow Closed Cases</span>
                 <span class="badge bg-warning ms-2">
@@ -110,7 +110,7 @@
               </label>
             </div>
 
-            @if ($hasMigratedCases)
+            {{-- @if ($hasMigratedCases)
               <div class="form-check">
                 <input type="radio" name="resource_type" value="SESSIONS" id="SESSIONS" class="form-check-input"
                   {{ old('resource_type') == 'SESSIONS' ? 'checked' : '' }} required>
@@ -159,68 +159,68 @@
             @if (!$hasMigratedCases)
               Sessions are only available when cases have been migrated first.
             @endif
+          </div> --}}
           </div>
-        </div>
 
-        <!-- Date Range Filters -->
-        <div class="mb-4">
-          <label class="form-label">Date Range (Optional)</label>
-          <div class="row">
-            <div class="col-md-6">
-              <label for="date_from" class="form-label">From Date</label>
-              <input type="date" name="date_from" id="date_from" value="{{ old('date_from') }}"
-                class="form-control">
+          <!-- Date Range Filters -->
+          <div class="my-4">
+            <label class="form-label">Date Range (Optional)</label>
+            <div class="row">
+              <div class="col-md-6">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" name="date_from" id="date_from" value="{{ old('date_from') }}"
+                  class="form-control">
+              </div>
+              <div class="col-md-6">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" name="date_to" id="date_to" value="{{ old('date_to') }}" class="form-control">
+              </div>
             </div>
-            <div class="col-md-6">
-              <label for="date_to" class="form-label">To Date</label>
-              <input type="date" name="date_to" id="date_to" value="{{ old('date_to') }}" class="form-control">
+            <div class="form-text">
+              Specify a date range to limit which records are migrated. Leave empty to migrate all available data.
             </div>
           </div>
-          <div class="form-text">
-            Specify a date range to limit which records are migrated. Leave empty to migrate all available data.
-          </div>
-        </div>
 
-        <!-- Batch Size -->
-        <div class="mb-4">
-          <label for="batch_size" class="form-label">Batch Size</label>
-          <select name="batch_size" id="batch_size" class="form-select">
-            <option value="25"
-              {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '25' ? 'selected' : '' }}>25
-              items per batch
-            </option>
-            <option value="50"
-              {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '50' ? 'selected' : '' }}>50
-              items per batch
-            </option>
-            <option value="100"
-              {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '100' ? 'selected' : '' }}>
-              100 items per
-              batch (recommended)</option>
-          </select>
-          <div class="form-text">
-            Number of items to process in each batch. Smaller batches are more reliable but slower.
-            The maximum allowed by the DSS API is 100 items.
+          <!-- Batch Size -->
+          <div class="mb-4">
+            <label for="batch_size" class="form-label">Batch Size</label>
+            <select name="batch_size" id="batch_size" class="form-select">
+              <option value="25"
+                {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '25' ? 'selected' : '' }}>25
+                items per batch
+              </option>
+              <option value="50"
+                {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '50' ? 'selected' : '' }}>50
+                items per batch
+              </option>
+              <option value="100"
+                {{ old('batch_size', config('dataMigrations.defaultBatchSize')) == '100' ? 'selected' : '' }}>
+                100 items per
+                batch (recommended)</option>
+            </select>
+            <div class="form-text">
+              Number of items to process in each batch. Smaller batches are more reliable but slower.
+              The maximum allowed by the DSS API is 100 items.
+            </div>
           </div>
-        </div>
 
-        <!-- Migration Preview -->
-        <div class="bg-light rounded p-3 mb-4">
-          <h6 class="fw-medium mb-2">Migration Preview</h6>
-          <div id="migration-preview" class="text-muted">
-            <p>Select resource types to see migration preview...</p>
+          <!-- Migration Preview -->
+          <div class="bg-light rounded p-3 mb-4">
+            <h6 class="fw-medium mb-2">Migration Preview</h6>
+            <div id="migration-preview" class="text-muted">
+              <p>Select resource types to see migration preview...</p>
+            </div>
           </div>
-        </div>
 
-        <!-- Submit Buttons -->
-        <div class="d-flex justify-content-end gap-2 pt-3 border-top">
-          <a href="{{ route('data-migration.index') }}" class="btn btn-outline-secondary">
-            Cancel
-          </a>
-          <button type="submit" class="btn btn-primary">
-            Create Migration
-          </button>
-        </div>
+          <!-- Submit Buttons -->
+          <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+            <a href="{{ route('data-migration.index') }}" class="btn btn-outline-secondary">
+              Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+              Create Migration
+            </button>
+          </div>
       </form>
     </div>
   </div>
