@@ -141,7 +141,7 @@ class SessionEnrichmentController extends Controller
     public function unenriched(): JsonResponse
     {
         try {
-            $unenrichedSessionIds = $this->enrichmentService->getUnenrichedSessionIds();
+            $unenrichedSessionIds = $this->enrichmentService->getUnenrichedSessionIdStrings();
 
             return response()->json([
                 'success' => true,

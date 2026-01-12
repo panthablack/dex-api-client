@@ -16,7 +16,8 @@ class MigratedShallowSession extends Model
 
     public function enrichedSession(): HasOne
     {
-        return $this->hasOne(MigratedEnrichedSession::class, 'session_id');
+        return $this->hasOne(MigratedEnrichedSession::class, 'session_id', 'session_id')
+            ->where('case_id', $this->case_id);
     }
 
     /**

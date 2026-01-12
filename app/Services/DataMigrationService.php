@@ -884,9 +884,11 @@ class DataMigrationService
             ?? null;
 
         MigratedSession::updateOrCreate(
-            ['session_id' => $sessionData['session_id'] ?? $sessionData['SessionId']],
             [
                 'case_id' => $sessionData['case_id'] ?? $sessionData['CaseId'],
+                'session_id' => $sessionData['session_id'] ?? $sessionData['SessionId']
+            ],
+            [
                 'session_date' => $sessionDate,
                 'service_type_id' => $sessionData['service_type_id'] ?? $sessionData['ServiceTypeId'] ?? 0,
                 'total_number_of_unidentified_clients' => $totalNumberOfUnidentifiedClients,

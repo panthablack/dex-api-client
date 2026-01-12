@@ -57,7 +57,6 @@ class SessionEnrichmentControllerTest extends TestCase
             MigratedShallowSession::create([
                 'session_id' => "SESSION-{$i}",
                 'case_id' => "CASE-{$i}",
-                'api_response' => [],
             ]);
         }
 
@@ -126,19 +125,16 @@ class SessionEnrichmentControllerTest extends TestCase
         MigratedShallowSession::create([
             'session_id' => 'SESSION-A',
             'case_id' => 'CASE-A',
-            'api_response' => [],
         ]);
 
         MigratedShallowSession::create([
             'session_id' => 'SESSION-B',
             'case_id' => 'CASE-B',
-            'api_response' => [],
         ]);
 
         MigratedShallowSession::create([
             'session_id' => 'SESSION-C',
             'case_id' => 'CASE-C',
-            'api_response' => [],
         ]);
 
         // Enrich only SESSION-B
@@ -448,6 +444,84 @@ class SessionEnrichmentControllerTest extends TestCase
         $this->assertIsArray($data);
         $this->assertArrayHasKey('newly_created', $data);
         $this->assertIsInt($data['newly_created']);
+    }
+
+    public function test_duplicate_session_ids_across_different_cases_are_allowed(): void
+    {
+        // Create shallow sessions with the same session_id but different case_ids
+        $shallowSession1 = MigratedShallowSession::create([
+            'session_id' => 'SESSION-DUPLICATE',
+            'case_id' => 'CASE-001',
+        ]);
+
+        $shallowSession2 = MigratedShallowSession::create([
+            'session_id' => 'SESSION-DUPLICATE',
+            'case_id' => 'CASE-002',
+        ]);
+
+        // Both should exist
+        $this->assertDatabaseHas('migrated_shallow_sessions', [
+            'session_id' => 'SESSION-DUPLICATE',
+            'case_id' => 'CASE-001'
+        ]);
+
+        $this->assertDatabaseHas('migrated_shallow_sessions', [
+            'session_id' => 'SESSION-DUPLICATE',
+            'case_id' => 'CASE-002'
+        ]);
+
+        // Create enriched sessions with the same session_id but different case_ids
+        $enrichedSession1 = MigratedEnrichedSession::create([
+            'session_id' => 'SESSION-DUPLICATE',
+            'case_id' => 'CASE-001',
+            'session_date' => now(),
+            'service_type_id' => 100,
+            'total_number_of_unidentified_clients' => 0,
+            'api_response' => [],
+            'verification_status' => VerificationStatus::PENDING,
+        ]);
+
+        $enrichedSession2 = MigratedEnrichedSession::create([
+            'session_id' => 'SESSION-DUPLICATE',
+            'case_id' => 'CASE-002',
+            'session_date' => now(),
+            'service_type_id' => 100,
+            'total_number_of_unidentified_clients' => 0,
+            'api_response' => [],
+            'verification_status' => VerificationStatus::PENDING,
+        ]);
+
+        // Both should exist
+        $this->assertDatabaseHas('migrated_enriched_sessions', [
+            'session_id' => 'SESSION-DUPLICATE',
+            'case_id' => 'CASE-001'
+        ]);
+
+        $this->assertDatabaseHas('migrated_enriched_sessions', [
+            'session_id' => 'SESSION-DUPLICATE',
+            'case_id' => 'CASE-002'
+        ]);
+
+        // Verify we have exactly 2 sessions with this session_id
+        $this->assertEquals(2, MigratedShallowSession::where('session_id', 'SESSION-DUPLICATE')->count());
+        $this->assertEquals(2, MigratedEnrichedSession::where('session_id', 'SESSION-DUPLICATE')->count());
+    }
+
+    public function test_duplicate_session_id_within_same_case_is_rejected(): void
+    {
+        // Create first session
+        MigratedShallowSession::create([
+            'session_id' => 'SESSION-001',
+            'case_id' => 'CASE-001',
+        ]);
+
+        // Attempt to create duplicate session_id within the same case should fail
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        MigratedShallowSession::create([
+            'session_id' => 'SESSION-001',
+            'case_id' => 'CASE-001',
+        ]);
     }
 
     protected function tearDown(): void

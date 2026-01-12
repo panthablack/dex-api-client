@@ -75,8 +75,11 @@ class SessionShallowGenerationService
             foreach ($sessionPairs as $pair) {
                 try {
                     $shallow = MigratedShallowSession::updateOrCreate(
-                        ['session_id' => $pair['session_id']],
-                        ['case_id' => $pair['case_id']]
+                        [
+                            'case_id' => $pair['case_id'],
+                            'session_id' => $pair['session_id']
+                        ],
+                        []
                     );
 
                     // Track if this was newly created

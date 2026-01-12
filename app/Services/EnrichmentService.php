@@ -226,7 +226,8 @@ class EnrichmentService
                         $this->enrichCase($shallowCase);
                         $processed++;
                     } else if ($resourceType === ResourceType::SESSION) {
-                        $shallowSession = MigratedShallowSession::where('session_id', $itemId)->first();
+                        // $itemId is now the database ID of the shallow session
+                        $shallowSession = MigratedShallowSession::find($itemId);
 
                         // Item no longer exists in shallow table - skip it
                         if (!$shallowSession) {
@@ -234,8 +235,8 @@ class EnrichmentService
                             continue;
                         }
 
-                        // Item already enriched - skip it
-                        if ($this->isAlreadyEnriched(ResourceType::SESSION, $itemId)) {
+                        // Item already enriched - skip it (check using composite key)
+                        if ($this->isAlreadyEnriched(ResourceType::SESSION, $shallowSession->case_id, $shallowSession->session_id)) {
                             $skipped++;
                             continue;
                         }
@@ -715,10 +716,10 @@ class EnrichmentService
 
         return MigratedEnrichedSession::updateOrCreate(
             [
+                'case_id' => $caseId,
                 'session_id' => $sessionId,
             ],
             [
-                'case_id' => $caseId,
                 'shallow_session_id' => $shallowSessionId,
                 'session_date' => $sessionDate,
                 'service_type_id' => $serviceTypeId,
@@ -852,16 +853,23 @@ class EnrichmentService
      * Check if a case/session has already been enriched
      *
      * @param ResourceType $type The resource type being checked
-     * @param string $id The case_id or session_id to check
+     * @param string $id The case_id (or case_id for sessions when $sessionId provided)
+     * @param string|null $sessionId The session_id (only for SESSION type, uses composite key)
      * @return bool
      */
-    protected function isAlreadyEnriched(ResourceType $type, string $id): bool
+    protected function isAlreadyEnriched(ResourceType $type, string $id, ?string $sessionId = null): bool
     {
         if ($type === ResourceType::CASE) {
             return MigratedEnrichedCase::where('case_id', $id)->exists();
         }
         if ($type === ResourceType::SESSION) {
-            return MigratedEnrichedSession::where('session_id', $id)->exists();
+            // For sessions, we need both case_id and session_id (composite key)
+            if ($sessionId === null) {
+                throw new \InvalidArgumentException('Session enrichment check requires both case_id and session_id');
+            }
+            return MigratedEnrichedSession::where('case_id', $id)
+                ->where('session_id', $sessionId)
+                ->exists();
         }
         return false;
     }
@@ -1037,17 +1045,44 @@ class EnrichmentService
     }
 
     /**
-     * Get session IDs that haven't been enriched yet
-     * Helper method for testing and batch processing
+     * Get shallow session database IDs that haven't been enriched yet
+     * Returns database IDs (not session_ids) to handle composite keys properly
      *
      * @return Collection
      */
     public function getUnenrichedSessionIds(): Collection
     {
-        $enrichedSessionIds = MigratedEnrichedSession::pluck('session_id');
+        // Get all enriched (case_id, session_id) pairs
+        $enrichedPairs = MigratedEnrichedSession::select('case_id', 'session_id')->get();
 
-        return MigratedShallowSession::whereNotIn('session_id', $enrichedSessionIds)
-            ->pluck('session_id');
+        // Find shallow sessions that don't have a matching enriched pair
+        $unenrichedIds = MigratedShallowSession::whereNotExists(function ($query) {
+            $query->select(DB::raw(1))
+                ->from('migrated_enriched_sessions')
+                ->whereColumn('migrated_enriched_sessions.case_id', 'migrated_shallow_sessions.case_id')
+                ->whereColumn('migrated_enriched_sessions.session_id', 'migrated_shallow_sessions.session_id');
+        })->pluck('id');
+
+        return $unenrichedIds;
+    }
+
+    /**
+     * Get session_id strings for unenriched sessions (for API display)
+     * Returns actual session_id values for UI display purposes
+     *
+     * @return Collection
+     */
+    public function getUnenrichedSessionIdStrings(): Collection
+    {
+        // Find shallow sessions that don't have a matching enriched pair
+        $unenrichedSessions = MigratedShallowSession::whereNotExists(function ($query) {
+            $query->select(DB::raw(1))
+                ->from('migrated_enriched_sessions')
+                ->whereColumn('migrated_enriched_sessions.case_id', 'migrated_shallow_sessions.case_id')
+                ->whereColumn('migrated_enriched_sessions.session_id', 'migrated_shallow_sessions.session_id');
+        })->pluck('session_id');
+
+        return $unenrichedSessions;
     }
 
     /**

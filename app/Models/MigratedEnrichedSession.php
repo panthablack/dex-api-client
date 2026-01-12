@@ -38,7 +38,8 @@ class MigratedEnrichedSession extends Model
 
     public function shallowSession(): BelongsTo
     {
-        return $this->belongsTo(MigratedShallowSession::class, 'session_id', 'session_id');
+        return $this->belongsTo(MigratedShallowSession::class, 'session_id', 'session_id')
+            ->where('case_id', $this->case_id);
     }
 
     public function migratedCase(): BelongsTo
