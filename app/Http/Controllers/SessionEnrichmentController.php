@@ -135,19 +135,19 @@ class SessionEnrichmentController extends Controller
     }
 
     /**
-     * Get list of unenriched session IDs
+     * Get list of unenriched sessions with composite keys (case_id, session_id)
      * GET /enrichment/unenriched
      */
     public function unenriched(): JsonResponse
     {
         try {
-            $unenrichedSessionIds = $this->enrichmentService->getUnenrichedSessionIdStrings();
+            $unenrichedSessions = $this->enrichmentService->getUnenrichedSessionIdStrings();
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'unenriched_session_ids' => $unenrichedSessionIds,
-                    'count' => $unenrichedSessionIds->count()
+                    'unenriched_sessions' => $unenrichedSessions,
+                    'count' => $unenrichedSessions->count()
                 ]
             ]);
         } catch (\Exception $e) {

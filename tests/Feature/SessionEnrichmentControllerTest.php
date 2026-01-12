@@ -158,10 +158,26 @@ class SessionEnrichmentControllerTest extends TestCase
             ]
         ]);
 
-        $unenrichedIds = $response->json('data.unenriched_session_ids');
-        $this->assertContains('SESSION-A', $unenrichedIds);
-        $this->assertContains('SESSION-C', $unenrichedIds);
-        $this->assertNotContains('SESSION-B', $unenrichedIds);
+        // Now returns composite keys (case_id + session_id), not just session_id
+        $unenrichedSessions = $response->json('data.unenriched_sessions');
+        $this->assertCount(2, $unenrichedSessions);
+
+        // Check that SESSION-A and SESSION-C are in the results with their case_ids
+        $sessionAFound = false;
+        $sessionCFound = false;
+        foreach ($unenrichedSessions as $session) {
+            if ($session['session_id'] === 'SESSION-A' && $session['case_id'] === 'CASE-A') {
+                $sessionAFound = true;
+            }
+            if ($session['session_id'] === 'SESSION-C' && $session['case_id'] === 'CASE-C') {
+                $sessionCFound = true;
+            }
+            // SESSION-B should not be in the results
+            $this->assertNotEquals('SESSION-B', $session['session_id']);
+        }
+
+        $this->assertTrue($sessionAFound, 'SESSION-A with CASE-A should be in unenriched sessions');
+        $this->assertTrue($sessionCFound, 'SESSION-C with CASE-C should be in unenriched sessions');
     }
 
     public function test_start_endpoint_rejects_when_no_shallow_sessions(): void

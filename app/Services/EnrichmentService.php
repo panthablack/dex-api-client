@@ -1067,20 +1067,21 @@ class EnrichmentService
     }
 
     /**
-     * Get session_id strings for unenriched sessions (for API display)
-     * Returns actual session_id values for UI display purposes
+     * Get composite keys (case_id, session_id) for unenriched sessions
+     * Returns array of composite keys since session_id alone is not unique
      *
-     * @return Collection
+     * @return Collection Collection of arrays with 'case_id' and 'session_id'
      */
     public function getUnenrichedSessionIdStrings(): Collection
     {
         // Find shallow sessions that don't have a matching enriched pair
+        // Return both case_id and session_id since they form the composite key
         $unenrichedSessions = MigratedShallowSession::whereNotExists(function ($query) {
             $query->select(DB::raw(1))
                 ->from('migrated_enriched_sessions')
                 ->whereColumn('migrated_enriched_sessions.case_id', 'migrated_shallow_sessions.case_id')
                 ->whereColumn('migrated_enriched_sessions.session_id', 'migrated_shallow_sessions.session_id');
-        })->pluck('session_id');
+        })->select('case_id', 'session_id')->get();
 
         return $unenrichedSessions;
     }
